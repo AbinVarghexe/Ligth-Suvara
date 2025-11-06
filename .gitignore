@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+GITHUB_PAGES_SETUP.md
+PRIVACY_POLICY.md
+index.html
