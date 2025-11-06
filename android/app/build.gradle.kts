@@ -1,6 +1,11 @@
-// 1. Add these imports at the very top
 import java.util.Properties
 import java.io.FileInputStream
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("android/key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
 
 plugins {
     id("com.android.application")
@@ -18,6 +23,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "in.cse.ajce.sundayschool"
+    namespace = "in.cse.ajce.sundayschool"
     compileSdk = 35
     ndkVersion = "27.0.12077973"
 
@@ -27,11 +33,16 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = "21"
     }
 
-    // 3. Add signing configs (Kotlin syntax)
     signingConfigs {
+        create("release") {
+            if (keystoreProperties.getProperty("storeFile") != null) {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
         create("release") {
             if (keystoreProperties.getProperty("storeFile") != null) {
                 storeFile = file(keystoreProperties.getProperty("storeFile"))
@@ -44,16 +55,18 @@ android {
 
     defaultConfig {
         applicationId = "in.cse.ajce.sundayschool"
+        applicationId = "in.cse.ajce.sundayschool"
         minSdk = 24
         targetSdk = 35
-        versionCode = flutter.versionCode.toInt()
-        versionName = flutter.versionName
+        versionCode = (project.findProperty("flutter.versionCode") as String?)?.toInt() ?: 1
+        versionName = project.findProperty("flutter.versionName") as String?
         multiDexEnabled = true
     }
 
     // 4. Configure build types (Kotlin syntax)
     buildTypes {
         getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             isShrinkResources = false
             signingConfig = signingConfigs.getByName("release")
@@ -64,4 +77,3 @@ android {
 flutter {
     source = "../.."
 }
-

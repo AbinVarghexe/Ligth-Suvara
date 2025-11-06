@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBfRhdA1PQxXmQhN6xqxN71WRx1xwM2PSw',
-    appId: '1:922341060283:android:bd0d9881e379945a3ac39e',
+    appId: '1:922341060283:android:1531e4c72e70e5303ac39e',
     messagingSenderId: '922341060283',
     projectId: 'sunday-school-8cde8',
     storageBucket: 'sunday-school-8cde8.firebasestorage.app',
@@ -83,4 +83,5 @@ class DefaultFirebaseOptions {
     authDomain: 'sunday-school-8cde8.firebaseapp.com',
     storageBucket: 'sunday-school-8cde8.firebasestorage.app',
   );
+
 }
