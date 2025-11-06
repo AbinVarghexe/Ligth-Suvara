@@ -202,12 +202,6 @@ class LoginScreen extends StatelessWidget {
               ),
             ),
           ],
-          // A leading menu button would typically be here if needed
-          // If you want one, uncomment the following:
-          // leading: IconButton(
-          //   icon: Icon(Icons.menu, color: Colors.blue.shade900),
-          //   onPressed: () => _showMenuBottomSheet(context),
-          // ),
         ),
         body: Stack(
           children: [
@@ -236,109 +230,110 @@ class LoginScreen extends StatelessWidget {
                 _buildAnnouncementMarquee(),
                 Expanded(
                   flex: 4,
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 40.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 10),
-                          Text(
-                            'Welcome',
-                            style: GoogleFonts.poppins(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E3A8A),
-                            ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // CORE FIX: Reduced spacing to prevent overflow
+                        const SizedBox(height: 5),
+                        Text(
+                          'Welcome',
+                          style: GoogleFonts.poppins(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1E3A8A),
                           ),
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const BroadcastScreen(),
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.new_releases_outlined),
-                              label: Text(
-                                'View Recent Updates',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const BroadcastScreen(),
                                 ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor: Colors.blue.shade900,
-                                side: BorderSide(
-                                  color: Colors.blue[900]!,
-                                  width: 2,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.new_releases_outlined),
+                            label: Text(
+                              'View Recent Updates',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                _showMenuBottomSheet(context);
-                              },
-                              icon: const Icon(Icons.menu_book_outlined),
-                              label: Text(
-                                'Menu',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
-                                ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: Colors.blue.shade900,
+                              side: BorderSide(
+                                color: Colors.blue[900]!,
+                                width: 2,
                               ),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor: Colors.blue.shade900,
-                                side: BorderSide(
-                                  color: Colors.blue[900]!,
-                                  width: 2,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 14,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 10),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const SizedBox(height: 10),
-                              Image.asset(
-                                'assets/images/suvara logo wbg5.jpg',
-                                height: 90,
-                                fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              _showMenuBottomSheet(context);
+                            },
+                            icon: const Icon(Icons.menu_book_outlined),
+                            label: Text(
+                              'Menu',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
                               ),
-                              Image.asset(
-                                'assets/images/diocese-logo-new1.png',
-                                height: 55,
-                                fit: BoxFit.contain,
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: Colors.blue.shade900,
+                              side: BorderSide(
+                                color: Colors.blue[900]!,
+                                width: 2,
                               ),
-                            ],
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 14,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
                           ),
-                          const SizedBox(height: 40),
-                        ],
-                      ),
+                        ),
+                        // CORE FIX: Reduced spacing
+                        const SizedBox(height: 5),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 10),
+                            Image.asset(
+                              'assets/images/suvara logo wbg5.jpg',
+                              height: 80, // Reduced height
+                              fit: BoxFit.contain,
+                            ),
+                            Image.asset(
+                              'assets/images/diocese-logo-new1.png',
+                              height: 50, // Reduced height
+                              fit: BoxFit.contain,
+                            ),
+                          ],
+                        ),
+                        // CORE FIX: Reduced spacing
+                        const SizedBox(height: 20),
+                      ],
                     ),
                   ),
                 ),

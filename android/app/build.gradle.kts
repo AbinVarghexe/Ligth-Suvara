@@ -1,8 +1,10 @@
-def keystoreProperties = new Properties()
-// --- ✅ THIS IS THE CORRECTED LINE ---
-def keystorePropertiesFile = rootProject.file('android/key.properties')
+import java.util.Properties
+import java.io.FileInputStream
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("android/key.properties")
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 plugins {
@@ -13,7 +15,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.sundayschool_app"
+    namespace = "in.cse.ajce.sundayschool"
     compileSdk = 35
     ndkVersion = "27.0.12077973"
 
@@ -23,31 +25,32 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_21.toString()
+        jvmTarget = "21"
     }
+
     signingConfigs {
-        release {
-            if (keystoreProperties.getProperty('storeFile') != null) {
-                storeFile file(keystoreProperties.getProperty('storeFile'))
-                storePassword keystoreProperties.getProperty('storePassword')
-                keyAlias keystoreProperties.getProperty('keyAlias')
-                keyPassword keystoreProperties.getProperty('keyPassword')
+        create("release") {
+            if (keystoreProperties.getProperty("storeFile") != null) {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
             }
         }
     }
 
     defaultConfig {
-        applicationId = "com.example.sundayschool_app"
+        applicationId = "in.cse.ajce.sundayschool"
         minSdk = 24
         targetSdk = 35
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = (project.findProperty("flutter.versionCode") as String?)?.toInt() ?: 1
+        versionName = project.findProperty("flutter.versionName") as String?
         multiDexEnabled = true
     }
 
     buildTypes {
-        release {
-            signingConfig signingConfigs.release
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             isShrinkResources = false
         }
