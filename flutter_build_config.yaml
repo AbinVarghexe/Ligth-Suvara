@@ -1,0 +1,21 @@
+# App Bundle Configuration for Play Store
+# This file contains settings optimized for Google Play Store distribution
+
+# Enable app bundle generation
+flutter.build-modes:
+  - release
+
+# Optimize for different screen densities
+flutter.target-platforms:
+  - android-arm64
+  - android-arm
+  - android-x64
+
+# Enable tree shaking for smaller bundle size
+flutter.tree-shake-icons: true
+
+# Enable code obfuscation for release builds
+flutter.obfuscate: true
+
+# Split APKs by ABI for smaller downloads
+flutter.split-per-abi: true

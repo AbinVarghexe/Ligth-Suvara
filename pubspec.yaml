@@ -1,0 +1,80 @@
+name: sundayschool_app
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.8.1 <4.0.0' # Use range for better compatibility
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  firebase_core: ^2.27.0
+  cloud_firestore: ^4.15.8
+  firebase_storage: ^11.6.9
+  image_picker: ^1.0.7
+  intl: ^0.18.1
+  carousel_slider: ^5.1.1
+  marquee: ^2.3.0
+  firebase_auth: ^4.20.0
+  flutter_image_compress: ^2.3.0
+  path_provider: ^2.1.5
+  path: ^1.9.1
+  google_fonts: ^6.2.1
+  rxdart: ^0.27.7
+  collection: ^1.18.0
+  pdf: ^3.10.0
+  open_file: ^3.3.2
+  provider: ^6.1.2
+  http: ^1.2.1
+  shimmer: ^3.0.0
+  url_launcher: ^6.3.2
+  webview_flutter: ^4.10.0
+
+dev_dependencies:
+  flutter_native_splash: ^2.4.7
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  flutter_launcher_icons: "^0.13.1"
+
+flutter_launcher_icons:
+  android: true # true or a custom filename (without extension)
+  ios: true # true or a custom filename (without extension)
+  image_path: "assets/images/appicon.png"
+  adaptive_icon_background: "#0D47A1" # A color or image path
+  adaptive_icon_foreground: "assets/images/appicon.png"
+
+# flutter_launcher_icons:
+
+  # Path to your 1024x1024 icon file
+  # Optional: For Android Adaptive Icons (recommended for modern Android)
+  # adaptive_icon_background: "#ffffff" # A color or image path
+  # adaptive_icon_foreground: "assets/images/foreground.png"
+flutter_native_splash:
+  android: true
+  ios: true
+
+  color: "#0D47A1"
+  image: assets/images/Logo.png
+
+  android_12:
+    color: "#0D47A1"
+    image: assets/images/logo3sp.png
+    branding: assets/images/branding.png
+
+  # Changed to the square/portrait-friendly asset for better display
+
+
+
+
+# This is the corrected configuration block.
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
