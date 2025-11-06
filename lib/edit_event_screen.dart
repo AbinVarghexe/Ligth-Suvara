@@ -215,7 +215,6 @@ class _EditEventScreenState extends State<EditEventScreen> {
     }
   }
 
-  // ⭐️ FIX: RE-IMPLEMENTED THE MISSING BUILD METHOD ⭐️
   @override
   Widget build(BuildContext context) {
     final themeColor = Colors.blue[900]!;
@@ -391,9 +390,9 @@ class _EditEventScreenState extends State<EditEventScreen> {
     if (_selectedDate == null) {
       displayText = 'Select Event Date & Time';
     } else {
-      final formattedDate = DateFormat('MMMM dd, yyyy').format(_selectedDate!);
+      final formattedDate = DateFormat('MMM dd, yyyy').format(_selectedDate!);
       final formattedTime = _selectedTime?.format(context) ?? 'Time not set';
-      displayText = '$formattedDate • $formattedTime';
+      displayText = '$formattedDate  •  $formattedTime';
     }
 
     return InkWell(
@@ -401,16 +400,23 @@ class _EditEventScreenState extends State<EditEventScreen> {
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: themeColor, width: 1.5)),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: themeColor)),
         child: Row(
           children: [
             Icon(Icons.calendar_month_outlined, color: themeColor),
             const SizedBox(width: 12),
-            Text(
-              displayText,
-              style: GoogleFonts.poppins(fontSize: 16, color: Colors.black87),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  displayText,
+                  style: GoogleFonts.poppins(fontSize: 16, color: _selectedDate == null ? themeColor.withOpacity(0.8) : Colors.black),
+                  maxLines: 1,
+                  softWrap: false,
+                ),
+              ),
             ),
-            const Spacer(),
             Icon(Icons.arrow_drop_down, color: themeColor),
           ],
         ),
@@ -429,49 +435,39 @@ class _EditEventScreenState extends State<EditEventScreen> {
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
-      readOnly: _isLoading,
       style: GoogleFonts.poppins(),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: GoogleFonts.poppins(color: themeColor),
         prefixIcon: Icon(icon, color: themeColor),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: themeColor, width: 1.5),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: themeColor, width: 2),
-        ),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: themeColor)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: themeColor, width: 2)),
       ),
       validator: validator,
     );
   }
 
   Widget _buildSaveButton(Color themeColor) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: _isLoading ? null : _updateEvent,
-        icon: _isLoading
-            ? Container(
-          width: 24,
-          height: 24,
-          padding: const EdgeInsets.all(2.0),
-          child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
-        )
-            : const Icon(Icons.check_circle_outline, color: Colors.white),
-        label: Text(
-          _isLoading ? 'Saving...' : 'Update Event',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: themeColor,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-          elevation: 5,
-        ),
+    return ElevatedButton.icon(
+      onPressed: _isLoading ? null : _updateEvent,
+      icon: _isLoading
+          ? Container(
+        width: 24,
+        height: 24,
+        padding: const EdgeInsets.all(2.0),
+        child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+      )
+          : const Icon(Icons.check_circle_outline, color: Colors.white),
+      label: Text(
+        _isLoading ? 'Saving...' : 'Update Event',
+        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: themeColor,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        elevation: 5,
       ),
     );
   }
@@ -495,7 +491,9 @@ class _EditEventScreenState extends State<EditEventScreen> {
               color: isSuccess ? Colors.green : Colors.red,
             ),
             const SizedBox(width: 10),
-            Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+            Expanded(
+              child: Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+            ),
           ],
         ),
         content: Text(message, style: GoogleFonts.poppins()),

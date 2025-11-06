@@ -8,6 +8,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:sundayschool_app/admin_notification_screen.dart';
 import 'package:sundayschool_app/event_detail_screen.dart';
 import 'package:sundayschool_app/edit_event_screen.dart';
+import 'package:sundayschool_app/login_screen.dart';
 
 // Re-define SortOption for modularity (originally in homescreen.dart)
 enum SortOption { newestFirst, alphabetical }
@@ -590,10 +591,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        // CORE CHANGE: Add iOS Back Button
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded, color: themeColor),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              );
+            }
+          },
         ),
         title: Text('Admin Dashboard', style: GoogleFonts.poppins(fontWeight: FontWeight.w700, color: themeColor)),
         backgroundColor: Colors.white,

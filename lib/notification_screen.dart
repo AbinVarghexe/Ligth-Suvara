@@ -13,9 +13,10 @@ class AppNotification {
   final String message;
   final DateTime timestamp;
   final String recipientId;
-  final bool isRead; // New field
+  final bool isRead;
+  final bool isFromBroadcasts;
 
-  AppNotification.fromDoc(DocumentSnapshot doc)
+  AppNotification.fromDoc(DocumentSnapshot doc, String currentUserId, {this.isFromBroadcasts = false})
       : id = doc.id,
         title =
             (doc.data() as Map<String, dynamic>?)?['title'] as String? ?? 'No Title',
@@ -24,16 +25,14 @@ class AppNotification {
         timestamp = ((doc.data() as Map<String, dynamic>?)?['timestamp'] as Timestamp?)
             ?.toDate() ??
             DateTime.now(),
-  // For 'broadcasts', there is no recipientId, so we default to 'public'
         recipientId = (doc.data() as Map<String, dynamic>?)?['recipientId'] as String? ??
             'public',
-  // Default to 'true' for public broadcasts, 'false' for personal/all notifications
-        isRead = (doc.data() as Map<String, dynamic>?)?['isRead'] as bool? ??
-            ((doc.data() as Map<String, dynamic>?)?['recipientId'] == null);
+        isRead = ((doc.data() as Map<String, dynamic>?)?['readBy'] as List<dynamic>? ?? [])
+            .contains(currentUserId);
 
   // Helper to determine the type of notification for UI styling
   bool get isBroadcast => recipientId == 'all';
-  bool get isPublic => recipientId == 'public';
+  bool get isPublic => isFromBroadcasts;
 }
 
 // --- MAIN SCREEN WIDGET ---
@@ -117,7 +116,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 }
 
                 // MERGE, MAP, AND SORT THE RESULTS
-                final allDocs = [...snapshot.data![0].docs, ...snapshot.data![1].docs];
+                final notificationsDocs = snapshot.data![0].docs;
+                final broadcastsDocs = snapshot.data![1].docs;
+
+                final allDocs = [...notificationsDocs, ...broadcastsDocs];
 
                 allDocs.sort((a, b) {
                   final aTimestamp = (a.data() as Map<String, dynamic>?)?['timestamp'] as Timestamp? ?? Timestamp.now();
@@ -129,7 +131,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   return _buildEmptyState();
                 }
 
-                final notifications = allDocs.map((doc) => AppNotification.fromDoc(doc)).toList();
+                final notifications = allDocs.map((doc) {
+                  final isFromBroadcasts = broadcastsDocs.any((bd) => bd.id == doc.id);
+                  return AppNotification.fromDoc(doc, currentUser.uid, isFromBroadcasts: isFromBroadcasts);
+                }).toList();
 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -205,16 +210,18 @@ class _ModernNotificationTileState extends State<_ModernNotificationTile> {
 
   // --- ⭐️ 5. MARK AS READ FUNCTIONALITY (NOW UPDATES LOCAL STATE) ---
   void _markAsReadAndShowDialog(BuildContext context, _TileStyle style) {
-    // Only update if the notification is unread and not a public broadcast
-    if (_isUnread && !widget.notification.isPublic) {
-      // Update Firestore in the background
-      FirebaseFirestore.instance
-          .collection('notifications')
-          .doc(widget.notification.id)
-          .update({'isRead': true})
-          .catchError((e) => print("Error updating notification: $e"));
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
 
-      // ⭐️ UPDATE THE UI INSTANTLY
+    if (_isUnread) {
+      final collection = widget.notification.isFromBroadcasts ? 'broadcasts' : 'notifications';
+      FirebaseFirestore.instance
+          .collection(collection)
+          .doc(widget.notification.id)
+          .update({
+        'readBy': FieldValue.arrayUnion([currentUser.uid])
+      }).catchError((e) => print("Error updating notification: $e"));
+
       setState(() {
         _isUnread = false;
       });

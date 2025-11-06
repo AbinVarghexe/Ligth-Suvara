@@ -491,7 +491,6 @@
                 <a href="#cookies">10. Cookies and Tracking</a>
                 <a href="#policy-changes">11. Changes to This Policy</a>
                 <a href="#third-party-links">12. Third-Party Links</a>
-                <a href="#contact">13. Contact Us</a>
             </nav>
         </aside>
 
@@ -674,37 +673,6 @@
                 <p>Light Suvara may contain links to external websites or resources (such as Bible study materials or event registration pages). This Privacy Policy applies only to our app. We are not responsible for the privacy practices of third-party websites. We encourage you to read the privacy policies of any third-party sites you visit.</p>
             </div>
 
-            <div class="section" id="contact">
-                <h2>13. Contact Us</h2>
-                <p>If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:</p>
-                
-                <div class="contact-section">
-                    <h2>Get in Touch</h2>
-                    <p>We're here to help with any privacy-related questions or concerns.</p>
-                    
-                    <div class="contact-info">
-                        <div class="contact-item">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
-                            </svg>
-                            <a href="mailto:support@lightsuvara.com">support@lightsuvara.com</a>
-                        </div>
-                        
-                        <div class="contact-item">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                            </svg>
-                            <span>Light Suvara Team</span>
-                        </div>
-                        
-                        <div class="contact-item">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                            </svg>
-                            <span>Response Time: Within 48 hours</span>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -757,6 +725,30 @@
             sidebar.classList.toggle('open');
         }
 
+        // Function to update active navigation link
+        function updateActiveNav() {
+            const sections = document.querySelectorAll('.section');
+            const navLinks = document.querySelectorAll('.sidebar a');
+            
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                const scrollOffset = window.innerWidth <= 768 ? 130 : 110;
+                
+                if (window.scrollY >= (sectionTop - scrollOffset)) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
         // Smooth scroll with offset for header
         document.querySelectorAll('.sidebar a').forEach(link => {
             link.addEventListener('click', function(e) {
@@ -773,6 +765,9 @@
                         behavior: 'smooth'
                     });
                     
+                    // Update active state immediately after clicking
+                    setTimeout(updateActiveNav, 100);
+                    
                     // Close sidebar on mobile after clicking
                     if (window.innerWidth <= 768) {
                         document.getElementById('sidebar').classList.remove('open');
@@ -781,29 +776,11 @@
             });
         });
 
-        // Highlight active section in sidebar
-        window.addEventListener('scroll', function() {
-            const sections = document.querySelectorAll('.section');
-            const navLinks = document.querySelectorAll('.sidebar a');
-            
-            let current = '';
-            sections.forEach(section => {
-                const sectionTop = section.offsetTop;
-                const sectionHeight = section.clientHeight;
-                const scrollOffset = window.innerWidth <= 768 ? 130 : 110;
-                
-                if (scrollY >= (sectionTop - scrollOffset)) {
-                    current = section.getAttribute('id');
-                }
-            });
+        // Highlight active section in sidebar on scroll
+        window.addEventListener('scroll', updateActiveNav);
 
-            navLinks.forEach(link => {
-                link.classList.remove('active');
-                if (link.getAttribute('href') === '#' + current) {
-                    link.classList.add('active');
-                }
-            });
-        });
+        // Set initial active state on page load
+        window.addEventListener('load', updateActiveNav);
     </script>
 </body>
 </html>

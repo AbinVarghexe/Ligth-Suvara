@@ -438,11 +438,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final String place = data['place'] ?? 'Location not specified';
     final String title = data['title'] ?? 'Event Title';
     final Timestamp? dateTimestamp =
-        data['date'] as Timestamp?; // Corrected to use 'date'
+        data['timestamp'] as Timestamp?; // Corrected to use 'timestamp'
     final String imageUrl = data['imageUrl'] ?? '';
     final String category = (data['category'] ?? 'N/A').toUpperCase();
     final String dateTimeString = dateTimestamp != null
-        ? DateFormat('MMMM d, yyyy').format(
+        ? DateFormat('MMMM d, yyyy, h:mm a').format(
             dateTimestamp.toDate(),
           ) // Corrected format
         : 'Date Unknown';

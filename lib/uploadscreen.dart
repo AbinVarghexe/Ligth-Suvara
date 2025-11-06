@@ -38,7 +38,7 @@ class _UploadScreenState extends State<UploadScreen> {
 
   // CORE CHANGE 1: Add category state
   String? _selectedCategory;
-  final List<String> _categories = ['cml', 'suvara'];
+  final List<String> _categories = ['CML', 'SUVARA'];
 
   @override
   void initState() {
@@ -379,7 +379,7 @@ class _UploadScreenState extends State<UploadScreen> {
     if (_selectedDate == null) {
       displayText = 'Select Event Date & Time';
     } else {
-      final formattedDate = DateFormat('MMMM dd, yyyy').format(_selectedDate!);
+      final formattedDate = DateFormat('MMM dd, yyyy').format(_selectedDate!);
       final formattedTime = _selectedTime?.format(context) ?? 'Time not set';
       displayText = '$formattedDate  •  $formattedTime';
     }
@@ -394,11 +394,18 @@ class _UploadScreenState extends State<UploadScreen> {
           children: [
             Icon(Icons.calendar_month_outlined, color: themeColor),
             const SizedBox(width: 12),
-            Text(
-              displayText,
-              style: GoogleFonts.poppins(fontSize: 16, color: _selectedDate == null ? themeColor.withOpacity(0.8) : Colors.black),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  displayText,
+                  style: GoogleFonts.poppins(fontSize: 16, color: _selectedDate == null ? themeColor.withOpacity(0.8) : Colors.black),
+                  maxLines: 1,
+                  softWrap: false,
+                ),
+              ),
             ),
-            const Spacer(),
             Icon(Icons.arrow_drop_down, color: themeColor),
           ],
         ),

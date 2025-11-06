@@ -12,6 +12,7 @@ import 'package:sundayschool_app/event_detail_screen.dart';
 import 'package:sundayschool_app/profile_screen.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:async/async.dart'; // Import for StreamZip
 
 // The two ways we can sort
 enum SortOption { newestFirst, alphabetical }
@@ -36,15 +37,12 @@ class _HomeScreenState extends State<HomeScreen> {
   String _schoolDisplayName = 'Loading...';
   String? _profileImageUrl;
 
-  // 1. ADD new state variable for admin status
   bool _isAdmin = false;
-  // 2. REMOVE: late Future<bool> _isAdminFuture;
 
   @override
   void initState() {
     super.initState();
-    // 3. REMOVE: _isAdminFuture = _checkIfAdmin();
-    _loadUserData(); // Updated to handle admin check now
+    _loadUserData();
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -61,7 +59,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // 4. UPDATE _loadUserData to include admin check and setState
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -69,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _schoolDisplayName = 'Guest User';
           _profileImageUrl = null;
-          _isAdmin = false; // Ensure it's false for guest
+          _isAdmin = false;
         });
       }
       return;
@@ -79,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       String finalDisplayName = user.email?.split('@').first ?? 'User';
       String? imageUrl;
-      bool localIsAdmin = false; // Variable to hold fetched admin status
+      bool localIsAdmin = false;
 
       if (userDoc.exists) {
         final data = userDoc.data();
@@ -88,14 +85,13 @@ class _HomeScreenState extends State<HomeScreen> {
           finalDisplayName = schoolName.toString();
         }
         imageUrl = data?['profileImageUrl']?.toString();
-        // Check for admin role
         localIsAdmin = data?['role'] == 'admin';
       }
       if (mounted) {
         setState(() {
           _schoolDisplayName = finalDisplayName;
           _profileImageUrl = imageUrl;
-          _isAdmin = localIsAdmin; // Update the state variable
+          _isAdmin = localIsAdmin;
         });
       }
     } catch (e) {
@@ -105,8 +101,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
   }
-
-  // 5. REMOVE: Future<bool> _checkIfAdmin() async { ... }
 
   void _showSortDialog() {
     showDialog(
@@ -179,7 +173,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // The main scaffold structure remains the same
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -210,18 +203,27 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         centerTitle: true,
         actions: [
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseAuth.instance.currentUser != null ? FirebaseFirestore.instance
-                .collection('notifications')
-                .where('recipientId', whereIn: [FirebaseAuth.instance.currentUser!.uid, 'all'])
-                .snapshots() : null,
+          // CORE FIX: Combine streams to get an accurate unread count
+          StreamBuilder<List<QuerySnapshot>>(
+            stream: StreamZip([
+              FirebaseFirestore.instance
+                  .collection('notifications')
+                  .where('recipientId', whereIn: [FirebaseAuth.instance.currentUser?.uid ?? 'INVALID_USER', 'all'])
+                  .snapshots(),
+              FirebaseFirestore.instance.collection('broadcasts').snapshots(),
+            ]),
             builder: (context, snapshot) {
               int unreadCount = 0;
               if (snapshot.hasData && snapshot.data != null) {
-                unreadCount = snapshot.data!.docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>?;
-                  return data != null && data['isRead'] == false;
-                }).length;
+                final user = FirebaseAuth.instance.currentUser;
+                if (user != null) {
+                  final allDocs = [...snapshot.data![0].docs, ...snapshot.data![1].docs];
+                  unreadCount = allDocs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>?;
+                    final readBy = data?['readBy'] as List<dynamic>? ?? [];
+                    return !readBy.contains(user.uid);
+                  }).length;
+                }
               }
 
               return IconButton(
@@ -250,12 +252,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const NotificationsScreen()),
-                  );
+                  ).then((_) => setState(() {})); // Force rebuild on return
                 },
               );
             },
           ),
-          // 6. Use the _isAdmin state variable directly
           if (_isAdmin)
             IconButton(
               icon: const Icon(Icons.admin_panel_settings_outlined, color: Color(0xFF1E40AF)),
@@ -266,7 +267,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
-          // 7. REMOVE FutureBuilder block
           IconButton(
             icon: const Icon(Icons.logout, color: Color(0xFF1E40AF)),
             tooltip: 'Logout',
@@ -287,7 +287,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 24),
                 _buildRecentEventsHeader(),
                 const SizedBox(height: 16),
-                // --- ✨ CALLING THE NEW MODERN FILTER ✨ ---
                 _buildModernCategoryFilter(),
                 const SizedBox(height: 16),
                 _buildSearchBox(),
@@ -340,7 +339,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- ✨ NEW, MODERN, ANIMATED CATEGORY FILTER ✨ ---
   Widget _buildModernCategoryFilter() {
     final Color themeColor = Colors.blue.shade900;
     return Container(
@@ -410,90 +408,62 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- 8. LOGIC UPDATED TO FILTER BY CREATOR ID IF NOT ADMIN ---
+  // CORE CHANGE: Optimized event list to filter on the client-side
   Widget _buildRecentEventsList() {
-    final selectedCategory = _categories[_selectedCategoryIndex];
     final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
 
     Query baseQuery = FirebaseFirestore.instance.collection('events')
         .orderBy('timestamp', descending: true);
 
-    // CORE CHANGE: Filter by creatorId if user is not an admin
     if (!_isAdmin && currentUserUid != null) {
       baseQuery = baseQuery.where('creatorId', isEqualTo: currentUserUid);
-    }
-    // End CORE CHANGE
-
-    if (selectedCategory != 'ALL') {
-      baseQuery = baseQuery.where('category', isEqualTo: selectedCategory.toLowerCase());
     }
 
     return StreamBuilder<QuerySnapshot>(
       stream: baseQuery.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          // Check for index error specifically
-          if (snapshot.error.toString().contains('requires an index')) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, color: Colors.red, size: 50),
-                    SizedBox(height: 10),
-                    Text(
-                      "Database Index Required",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      "The query for filtering events by creator and category requires a composite index in Firestore. Please create it in the Firebase console.",
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const EventListSkeleton();
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          // Provide appropriate message if no events are found.
-          String message = "No events found.";
-          if (selectedCategory != 'ALL') {
-            message = "No events found for $selectedCategory.";
-          } else if (currentUserUid != null && !_isAdmin) {
-            message = "No events created by you found.";
-          }
           return Center(
               child: Padding(
                   padding: const EdgeInsets.all(32.0),
                   child: Text(
-                      message,
+                      "No events found.",
                       style: GoogleFonts.poppins(color: Colors.grey.shade600)
                   )
               )
           );
         }
 
-        // --- Client-side filtering for SEARCH on top of the category query results ---
-        final eventDocs = snapshot.data!.docs;
-        List<DocumentSnapshot> filteredDocs = eventDocs;
+        final allDocs = snapshot.data!.docs;
 
+        // --- CLIENT-SIDE FILTERING ---
+        final selectedCategory = _categories[_selectedCategoryIndex];
+        List<DocumentSnapshot> filteredDocs = allDocs;
+
+        // 1. Filter by Category
+        if (selectedCategory != 'ALL') {
+          filteredDocs = allDocs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return (data['category']?.toString().toUpperCase() ?? '') == selectedCategory;
+          }).toList();
+        }
+
+        // 2. Filter by Search Query
         if (_searchQuery.isNotEmpty) {
-          filteredDocs = eventDocs.where((doc) {
+          filteredDocs = filteredDocs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             final title = data['title']?.toString().toLowerCase() ?? '';
             return title.contains(_searchQuery);
           }).toList();
         }
 
-        // --- Client-side SORTING ---
+        // 3. Sort Results
         if (_currentSortOption == SortOption.alphabetical) {
           filteredDocs.sort((a, b) {
             String aTitle = (a.data() as Map<String, dynamic>)['title']?.toString().toLowerCase() ?? '';
@@ -503,18 +473,19 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         if (filteredDocs.isEmpty) {
-          return Center(
+           return Center(
               child: Padding(
                   padding: const EdgeInsets.all(32.0),
                   child: Text(
-                      'No events matching "$_searchQuery".',
+                      _searchQuery.isNotEmpty 
+                        ? 'No events matching "$_searchQuery".'
+                        : 'No events found for $selectedCategory.',
                       style: GoogleFonts.poppins(color: Colors.grey.shade600)
                   )
               )
           );
         }
 
-        // Build the list from the final filtered and sorted documents
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -546,6 +517,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? Image.network(
                       data['imageUrl'],
                       fit: BoxFit.cover,
+                      cacheWidth: 120, // Optimization
+                      cacheHeight: 120, // Optimization
                       errorBuilder: (ctx, err, st) =>
                       const Icon(Icons.broken_image, color: Colors.white),
                     )
@@ -592,24 +565,19 @@ class _HighlightEventCardState extends State<HighlightEventCard> {
     _highlightStream = _createHighlightStream();
   }
 
-  // CORE FIX: Custom method to build the filtered stream for the highlight card
   Stream<QuerySnapshot> _createHighlightStream() {
     final user = FirebaseAuth.instance.currentUser;
     Query baseQuery = FirebaseFirestore.instance.collection('events');
 
-    // If a user is logged in, restrict the highlighted event to those they created.
     if (user != null) {
-      // This enforces the privacy constraint for non-admin users.
       baseQuery = baseQuery.where('creatorId', isEqualTo: user.uid);
     }
 
-    // Always order by timestamp to get the newest, and limit to 1.
     return baseQuery
         .orderBy('timestamp', descending: true)
         .limit(1)
         .snapshots();
   }
-  // END CORE FIX
 
   @override
   Widget build(BuildContext context) {

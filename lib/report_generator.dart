@@ -16,12 +16,11 @@ Future<Uint8List> generateEventReport(Map<String, dynamic> eventData) async {
   final description = eventData['description'] ?? 'No description provided.';
 
   // --- 1. GET THE CATEGORY DATA ---
-  final category = eventData['category'] ?? 'N/A';
+  final category = (eventData['category'] ?? 'N/A').toUpperCase();
 
-  // ⭐️ FIX: Use a PDF-safe date format ⭐️
-  // This correctly uses the 'date' field, not 'timestamp'
-  final date = eventData['date'] != null && eventData['date'] is Timestamp
-      ? DateFormat('MMMM d, yyyy').format(eventData['date'].toDate())
+  // ⭐️ FIX: Use a PDF-safe date format that includes the time ⭐️
+  final date = eventData['timestamp'] != null && eventData['timestamp'] is Timestamp
+      ? DateFormat('MMMM d, yyyy, h:mm a').format(eventData['timestamp'].toDate())
       : 'Date Unavailable';
 
   final creatorSchoolName = eventData['creatorSchoolName'] ?? 'N/A';
@@ -59,7 +58,7 @@ Future<Uint8List> generateEventReport(Map<String, dynamic> eventData) async {
                 borderRadius: pw.BorderRadius.circular(10),
                 image: pw.DecorationImage(
                   image: eventImage,
-                  fit: pw.BoxFit.cover,
+                  fit: pw.BoxFit.contain,
                 ),
                 border: pw.Border.all(color: PdfColors.blueGrey100, width: 2),
               ),
@@ -71,9 +70,8 @@ Future<Uint8List> generateEventReport(Map<String, dynamic> eventData) async {
           children: [
             pw.Expanded(
               child: _buildDetailColumn('Event Details', [
-                _buildDetailRow('Date', date), // Use the corrected date
+                _buildDetailRow('Date & Time', date), // Use the corrected date and time
                 _buildDetailRow('Venue/Place', place),
-                // --- 2. ADD THE CATEGORY ROW ---
                 _buildDetailRow('Category', category),
               ]),
             ),
@@ -126,10 +124,6 @@ Future<Uint8List> generateEventReport(Map<String, dynamic> eventData) async {
   return pdf.save();
 }
 
-// ... (The rest of your helper widgets are correct and do not need changes)
-// _buildHeader, _buildDetailColumn, _buildDetailRow, _buildFooter
-
-// ... (paste the rest of your helper functions here)
 pw.Widget _buildHeader(String eventTitle) {
   return pw.Container(
     margin: const pw.EdgeInsets.only(bottom: 20),
@@ -161,7 +155,7 @@ pw.Widget _buildDetailColumn(String title, List<pw.Widget> details) {
   return pw.Container(
     padding: const pw.EdgeInsets.all(12),
     decoration: pw.BoxDecoration(
-      color: PdfColors.blue50, // Light colored background for the box
+      color: PdfColors.blue50,
       borderRadius: pw.BorderRadius.circular(6),
     ),
     child: pw.Column(
@@ -184,12 +178,12 @@ pw.Widget _buildDetailColumn(String title, List<pw.Widget> details) {
 
 pw.Widget _buildDetailRow(String label, String value) {
   return pw.Padding(
-    padding: const pw.EdgeInsets.symmetric(vertical: 3), // Reduced padding
+    padding: const pw.EdgeInsets.symmetric(vertical: 3),
     child: pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.SizedBox(
-          width: 100, // Increased width for labels
+          width: 100,
           child: pw.Text(
             label,
             style: pw.TextStyle(
