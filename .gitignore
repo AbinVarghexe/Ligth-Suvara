@@ -43,6 +43,30 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Security - Never commit these files!
+*.jks
+*.keystore
+**/key.properties
+**/upload-keystore.jks
+google-services.json
+service-account.json
+*-service-account.json
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
 GITHUB_PAGES_SETUP.md
 PRIVACY_POLICY.md
 index.html
+RELEASE_GUIDE.md
+BRANCH_WORKFLOW.md
+CHANGELOG.md
+.github/workflows/play-store-release.yml
+PLAY_STORE_RELEASE_SETUP.md
+.github/workflows/README.md
+fastlane/metadata/android/en-US/changelogs/1.txt
+fastlane/metadata/android/en-US/changelogs/2.txt
