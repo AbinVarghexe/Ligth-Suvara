@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "922341060283",
+    "project_id": "sunday-school-8cde8",
+    "storage_bucket": "sunday-school-8cde8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:922341060283:android:1531e4c72e70e5303ac39e",
+        "android_client_info": {
+          "package_name": "in.cse.ajce.sundayschool"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBfRhdA1PQxXmQhN6xqxN71WRx1xwM2PSw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

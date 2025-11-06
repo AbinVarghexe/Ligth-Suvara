@@ -46,7 +46,7 @@ flutter_launcher_icons:
   ios: true # true or a custom filename (without extension)
   image_path: "assets/images/appicon.png"
   adaptive_icon_background: "#0D47A1" # A color or image path
-  adaptive_icon_foreground: "assets/images/appicon.png"
+  # adaptive_icon_foreground: "assets/images/appicon.png"
 
 # flutter_launcher_icons:
 
