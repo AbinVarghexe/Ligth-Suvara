@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Privacy Policy for Light Suvara - Sunday School App">
+    <meta name="author" content="Abin Varghese">
+    <title>Privacy Policy - Light Suvara</title>
+    <style>
+        :root {
+            --bg-primary: #fff;
+            --bg-secondary: #f9f9f9;
+            --bg-tertiary: #f5f5f5;
+            --text-primary: #000;
+            --text-secondary: #333;
+            --text-tertiary: #666;
+            --border-color: #e0e0e0;
+            --highlight-bg: #000;
+            --highlight-text: #fff;
+            --sidebar-bg: #f9f9f9;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #3a3a3a;
+            --text-primary: #fff;
+            --text-secondary: #e0e0e0;
+            --text-tertiary: #a0a0a0;
+            --border-color: #404040;
+            --highlight-bg: #fff;
+            --highlight-text: #000;
+            --sidebar-bg: #2d2d2d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-padding-top: 100px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.8;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .main-wrapper {
+            display: flex;
+            flex: 1;
+            position: relative;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 280px;
+            height: 100vh;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            padding: 40px 20px;
+            z-index: 100;
+            transition: background 0.3s, border-color 0.3s;
+        }
+
+        .sidebar h3 {
+            font-size: 0.85em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-tertiary);
+            margin-bottom: 20px;
+            padding: 0 15px;
+        }
+
+        .sidebar nav {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 10px 15px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            font-size: 0.95em;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar a:hover {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border-left-color: var(--text-primary);
+        }
+
+        .sidebar a.active {
+            background: var(--highlight-bg);
+            color: var(--highlight-text);
+            font-weight: 600;
+            border-left-color: var(--highlight-bg);
+        }
+
+        .content-wrapper {
+            margin-left: 280px;
+            flex: 1;
+        }
+
+        .container {
+            width: 100%;
+            margin: 0;
+            background: var(--bg-primary);
+            transition: background 0.3s;
+        }
+
+        .header {
+            background: var(--highlight-bg);
+            color: var(--highlight-text);
+            padding: 60px 40px;
+            text-align: center;
+            border-bottom: 3px solid var(--highlight-bg);
+            transition: background 0.3s, color 0.3s;
+            position: relative;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--highlight-text);
+            color: var(--highlight-bg);
+            border: 2px solid var(--highlight-text);
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.05);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: var(--highlight-text);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+            font-weight: 300;
+            color: var(--highlight-text);
+        }
+
+        .content {
+            padding: 60px 40px;
+            background: var(--bg-primary);
+            max-width: 1400px;
+            margin: 0 auto;
+            transition: background 0.3s;
+        }
+
+        .section {
+            margin-bottom: 50px;
+            padding-bottom: 40px;
+            border-bottom: 1px solid var(--border-color);
+            transition: border-color 0.3s;
+        }
+
+        .section:last-of-type {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .section h2 {
+            color: var(--text-primary);
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .section h3 {
+            color: var(--text-primary);
+            font-size: 1.3em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .section p {
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+            font-size: 1.05em;
+            line-height: 1.8;
+        }
+
+        .section ul, .section ol {
+            margin-left: 30px;
+            margin-bottom: 20px;
+            line-height: 1.9;
+        }
+
+        .section li {
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            font-size: 1.05em;
+        }
+
+        .section li strong {
+            color: var(--text-primary);
+        }
+
+        .section a {
+            color: var(--text-primary);
+            text-decoration: underline;
+        }
+
+        .highlight-box {
+            background: var(--bg-tertiary);
+            border-left: 4px solid var(--highlight-bg);
+            padding: 25px;
+            margin: 25px 0;
+            transition: background 0.3s, border-color 0.3s;
+        }
+
+        .highlight-box p {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .contact-section {
+            background: var(--highlight-bg);
+            color: var(--highlight-text);
+            padding: 50px 40px;
+            margin-top: 50px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .contact-section h2 {
+            color: var(--highlight-text);
+            margin-bottom: 25px;
+            font-weight: 700;
+        }
+
+        .contact-section p {
+            color: var(--highlight-text);
+            margin-bottom: 15px;
+            opacity: 0.95;
+        }
+
+        .contact-info {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .contact-item:last-child {
+            border-bottom: none;
+        }
+
+        .contact-item svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--highlight-text);
+            flex-shrink: 0;
+        }
+
+        .contact-item a {
+            color: var(--highlight-text);
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+
+        .contact-item a:hover {
+            opacity: 0.7;
+            text-decoration: underline;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            background: var(--bg-secondary);
+            color: var(--text-tertiary);
+            font-size: 0.95em;
+            border-top: 1px solid var(--border-color);
+            transition: background 0.3s, color 0.3s, border-color 0.3s;
+        }
+
+        .menu-toggle {
+            display: none;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 240px;
+            }
+
+            .content-wrapper {
+                margin-left: 240px;
+            }
+
+            .theme-toggle {
+                padding: 8px 16px;
+                font-size: 0.85em;
+            }
+        }
+
+        @media (max-width: 768px) {
+            html {
+                scroll-padding-top: 120px;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                width: 280px;
+                transition: left 0.3s;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+
+            .content-wrapper {
+                margin-left: 0;
+            }
+
+            .menu-toggle {
+                display: block !important;
+                position: fixed;
+                top: 20px;
+                left: 20px;
+                z-index: 101;
+                background: var(--highlight-bg);
+                color: var(--highlight-text);
+                border: none;
+                padding: 12px 16px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 1.2em;
+                transition: background 0.3s, color 0.3s;
+            }
+
+            .theme-toggle {
+                top: 20px;
+                right: 20px;
+                padding: 8px 12px;
+                font-size: 0.8em;
+            }
+
+            .header {
+                padding: 40px 20px;
+                padding-top: 80px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .header p {
+                font-size: 1em;
+            }
+
+            .content {
+                padding: 40px 20px;
+            }
+
+            .section {
+                margin-bottom: 40px;
+                padding-bottom: 30px;
+            }
+
+            .section h2 {
+                font-size: 1.5em;
+                margin-bottom: 15px;
+            }
+
+            .section h3 {
+                font-size: 1.2em;
+                margin-top: 20px;
+            }
+
+            .section p, .section li {
+                font-size: 1em;
+            }
+
+            .section ul, .section ol {
+                margin-left: 20px;
+            }
+
+            .highlight-box {
+                padding: 20px 15px;
+                margin: 20px 0;
+            }
+
+            .contact-section {
+                padding: 30px 20px;
+                margin-top: 40px;
+            }
+
+            .contact-section h2 {
+                font-size: 1.5em;
+            }
+
+            .contact-item {
+                gap: 12px;
+                padding: 12px 0;
+            }
+
+            .contact-item svg {
+                width: 20px;
+                height: 20px;
+            }
+
+            .footer {
+                padding: 30px 20px;
+                font-size: 0.9em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .section h2 {
+                font-size: 1.3em;
+            }
+
+            .section h3 {
+                font-size: 1.1em;
+            }
+
+            .content {
+                padding: 30px 15px;
+            }
+
+            .contact-section {
+                padding: 25px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    
+    <div class="main-wrapper">
+        <aside class="sidebar" id="sidebar">
+            <h3>Contents</h3>
+            <nav>
+                <a href="#introduction">1. Introduction</a>
+                <a href="#information-collect">2. Information We Collect</a>
+                <a href="#how-we-use">3. How We Use Your Information</a>
+                <a href="#data-storage">4. Data Storage and Security</a>
+                <a href="#data-sharing">5. Data Sharing and Disclosure</a>
+                <a href="#your-rights">6. Your Rights and Choices</a>
+                <a href="#children-privacy">7. Children's Privacy</a>
+                <a href="#data-retention">8. Data Retention</a>
+                <a href="#international-transfers">9. International Data Transfers</a>
+                <a href="#cookies">10. Cookies and Tracking</a>
+                <a href="#policy-changes">11. Changes to This Policy</a>
+                <a href="#third-party-links">12. Third-Party Links</a>
+                <a href="#contact">13. Contact Us</a>
+            </nav>
+        </aside>
+
+        <div class="content-wrapper">
+            <div class="container">
+        <div class="header">
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span id="theme-icon">☀️</span>
+            </button>
+            <h1>Privacy Policy</h1>
+            <p>Light Suvara - Sunday School App</p>
+            <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">Last Updated: November 6, 2025</p>
+        </div>
+
+        <div class="content">
+            <div class="section" id="introduction">
+                <h2>1. Introduction</h2>
+                <p>Welcome to Light Suvara. We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application.</p>
+                <div class="highlight-box">
+                    <p>Light Suvara is a Sunday School management application serving Christian Mission League (CML) and SUVARA organizations. We take your privacy seriously and are transparent about our data practices.</p>
+                </div>
+            </div>
+
+            <div class="section" id="information-collect">
+                <h2>2. Information We Collect</h2>
+                
+                <h3>2.1 Personal Information</h3>
+                <p>When you register and use Light Suvara, we may collect:</p>
+                <ul>
+                    <li><strong>Account Information:</strong> Name, email address, phone number</li>
+                    <li><strong>Profile Information:</strong> Organization affiliation (CML or SUVARA), role (User or Admin)</li>
+                    <li><strong>School Selection:</strong> Your selected Sunday School organization</li>
+                </ul>
+
+                <h3>2.2 Usage Information</h3>
+                <p>We automatically collect certain information when you use our app:</p>
+                <ul>
+                    <li><strong>Event Interactions:</strong> Events you view, search queries, event registrations</li>
+                    <li><strong>App Usage:</strong> Features accessed, time spent in app, navigation patterns</li>
+                    <li><strong>Device Information:</strong> Device type, operating system, unique device identifiers</li>
+                </ul>
+
+                <h3>2.3 Content You Create</h3>
+                <p>If you are an Admin user, we collect:</p>
+                <ul>
+                    <li><strong>Event Data:</strong> Event titles, descriptions, dates, venues, images</li>
+                    <li><strong>Notifications:</strong> Broadcast messages and announcements</li>
+                    <li><strong>Media Files:</strong> Images and documents uploaded for events</li>
+                </ul>
+            </div>
+
+            <div class="section" id="how-we-use">
+                <h2>3. How We Use Your Information</h2>
+                <p>We use the collected information for the following purposes:</p>
+                <ul>
+                    <li><strong>Service Delivery:</strong> To provide and maintain Light Suvara functionality</li>
+                    <li><strong>Personalization:</strong> To filter and display relevant events based on your organization</li>
+                    <li><strong>Communications:</strong> To send you event notifications, updates, and important announcements</li>
+                    <li><strong>Analytics:</strong> To understand how users interact with our app and improve user experience</li>
+                    <li><strong>Security:</strong> To protect against unauthorized access and ensure data integrity</li>
+                    <li><strong>Admin Functions:</strong> To enable event management, reporting, and administrative tasks</li>
+                </ul>
+            </div>
+
+            <div class="section" id="data-storage">
+                <h2>4. Data Storage and Security</h2>
+                
+                <h3>4.1 Firebase Infrastructure</h3>
+                <p>Light Suvara uses Google Firebase services for secure data storage and management:</p>
+                <ul>
+                    <li><strong>Firebase Authentication:</strong> Secure user authentication and authorization</li>
+                    <li><strong>Cloud Firestore:</strong> Real-time database for events, users, and notifications</li>
+                    <li><strong>Firebase Storage:</strong> Secure cloud storage for images and documents</li>
+                    <li><strong>Cloud Messaging:</strong> Push notification delivery system</li>
+                </ul>
+
+                <h3>4.2 Security Measures</h3>
+                <p>We implement industry-standard security measures:</p>
+                <ul>
+                    <li>Data encryption in transit and at rest</li>
+                    <li>Role-based access control (User vs. Admin permissions)</li>
+                    <li>Regular security audits and updates</li>
+                    <li>Secure Firebase Security Rules to prevent unauthorized access</li>
+                </ul>
+
+                <div class="highlight-box">
+                    <p>Note: While we strive to protect your personal information, no method of transmission over the internet or electronic storage is 100% secure. We cannot guarantee absolute security.</p>
+                </div>
+            </div>
+
+            <div class="section" id="data-sharing">
+                <h2>5. Data Sharing and Disclosure</h2>
+                
+                <h3>5.1 Within Your Organization</h3>
+                <p>Event information is shared within your selected organization (CML or SUVARA) to facilitate Sunday School activities and communication.</p>
+
+                <h3>5.2 Third-Party Services</h3>
+                <p>We use the following third-party services:</p>
+                <ul>
+                    <li><strong>Google Firebase:</strong> Backend infrastructure and data storage</li>
+                    <li><strong>Google Fonts:</strong> Typography and UI enhancement (no personal data shared)</li>
+                </ul>
+
+                <h3>5.3 Legal Requirements</h3>
+                <p>We may disclose your information if required to do so by law or in response to valid requests by public authorities.</p>
+
+                <h3>5.4 What We DON'T Do</h3>
+                <p>We explicitly do NOT:</p>
+                <ul>
+                    <li>Sell your personal information to third parties</li>
+                    <li>Share your data with advertisers</li>
+                    <li>Use your information for marketing purposes outside our app</li>
+                    <li>Track you across other apps or websites</li>
+                </ul>
+            </div>
+
+            <div class="section" id="your-rights">
+                <h2>6. Your Rights and Choices</h2>
+                
+                <h3>6.1 Access and Update</h3>
+                <p>You have the right to access and update your personal information through the Profile section of the app.</p>
+
+                <h3>6.2 Data Deletion</h3>
+                <p>You can request deletion of your account and associated data by contacting us at <a href="mailto:support@lightsuvara.com">support@lightsuvara.com</a>. We will delete your data within 30 days of your request.</p>
+
+                <h3>6.3 Notification Preferences</h3>
+                <p>You can manage your notification preferences through your device settings or within the app.</p>
+
+                <h3>6.4 Organization Change</h3>
+                <p>You can change your Sunday School organization selection at any time through the School Selection screen.</p>
+            </div>
+
+            <div class="section" id="children-privacy">
+                <h2>7. Children's Privacy</h2>
+                <p>Light Suvara is intended for use by Sunday School participants and administrators. While we may serve users of various ages, we do not knowingly collect personal information from children under 13 without parental consent.</p>
+                <p>If you are a parent or guardian and believe your child has provided us with personal information without your consent, please contact us immediately.</p>
+            </div>
+
+            <div class="section" id="data-retention">
+                <h2>8. Data Retention</h2>
+                <p>We retain your personal information for as long as your account is active or as needed to provide services. Specific retention periods:</p>
+                <ul>
+                    <li><strong>User Accounts:</strong> Retained until account deletion is requested</li>
+                    <li><strong>Event Data:</strong> Retained indefinitely for historical records unless deletion is requested</li>
+                    <li><strong>Notifications:</strong> Retained for 90 days</li>
+                    <li><strong>Usage Logs:</strong> Retained for 12 months for analytics purposes</li>
+                </ul>
+            </div>
+
+            <div class="section" id="international-transfers">
+                <h2>9. International Data Transfers</h2>
+                <p>Your information may be transferred to and maintained on servers located outside of your country of residence. By using Light Suvara, you consent to the transfer of information to countries outside your country of residence, which may have different data protection rules.</p>
+                <p>We ensure that such transfers comply with applicable data protection laws and that your data receives adequate protection.</p>
+            </div>
+
+            <div class="section" id="cookies">
+                <h2>10. Cookies and Tracking Technologies</h2>
+                <p>Light Suvara is a native mobile application and does not use cookies. However, we do use:</p>
+                <ul>
+                    <li><strong>Firebase Analytics:</strong> To understand app usage patterns</li>
+                    <li><strong>Local Storage:</strong> To cache data and improve app performance</li>
+                    <li><strong>Device Identifiers:</strong> To enable push notifications and maintain sessions</li>
+                </ul>
+                <p>You can disable analytics through your device settings, though this may limit some app functionality.</p>
+            </div>
+
+            <div class="section" id="policy-changes">
+                <h2>11. Changes to This Privacy Policy</h2>
+                <p>We may update this Privacy Policy from time to time to reflect changes in our practices or for legal, operational, or regulatory reasons. When we make changes:</p>
+                <ul>
+                    <li>We will update the "Last Updated" date at the top of this policy</li>
+                    <li>We will notify you through the app or via email for material changes</li>
+                    <li>Your continued use of Light Suvara after changes constitutes acceptance of the updated policy</li>
+                </ul>
+                <p>We encourage you to review this Privacy Policy periodically to stay informed about how we protect your information.</p>
+            </div>
+
+            <div class="section" id="third-party-links">
+                <h2>12. Third-Party Links</h2>
+                <p>Light Suvara may contain links to external websites or resources (such as Bible study materials or event registration pages). This Privacy Policy applies only to our app. We are not responsible for the privacy practices of third-party websites. We encourage you to read the privacy policies of any third-party sites you visit.</p>
+            </div>
+
+            <div class="section" id="contact">
+                <h2>13. Contact Us</h2>
+                <p>If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:</p>
+                
+                <div class="contact-section">
+                    <h2>Get in Touch</h2>
+                    <p>We're here to help with any privacy-related questions or concerns.</p>
+                    
+                    <div class="contact-info">
+                        <div class="contact-item">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                            </svg>
+                            <a href="mailto:support@lightsuvara.com">support@lightsuvara.com</a>
+                        </div>
+                        
+                        <div class="contact-item">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                            </svg>
+                            <span>Light Suvara Team</span>
+                        </div>
+                        
+                        <div class="contact-item">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                            <span>Response Time: Within 48 hours</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>&copy; 2025 Light Suvara. All rights reserved.</p>
+            <p style="margin-top: 5px;">Serving CML and SUVARA Organizations</p>
+        </div>
+        </div>
+        </div>
+    </div>
+
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            const themeIcon = document.getElementById('theme-icon');
+            const themeText = document.getElementById('theme-text');
+            
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            if (newTheme === 'dark') {
+                themeIcon.textContent = '☀️';
+            } else {
+                themeIcon.textContent = '🌙';
+            }
+        }
+
+        // Load saved theme on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            const themeIcon = document.getElementById('theme-icon');
+            const themeText = document.getElementById('theme-text');
+            
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            
+            if (savedTheme === 'dark') {
+                themeIcon.textContent = '☀️';
+                themeText.textContent = 'Light Mode';
+            } else {
+                themeIcon.textContent = '🌙';
+                themeText.textContent = 'Dark Mode';
+            }
+        });
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        }
+
+        // Smooth scroll with offset for header
+        document.querySelectorAll('.sidebar a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                
+                if (targetElement) {
+                    const offset = window.innerWidth <= 768 ? 120 : 100;
+                    const targetPosition = targetElement.offsetTop - offset;
+                    
+                    window.scrollTo({
+                        top: targetPosition,
+                        behavior: 'smooth'
+                    });
+                    
+                    // Close sidebar on mobile after clicking
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('sidebar').classList.remove('open');
+                    }
+                }
+            });
+        });
+
+        // Highlight active section in sidebar
+        window.addEventListener('scroll', function() {
+            const sections = document.querySelectorAll('.section');
+            const navLinks = document.querySelectorAll('.sidebar a');
+            
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                const scrollOffset = window.innerWidth <= 768 ? 130 : 110;
+                
+                if (scrollY >= (sectionTop - scrollOffset)) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
