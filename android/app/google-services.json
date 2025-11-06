@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:922341060283:android:bd0d9881e379945a3ac39e",
+        "mobilesdk_app_id": "1:922341060283:android:1531e4c72e70e5303ac39e",
         "android_client_info": {
-          "package_name": "com.example.sundayschool_app"
+          "package_name": "in.cse.ajce.sundayschool"
         }
       },
       "oauth_client": [],
