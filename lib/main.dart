@@ -1,9 +1,9 @@
 // Import the necessary packages
-// Import the necessary packages
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart'; // ⭐️ 1. IMPORT PROVIDER
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:sundayschool_app/providers/user_data_provider.dart'; // ⭐️ 2. IMPORT YOUR NEW PROVIDER
 import 'firebase_options.dart';
 import 'package:sundayschool_app/login_screen.dart';
@@ -14,6 +14,14 @@ void main() async {
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // NEW: Initialize App Check
+  await FirebaseAppCheck.instance.activate(
+    // You can also use a `ReCaptchaV3Provider` provider for web
+    // platforms. Your provider must be enabled in the Firebase console.
+    androidProvider: AndroidProvider.debug,
+    // appleProvider: AppleProvider.appAttest,
+  );
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

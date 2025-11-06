@@ -205,37 +205,36 @@ class LoginScreen extends StatelessWidget {
         ),
         body: Stack(
           children: [
-            Column(
-              children: [
-                const SizedBox(height: 8), // Space between AppBar and carousel
-                SizedBox(height: 260, child: _buildEventsCarousel()),
-                const SizedBox(height: 6),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const HomeEventsScreen(),
+            SingleChildScrollView(
+              physics: const ClampingScrollPhysics(), // Allow scrolling only when needed
+              child: Column(
+                children: [
+                  const SizedBox(height: 8), // Space between AppBar and carousel
+                  SizedBox(height: 260, child: _buildEventsCarousel()),
+                  const SizedBox(height: 6),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HomeEventsScreen(),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      'View all events',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue.shade900,
                       ),
-                    );
-                  },
-                  child: Text(
-                    'View all events',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.blue.shade900,
                     ),
                   ),
-                ),
-                _buildAnnouncementMarquee(),
-                Expanded(
-                  flex: 4,
-                  child: Padding(
+                  _buildAnnouncementMarquee(),
+                  Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 40.0),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // CORE FIX: Reduced spacing to prevent overflow
                         const SizedBox(height: 5),
                         Text(
                           'Welcome',
@@ -312,32 +311,30 @@ class LoginScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        // CORE FIX: Reduced spacing
                         const SizedBox(height: 5),
                         Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 5),
                             Image.asset(
                               'assets/images/suvara logo wbg5.jpg',
-                              height: 80, // Reduced height
+                              height: 90,
                               fit: BoxFit.contain,
                             ),
                             Image.asset(
                               'assets/images/diocese-logo-new1.png',
-                              height: 50, // Reduced height
+                              height: 55,
                               fit: BoxFit.contain,
                             ),
                           ],
                         ),
-                        // CORE FIX: Reduced spacing
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 60), // Space for the footer
                       ],
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             Positioned(
               bottom: 10,

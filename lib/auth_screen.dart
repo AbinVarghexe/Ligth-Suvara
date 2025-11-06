@@ -156,7 +156,7 @@ class _AuthScreenState extends State<AuthScreen> {
           backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.blue),
+            icon: Icon(Icons.arrow_back_ios_new, color: Colors.blue.shade900),
             onPressed: () {
               if (Navigator.of(context).canPop()) {
                 Navigator.of(context).pop();
@@ -175,22 +175,22 @@ class _AuthScreenState extends State<AuthScreen> {
             ListView(
               padding: EdgeInsets.symmetric(horizontal: contentPadding),
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: 10), // Reduced spacing
                 Text(
                   'Welcome',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
-                    fontSize: 32,
+                    fontSize: 28, // Slightly smaller font
                     fontWeight: FontWeight.bold,
                     color: Colors.blue.shade900,
                   ),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 20), // Reduced spacing
                 Text(
                   'Login name',
                   style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    color: Colors.black,
+                    fontSize: 16, // Slightly smaller font
+                    color: Colors.blue.shade900,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -201,12 +201,12 @@ class _AuthScreenState extends State<AuthScreen> {
                   hintText: 'Enter your login name',
                   isPassword: false,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16), // Reduced spacing
                 Text(
                   'Password',
                   style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    color: Colors.black,
+                    fontSize: 16, // Slightly smaller font
+                    color: Colors.blue.shade900,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -230,13 +230,13 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 24), // Reduced spacing
                 ElevatedButton(
                   onPressed: _isLoading ? null : _logIn,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade900,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    padding: const EdgeInsets.symmetric(vertical: 16), // Reduced padding
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -254,31 +254,31 @@ class _AuthScreenState extends State<AuthScreen> {
                       : Text(
                     'Log In',
                     style: GoogleFonts.poppins(
-                      fontSize: 18,
+                      fontSize: 16, // Slightly smaller font
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 60), // Reduced spacing
                 Column(
                   children: [
                     Image.asset(
                       'assets/images/suvara logo wbg5.jpg',
-                      height: 90, // Reduced height
+                      height: 70, // Reduced height
                       fit: BoxFit.contain,
                     ),
                     Padding(
                       padding: const EdgeInsets.only(
-                        top: 20.0,
-                      ), // Reduced padding
+                        top: 16.0, // Reduced padding
+                      ), 
                       child: Image.asset(
                         'assets/images/diocese-logo-new1.png',
-                        height: 60, // Reduced height
+                        height: 55, // Reduced height
                         fit: BoxFit.contain,
                       ),
                     ),
                     // Add padding at the bottom to ensure watermark doesn't overlap logos
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 40), // Space for the footer
                   ],
                 ),
               ],
