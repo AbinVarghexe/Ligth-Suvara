@@ -34,6 +34,9 @@ dependencies:
   webview_flutter: ^4.10.0
   flutter_native_splash: ^2.4.7
   firebase_app_check: ^0.2.1+8
+  lottie: ^3.1.0
+  external_app_launcher: ^4.0.3
+  font_awesome_flutter: ^10.0.0
 
 dev_dependencies:
   flutter_test:
@@ -79,3 +82,4 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/images/animation.json
