@@ -6,6 +6,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:marquee/marquee.dart';
 import 'package:sundayschool_app/auth_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sundayschool_app/utils/app_launcher.dart';
 
 // Assuming you have all these screen imports available
 import 'package:sundayschool_app/broadcast_screen.dart';
@@ -17,6 +18,7 @@ import 'package:sundayschool_app/event_detail_screen_from_home.dart';
 import 'package:sundayschool_app/bible.dart';
 import 'package:sundayschool_app/japamala.dart';
 import 'package:sundayschool_app/home_events.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 
 class LoginScreen extends StatelessWidget {
@@ -68,7 +70,7 @@ class LoginScreen extends StatelessWidget {
                 // FIX 1: Wrap Icon in a SizedBox for consistent width
                 leading: SizedBox(
                   width: 32, // Consistent width
-                  child: Icon(Icons.book_outlined, color: Colors.blue.shade900, size: 28),
+                  child: Icon(FontAwesomeIcons.bookBible, color: Colors.blue.shade900, size: 28),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -114,6 +116,19 @@ class LoginScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(builder: (context) => const CatechismScreen()),
                   );
+                },
+              ),
+
+              _buildMenuListItem(
+                context: context,
+                title: 'YAMAPRARTHANAKAL',
+                leading: SizedBox(
+                  width: 32,
+                  child: Icon(FontAwesomeIcons.bookOpen, color: Colors.blue.shade900, size: 28),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  openYamaprarthanakalApp(context);
                 },
               ),
 
