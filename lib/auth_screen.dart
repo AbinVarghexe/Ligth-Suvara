@@ -17,11 +17,98 @@ class AuthScreen extends StatefulWidget {
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _passwordVisible = false;
+
+  // Animation controllers
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late AnimationController _exitController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _logoFadeAnimation;
+  late Animation<double> _exitFadeAnimation;
+  late Animation<Offset> _exitSlideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Fade animation controller
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    // Slide animation controller
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+
+    // Exit animation controller
+    _exitController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+
+    _logoFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _fadeController,
+        curve: const Interval(0.5, 1.0, curve: Curves.easeIn),
+      ),
+    );
+
+    // Exit animations
+    _exitFadeAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _exitController, curve: Curves.easeOut),
+    );
+
+    _exitSlideAnimation = Tween<Offset>(
+      begin: Offset.zero,
+      end: const Offset(0, -0.3),
+    ).animate(CurvedAnimation(parent: _exitController, curve: Curves.easeInCubic));
+
+    // Start animations
+    _fadeController.forward();
+    _slideController.forward();
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    _slideController.dispose();
+    _exitController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _animatedNavigate(Widget destination) async {
+    // Start exit animation
+    await _exitController.forward();
+
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => destination,
+          transitionDuration: Duration.zero, // No additional transition since we're animating in this screen
+        ),
+      );
+    }
+  }
 
   Future<void> _launchDialer(String phoneNumber) async {
     final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
@@ -115,12 +202,8 @@ class _AuthScreenState extends State<AuthScreen> {
         final isUserAdmin = await isAdmin();
 
         if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) =>
-              isUserAdmin ? const AdminDashboardScreen() : const HomeScreen(),
-            ),
-          );
+          final destination = isUserAdmin ? const AdminDashboardScreen() : const HomeScreen();
+          await _animatedNavigate(destination);
         }
       }
 
@@ -157,13 +240,14 @@ class _AuthScreenState extends State<AuthScreen> {
           elevation: 0,
           leading: IconButton(
             icon: Icon(Icons.arrow_back_ios_new, color: Colors.blue.shade900),
-            onPressed: () {
+            onPressed: () async {
               if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
+                await _exitController.forward();
+                if (mounted) {
+                  Navigator.of(context).pop();
+                }
               } else {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
+                await _animatedNavigate(const LoginScreen());
               }
             },
           ),
@@ -172,131 +256,151 @@ class _AuthScreenState extends State<AuthScreen> {
         body: Stack(
           children: [
             // --- MAIN CONTENT (ListView) ---
-            ListView(
-              padding: EdgeInsets.symmetric(horizontal: contentPadding),
-              children: [
-                const SizedBox(height: 10), // Reduced spacing
-                Text(
-                  'Welcome',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 28, // Slightly smaller font
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade900,
-                  ),
-                ),
-                const SizedBox(height: 20), // Reduced spacing
-                Text(
-                  'Login name',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16, // Slightly smaller font
-                    color: Colors.blue.shade900,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _buildAuthField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  hintText: 'Enter your login name',
-                  isPassword: false,
-                ),
-                const SizedBox(height: 16), // Reduced spacing
-                Text(
-                  'Password',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16, // Slightly smaller font
-                    color: Colors.blue.shade900,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _buildAuthField(
-                  controller: _passwordController,
-                  hintText: 'Enter your password',
-                  isPassword: true,
-                ),
-                const SizedBox(height: 10),
-                GestureDetector(
-                  onTap: () {
-                    _launchDialer('+919447601251');
-                  },
-                  child: Text(
-                    'Contact Admin',
-                    textAlign: TextAlign.right,
-                    style: GoogleFonts.poppins(
-                      color: Colors.blue.shade900,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24), // Reduced spacing
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _logIn,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade900,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16), // Reduced padding
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                      : Text(
-                    'Log In',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16, // Slightly smaller font
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 60), // Reduced spacing
-                Column(
+            FadeTransition(
+              opacity: _exitController.status == AnimationStatus.forward || _exitController.status == AnimationStatus.completed
+                  ? _exitFadeAnimation
+                  : _fadeAnimation,
+              child: SlideTransition(
+                position: _exitController.status == AnimationStatus.forward || _exitController.status == AnimationStatus.completed
+                    ? _exitSlideAnimation
+                    : _slideAnimation,
+                child: ListView(
+                  padding: EdgeInsets.symmetric(horizontal: contentPadding),
                   children: [
-                    Image.asset(
-                      'assets/images/suvara logo wbg5.jpg',
-                      height: 70, // Reduced height
-                      fit: BoxFit.contain,
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        top: 16.0, // Reduced padding
-                      ), 
-                      child: Image.asset(
-                        'assets/images/diocese-logo-new1.png',
-                        height: 55, // Reduced height
-                        fit: BoxFit.contain,
+                    const SizedBox(height: 10), // Reduced spacing
+                    Text(
+                      'Welcome',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 28, // Slightly smaller font
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade900,
                       ),
                     ),
-                    // Add padding at the bottom to ensure watermark doesn't overlap logos
-                    const SizedBox(height: 40), // Space for the footer
+                    const SizedBox(height: 20), // Reduced spacing
+                    Text(
+                      'Login name',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16, // Slightly smaller font
+                        color: Colors.blue.shade900,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildAuthField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      hintText: 'Enter your login name',
+                      isPassword: false,
+                    ),
+                    const SizedBox(height: 16), // Reduced spacing
+                    Text(
+                      'Password',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16, // Slightly smaller font
+                        color: Colors.blue.shade900,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildAuthField(
+                      controller: _passwordController,
+                      hintText: 'Enter your password',
+                      isPassword: true,
+                    ),
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                      onTap: () {
+                        _launchDialer('+919447601251');
+                      },
+                      child: Text(
+                        'Contact Admin',
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.poppins(
+                          color: Colors.blue.shade900,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24), // Reduced spacing
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _logIn,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade900,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16), // Reduced padding
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                          : Text(
+                        'Log In',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16, // Slightly smaller font
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 60), // Reduced spacing
+                    FadeTransition(
+                      opacity: _exitController.status == AnimationStatus.forward || _exitController.status == AnimationStatus.completed
+                          ? _exitFadeAnimation
+                          : _logoFadeAnimation,
+                      child: Column(
+                        children: [
+                          Image.asset(
+                            'assets/images/suvara logo wbg5.jpg',
+                            height: 70, // Reduced height
+                            fit: BoxFit.contain,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: 16.0, // Reduced padding
+                            ),
+                            child: Image.asset(
+                              'assets/images/diocese-logo-new1.png',
+                              height: 55, // Reduced height
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          // Add padding at the bottom to ensure watermark doesn't overlap logos
+                          const SizedBox(height: 40), // Space for the footer
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ],
+              ),
             ),
             // --- WATERMARK ADDED BACK USING Positioned ---
             Positioned(
               bottom: 10, // Adjust the position from the bottom
               left: 0,
               right: 0,
-              child: Text(
-                '© ${DateTime.now().year} AJCE. All Rights Reserved.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
-                  fontSize: 10,
-                  color: Colors.blue.shade900.withAlpha(
-                    128,
-                  ), // Semi-transparent color
-                  fontWeight: FontWeight.w500,
+              child: FadeTransition(
+                opacity: _exitController.status == AnimationStatus.forward || _exitController.status == AnimationStatus.completed
+                    ? _exitFadeAnimation
+                    : _logoFadeAnimation,
+                child: Text(
+                  '© ${DateTime.now().year} AJCE. All Rights Reserved.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 10,
+                    color: Colors.blue.shade900.withAlpha(
+                      128,
+                    ), // Semi-transparent color
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),

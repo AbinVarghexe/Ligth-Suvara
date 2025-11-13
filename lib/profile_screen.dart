@@ -17,7 +17,7 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProviderStateMixin {
   final _fullNameController = TextEditingController();
   final _phoneNumberController = TextEditingController();
 
@@ -29,14 +29,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
 
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
+
     _loadUserProfile();
   }
 
   @override
   void dispose() {
+    _animationController.dispose();
     _fullNameController.dispose();
     _phoneNumberController.dispose();
     super.dispose();
@@ -63,6 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _profileImageUrl = data['profileImageUrl'];
           _isLoading = false;
         });
+        _animationController.forward();
       } else {
         setState(() {
           _schoolName = 'Profile Not Found';
@@ -84,16 +104,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // CORE CHANGE 1: Function to compress the image file
   Future<File?> _compressImage(File file) async {
     final tempDir = await getTemporaryDirectory();
-    // Use the file path but ensure the extension is compatible (e.g., .jpg)
     final targetPath = p.join(tempDir.path, '${DateTime.now().millisecondsSinceEpoch}_compressed.jpg');
 
     final compressedXFile = await FlutterImageCompress.compressAndGetFile(
       file.absolute.path,
       targetPath,
-      quality: 85, // Adjust quality for compression level (85 is good)
+      quality: 85,
     );
 
     if (compressedXFile == null) {
@@ -109,12 +127,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       String? updatedImageUrl = _profileImageUrl;
-
-      // Variable to hold the file ready for upload
       File? uploadFile = _newImageFile;
 
       if (_newImageFile != null) {
-        // CORE CHANGE 2: Compress the file before uploading
         final compressedFile = await _compressImage(_newImageFile!);
 
         if (compressedFile == null) {
@@ -127,11 +142,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         updatedImageUrl = await uploadTask.ref.getDownloadURL();
       }
 
-      // Basic validation for name and phone number
       if (_fullNameController.text.trim().isEmpty) {
         throw Exception("Full Name cannot be empty.");
       }
-
 
       await FirebaseFirestore.instance.collection('users').doc(_userDocId!).update({
         'fullName': _fullNameController.text.trim(),
@@ -145,7 +158,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
       if(mounted) {
-        // CORE CHANGE 3: Use modern status dialog instead of Snackbar
         _showStatusDialog(
           context: context,
           isSuccess: true,
@@ -155,7 +167,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       if(mounted) {
-        // CORE CHANGE 3: Use modern status dialog instead of Snackbar
         _showStatusDialog(
           context: context,
           isSuccess: false,
@@ -173,46 +184,338 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor:Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1E40AF)),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Profile',
-          style: GoogleFonts.poppins(color: Colors.blue.shade900, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildProfilePicture(),
-            const SizedBox(height: 40),
-            _buildTextField(label: 'Church Name', initialValue: _schoolName, readOnly: true),
-            const SizedBox(height: 20),
-            _buildTextField(label: 'Full Name', controller: _fullNameController),
-            const SizedBox(height: 20),
-            _buildTextField(label: 'Phone Number', controller: _phoneNumberController, keyboardType: TextInputType.phone),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: _isSaving ? null : _updateProfile,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade900,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 60,
+            floating: false,
+            pinned: true,
+            elevation: 0,
+            backgroundColor: Colors.white,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back_ios_new, color: Colors.blue.shade900, size: 20),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              centerTitle: true,
+              titlePadding: const EdgeInsets.only(bottom: 16),
+              title: Text(
+                'My Profile',
+                style: GoogleFonts.poppins(
+                  color: Colors.blue.shade900,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
-              child: _isSaving
-                  ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2,))
-                  : Text('Update Profile', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600)),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: _isLoading
+                ? SizedBox(
+              height: MediaQuery.of(context).size.height - 200,
+              child: const Center(child: CircularProgressIndicator()),
+            )
+                : FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildModernProfilePicture(),
+                      const SizedBox(height: 32),
+                      _buildInfoCard(),
+                      const SizedBox(height: 24),
+                      _buildModernTextField(
+                        label: 'Full Name',
+                        controller: _fullNameController,
+                        icon: Icons.person_outline_rounded,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildModernTextField(
+                        label: 'Phone Number',
+                        controller: _phoneNumberController,
+                        icon: Icons.phone_outlined,
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 32),
+                      _buildModernButton(),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernProfilePicture() {
+    return Center(
+      child: Stack(
+        children: [
+          // Outer glow effect
+          Container(
+            width: 136,
+            height: 136,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  Colors.blue.shade900.withOpacity(0.3),
+                  Colors.blue.shade700.withOpacity(0.1),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          // Profile picture
+          Positioned(
+            left: 4,
+            top: 4,
+            child: GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                width: 128,
+                height: 128,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.shade900.withOpacity(0.2),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: ClipOval(
+                  child: _newImageFile != null
+                      ? Image.file(_newImageFile!, fit: BoxFit.cover)
+                      : _profileImageUrl != null
+                      ? Image.network(_profileImageUrl!, fit: BoxFit.cover)
+                      : Container(
+                    color: Colors.blue.shade50,
+                    child: Icon(
+                      Icons.person_rounded,
+                      color: Colors.blue.shade900,
+                      size: 56,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Edit button with modern design
+          Positioned(
+            bottom: 4,
+            right: 4,
+            child: GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade900, Colors.blue.shade700],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.shade900.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade900, Colors.blue.shade700],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.shade900.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.church_rounded, color: Colors.white, size: 28),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Church Name',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _schoolName,
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernTextField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: Colors.blue.shade900,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.shade900.withOpacity(0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            style: GoogleFonts.poppins(
+              color: Colors.blue.shade900,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              prefixIcon: Icon(icon, color: Colors.blue.shade900, size: 22),
+              hintText: 'Enter your $label',
+              hintStyle: GoogleFonts.poppins(
+                color: Colors.blue.shade300,
+                fontSize: 15,
+              ),
+              filled: true,
+              fillColor: Colors.transparent,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: Colors.blue.shade50, width: 1),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: Colors.blue.shade900, width: 2),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModernButton() {
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade900, Colors.blue.shade700],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.shade900.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: _isSaving ? null : _updateProfile,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        child: _isSaving
+            ? const SizedBox(
+          height: 24,
+          width: 24,
+          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+        )
+            : Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.save_rounded, color: Colors.white, size: 22),
+            const SizedBox(width: 12),
+            Text(
+              'Update Profile',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
             ),
           ],
         ),
@@ -220,7 +523,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // CORE CHANGE 4: Add the new Status Dialog widget
   Future<void> _showStatusDialog({
     required BuildContext context,
     required bool isSuccess,
@@ -234,114 +536,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final icon = isSuccess ? Icons.check_circle_rounded : Icons.error_rounded;
 
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          contentPadding: const EdgeInsets.fromLTRB(24, 32, 24, 20),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 60, height: 60,
-                decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
-                child: Icon(icon, color: color, size: 32),
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [color.withOpacity(0.2), color.withOpacity(0.05)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 40),
               ),
-              const SizedBox(height: 20),
-              Text(title, textAlign: TextAlign.center, style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 18)),
+              const SizedBox(height: 24),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                  color: Colors.blue.shade900,
+                ),
+              ),
               const SizedBox(height: 12),
-              Text(message, textAlign: TextAlign.center, style: GoogleFonts.poppins(fontSize: 15, color: Colors.black.withOpacity(0.7))),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  color: Colors.black.withOpacity(0.6),
+                  height: 1.5,
+                ),
+              ),
             ],
           ),
           actionsAlignment: MainAxisAlignment.center,
+          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
           actions: [
             SizedBox(
               width: double.infinity,
-              child: TextButton(
-                style: TextButton.styleFrom(
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
                   backgroundColor: color,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
                 ),
-                child: Text("OK", style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 16)),
+                child: Text(
+                  "OK",
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ),
           ],
         );
       },
-    );
-  }
-
-  Widget _buildProfilePicture() {
-    return Center(
-      child: GestureDetector(
-        onTap: _pickImage,
-        child: Stack(
-          children: [
-            CircleAvatar(
-              radius: 60,
-              backgroundColor: Colors.grey.shade200,
-              // CORE FIX: Set fallback to null when no URL is available.
-              backgroundImage: _newImageFile != null
-                  ? FileImage(_newImageFile!) as ImageProvider
-                  : (_profileImageUrl != null
-                  ? NetworkImage(_profileImageUrl!)
-                  : null),
-              // The child logic now correctly displays the Icon when backgroundImage is null.
-              child: _profileImageUrl == null && _newImageFile == null
-                  ? Icon(Icons.person, color: Colors.blue.shade900, size: 40)
-                  : null,
-            ),
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade900,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.all(6.0),
-                  child: Icon(Icons.edit, color: Colors.white, size: 20),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required String label,
-    TextEditingController? controller,
-    String? initialValue,
-    bool readOnly = false,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.blue.shade900),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          initialValue: initialValue,
-          readOnly: readOnly,
-          keyboardType: keyboardType,
-          style: GoogleFonts.poppins(color: readOnly ? Colors.blue[600] : Colors.blue[900]),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: Colors.blue.withOpacity(0.05),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
