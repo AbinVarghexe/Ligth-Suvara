@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // A simple model for our broadcast messages
 class BroadcastMessage {
@@ -16,8 +17,35 @@ class BroadcastMessage {
         timestamp = ((doc.data() as Map<String, dynamic>?)?['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
 }
 
-class BroadcastScreen extends StatelessWidget {
+class BroadcastScreen extends StatefulWidget {
   const BroadcastScreen({super.key});
+
+  @override
+  State<BroadcastScreen> createState() => _BroadcastScreenState();
+}
+
+class _BroadcastScreenState extends State<BroadcastScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   // Helper method to create date headers like "Today", "Yesterday", or "15 October, 2023"
   String _getTimelineHeader(DateTime timestamp) {
@@ -38,17 +66,59 @@ class BroadcastScreen extends StatelessWidget {
   // Helper widget for the styled date headers
   Widget _buildTimelineHeaderWidget(String text) {
     return Padding(
-      padding: const EdgeInsets.only(left: 16.0, top: 24.0, bottom: 8.0, right: 16.0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.blue.shade100,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(color: Colors.blue.shade900, fontWeight: FontWeight.bold),
-        ),
+      padding: const EdgeInsets.only(left: 20.0, top: 28.0, bottom: 12.0, right: 20.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.blue.shade900, Colors.blue.shade700],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.shade900.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.calendar_today_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  text,
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Container(
+              height: 1,
+              margin: const EdgeInsets.only(left: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.grey.shade300,
+                    Colors.grey.shade300.withOpacity(0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -56,57 +126,143 @@ class BroadcastScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey[50],
+      extendBodyBehindAppBar: false,
       appBar: AppBar(
-        title: Text('Recent Updates', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue[900])),
+        title: Text(
+          'Recent Updates',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Colors.blue[900],
+            fontSize: 20,
+          ),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: Colors.blue[900]),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, color: Colors.blue[900], size: 20),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.grey.shade200,
+                  Colors.grey.shade100,
+                ],
+              ),
+            ),
+          ),
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // --- CORRECTED QUERY ---
-        // This now points to the 'broadcasts' collection to show only public messages.
         stream: FirebaseFirestore.instance
             .collection('broadcasts')
             .orderBy('timestamp', descending: true)
-            .limit(30) // Increased limit slightly
+            .limit(30)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade900),
+                    strokeWidth: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading updates...',
+                    style: GoogleFonts.poppins(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
+
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("No recent updates found.", style: TextStyle(color: Colors.grey)));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.notifications_off_outlined,
+                      size: 64,
+                      color: Colors.blue.shade300,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    "No recent updates found",
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Check back later for new announcements",
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
 
           final messages = snapshot.data!.docs.map((doc) => BroadcastMessage.fromDoc(doc)).toList();
 
-          // --- Timeline Processing Logic ---
+          // Timeline Processing Logic
           final List<Widget> timelineWidgets = [];
           String? lastHeader = '';
 
-          for (var message in messages) {
+          for (int i = 0; i < messages.length; i++) {
+            var message = messages[i];
             String currentHeader = _getTimelineHeader(message.timestamp);
+
             if (currentHeader != lastHeader) {
               timelineWidgets.add(_buildTimelineHeaderWidget(currentHeader));
               lastHeader = currentHeader;
             }
 
-            // Wrap the custom tile in Padding for better spacing between cards
             timelineWidgets.add(
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                child: CustomBroadcastTile(message: message),
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 6.0),
+                  child: CustomBroadcastTile(message: message, index: i),
+                ),
               ),
             );
           }
 
           return ListView(
-            padding: const EdgeInsets.only(bottom: 20), // Padding at the bottom of the list
+            padding: const EdgeInsets.only(bottom: 24, top: 8),
+            physics: const BouncingScrollPhysics(),
             children: timelineWidgets,
           );
         },
@@ -118,198 +274,397 @@ class BroadcastScreen extends StatelessWidget {
 // Custom Tile Widget for displaying each broadcast message
 class CustomBroadcastTile extends StatelessWidget {
   final BroadcastMessage message;
-  const CustomBroadcastTile({super.key, required this.message});
+  final int index;
 
-  // Helper to determine the icon based on the message title
-  IconData _getIcon(String title) {
-    if (title.toLowerCase().contains('lifeline') || title.toLowerCase().contains('kalolsavam')) {
-      return Icons.calendar_today_outlined;
-    } else if (title.toLowerCase().contains('rally')) {
-      return Icons.article_outlined;
+  const CustomBroadcastTile({
+    super.key,
+    required this.message,
+    required this.index,
+  });
+
+  // Helper to determine the icon and color based on the message title
+  Map<String, dynamic> _getIconData(String title) {
+    final lowerTitle = title.toLowerCase();
+
+    if (lowerTitle.contains('lifeline')) {
+      return {
+        'icon': Icons.favorite_rounded,
+        'color': Colors.red.shade400,
+        'gradient': LinearGradient(colors: [Colors.red.shade400, Colors.red.shade600]),
+      };
+    } else if (lowerTitle.contains('kalolsavam')) {
+      return {
+        'icon': Icons.celebration_rounded,
+        'color': Colors.purple.shade400,
+        'gradient': LinearGradient(colors: [Colors.purple.shade400, Colors.purple.shade600]),
+      };
+    } else if (lowerTitle.contains('rally')) {
+      return {
+        'icon': Icons.groups_rounded,
+        'color': Colors.orange.shade400,
+        'gradient': LinearGradient(colors: [Colors.orange.shade400, Colors.orange.shade600]),
+      };
+    } else if (lowerTitle.contains('meeting')) {
+      return {
+        'icon': Icons.event_rounded,
+        'color': Colors.teal.shade400,
+        'gradient': LinearGradient(colors: [Colors.teal.shade400, Colors.teal.shade600]),
+      };
+    } else if (lowerTitle.contains('important') || lowerTitle.contains('urgent')) {
+      return {
+        'icon': Icons.priority_high_rounded,
+        'color': Colors.red.shade400,
+        'gradient': LinearGradient(colors: [Colors.red.shade400, Colors.red.shade600]),
+      };
     }
-    return Icons.campaign;
+
+    return {
+      'icon': Icons.campaign_rounded,
+      'color': Colors.blue.shade400,
+      'gradient': LinearGradient(colors: [Colors.blue.shade400, Colors.blue.shade600]),
+    };
   }
 
-  // Helper to format the timestamp into a short "time ago" format
+  // Helper to format the timestamp
   String _getTimeAgo(DateTime timestamp) {
     final difference = DateTime.now().difference(timestamp);
-    if (difference.inHours < 1) return '${difference.inMinutes} M';
-    if (difference.inDays == 0) return '${difference.inHours} H';
-    return DateFormat('d MMM').format(timestamp);
+
+    if (difference.inMinutes < 1) return 'Just now';
+    if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
+    if (difference.inHours < 24) return '${difference.inHours}h ago';
+    if (difference.inDays == 1) return 'Yesterday';
+    if (difference.inDays < 7) return '${difference.inDays}d ago';
+
+    return DateFormat('MMM d').format(timestamp);
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isHighlighted = message.title.toLowerCase().contains('kalolsavam');
+    final iconData = _getIconData(message.title);
+    final bool isHighlighted = message.title.toLowerCase().contains('kalolsavam') ||
+        message.title.toLowerCase().contains('important');
 
-    // Using a Card for a clean, elevated look
-    return Card(
-      elevation: 2.0,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.0),
-        side: BorderSide(color: Colors.grey.shade200, width: 1),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isHighlighted ? iconData['color'].withOpacity(0.3) : Colors.grey.shade200,
+          width: isHighlighted ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      color: isHighlighted ? Colors.blue.shade50 : Colors.white,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(_getIcon(message.title), color: Colors.blue, size: 24),
-        ),
-        title: Text(
-          message.title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4.0),
-          child: Text(
-            message.body,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: Colors.grey[700], fontSize: 13, height: 1.4),
-          ),
-        ),
-        trailing: Text(
-          _getTimeAgo(message.timestamp),
-          style: const TextStyle(color: Colors.grey, fontSize: 12),
-        ),
-        // lib/broadcast_screen.dart
-
-// ... inside the CustomBroadcastTile widget ...
-
-        // lib/broadcast_screen.dart
-
-// ... inside the CustomBroadcastTile widget ...
-
-        onTap: () {
-          // --- NEW, ADAPTIVE & MODERN DIALOG ---
-          showDialog(
-            context: context,
-            // Use a barrier color for a nice dimming effect
-            barrierColor: Colors.black.withOpacity(0.5),
-            builder: (context) {
-              return Dialog(
-                // Position the dialog with some vertical margin
-                insetPadding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24.0),
-                ),
-                elevation: 0, // We will use a container shadow instead
-                backgroundColor: Colors.transparent, // Make dialog background transparent
-                child: Container(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _showDetailDialog(context, iconData),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Icon with gradient
+                Container(
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24.0),
+                    gradient: iconData['gradient'],
+                    borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 5),
-                      )
+                        color: iconData['color'].withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
                     ],
                   ),
+                  child: Icon(
+                    iconData['icon'],
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // Content
+                Expanded(
                   child: Column(
-                    mainAxisSize: MainAxisSize.min, // Crucial for adaptive height
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // A small grip handle for modern UI feel
-                      Container(
-                        width: 40,
-                        height: 4,
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              message.title,
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.grey[900],
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isHighlighted)
+                            Container(
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: iconData['color'].withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.star_rounded,
+                                size: 14,
+                                color: iconData['color'],
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        message.body,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                          height: 1.5,
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.access_time_rounded,
+                            size: 14,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _getTimeAgo(message.timestamp),
+                            style: GoogleFonts.poppins(
+                              color: Colors.grey[500],
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: Colors.grey[400],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-                      // --- Main Content Area ---
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 1. Icon and Title
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
+  void _showDetailDialog(BuildContext context, Map<String, dynamic> iconData) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black.withOpacity(0.6),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return ScaleTransition(
+          scale: Tween<double>(begin: 0.8, end: 1.0).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+          ),
+          child: FadeTransition(
+            opacity: animation,
+            child: Dialog(
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 60.0),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28.0),
+              ),
+              elevation: 0,
+              backgroundColor: Colors.transparent,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.75,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Gradient Header
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        gradient: iconData['gradient'],
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(28),
+                          topRight: Radius.circular(28),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          // Drag handle
+                          Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          // Icon
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Icon(
+                              iconData['icon'],
+                              color: Colors.white,
+                              size: 40,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Title
+                          Text(
+                            message.title,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // Timestamp
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  _getIcon(message.title),
-                                  color: Colors.blue.shade700,
-                                  size: 28,
+                                  Icons.access_time_rounded,
+                                  size: 14,
+                                  color: Colors.white.withOpacity(0.9),
                                 ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Text(
-                                    message.title,
-                                    style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue[900],
-                                    ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  DateFormat('MMM d, yyyy • h:mm a').format(message.timestamp),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
-                            Divider(color: Colors.grey.shade200, height: 1),
-                            const SizedBox(height: 16),
+                          ),
+                        ],
+                      ),
+                    ),
 
-                            // 2. ADAPTIVE Scrollable Body Content
-                            Flexible(
-                              child: SingleChildScrollView(
-                                child: Text(
-                                  message.body,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey[850],
-                                    height: 1.6, // More generous line spacing
-                                  ),
-                                ),
+                    // Content Area
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(24),
+                        physics: const BouncingScrollPhysics(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Details',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[700],
                               ),
                             ),
-                            const SizedBox(height: 24),
-
-                            // 3. Styled Close Button
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue.shade800,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  elevation: 0, // Flat design for the button
-                                ),
-                                child: const Text(
-                                  'Close',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                            const SizedBox(height: 12),
+                            Text(
+                              message.body,
+                              style: GoogleFonts.poppins(
+                                fontSize: 15,
+                                color: Colors.grey[800],
+                                height: 1.7,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+
+                    // Close Button
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                      child: Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: iconData['color'].withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: iconData['color'],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            'Got it!',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            },
-          );
-        },
-      ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

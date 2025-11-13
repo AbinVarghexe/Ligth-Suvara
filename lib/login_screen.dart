@@ -30,13 +30,14 @@ class LoginScreen extends StatelessWidget {
   void _showMenuBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8F9FA), // Softer background
+      isScrollControlled: true, // Allow it to take more height
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(16.0),
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -49,29 +50,41 @@ class LoginScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               // Menu Title
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.grid_view_rounded, color: Colors.blue.shade900, size: 26),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Resources',
+                    style: GoogleFonts.poppins(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade900,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               Text(
-                'Menu',
+                'Explore our spiritual resources',
                 style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade900,
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
                 ),
               ),
-              const SizedBox(height: 10),
-              const Divider(),
+              const SizedBox(height: 24),
 
-              // --- MENU BUTTONS (with alignment fix) ---
-
-              _buildMenuListItem(
+              // --- MENU BUTTONS ---
+              _buildResourceItem(
                 context: context,
                 title: 'POC BIBLE',
-                // FIX 1: Wrap Icon in a SizedBox for consistent width
-                leading: SizedBox(
-                  width: 32, // Consistent width
-                  child: Icon(FontAwesomeIcons.bookBible, color: Colors.blue.shade900, size: 28),
-                ),
+                subtitle: 'Light for your path',
+                icon: FontAwesomeIcons.bookBible,
+                iconColor: Colors.white,
+                iconBackgroundColor: Colors.blue.shade700,
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -80,19 +93,18 @@ class LoginScreen extends StatelessWidget {
                   );
                 },
               ),
-
-              _buildMenuListItem(
+              const SizedBox(height: 12),
+              _buildResourceItem(
                 context: context,
                 title: 'JAPAMALA',
-                // FIX 2: Adjust SizedBox to match the consistent width
-                leading: SizedBox(
-                  width: 32, // Consistent width
-                  height: 32,
-                  child: Image.asset(
-                    'assets/images/rosary.png',
-                    color: Colors.blue.shade900,
-                  ),
+                subtitle: 'Pray,reflect, and find serenity',
+                customIcon: Image.asset(
+                  'assets/images/rosary.png',
+                  color: Colors.white,
+                  width: 24,
+                  height: 24,
                 ),
+                iconBackgroundColor: Colors.purple.shade600,
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -101,15 +113,14 @@ class LoginScreen extends StatelessWidget {
                   );
                 },
               ),
-
-              _buildMenuListItem(
+              const SizedBox(height: 12),
+              _buildResourceItem(
                 context: context,
-                title: 'CATECHISM STUDY MATERIALS',
-                // FIX 3: Wrap Icon in a SizedBox for consistent width
-                leading: SizedBox(
-                  width: 32, // Consistent width
-                  child: Icon(Icons.school_outlined, color: Colors.blue.shade900, size: 28),
-                ),
+                title: 'CATECHISM MATERIALS',
+                subtitle: 'Study resources and guides',
+                icon: Icons.school_rounded,
+                iconColor: Colors.white,
+                iconBackgroundColor: Colors.teal.shade500,
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -118,20 +129,19 @@ class LoginScreen extends StatelessWidget {
                   );
                 },
               ),
-
-              _buildMenuListItem(
+              const SizedBox(height: 12),
+              _buildResourceItem(
                 context: context,
                 title: 'YAMAPRARTHANAKAL',
-                leading: SizedBox(
-                  width: 32,
-                  child: Icon(FontAwesomeIcons.bookOpen, color: Colors.blue.shade900, size: 28),
-                ),
+                subtitle: 'Daily prayers',
+                icon: FontAwesomeIcons.bookOpen,
+                iconColor: Colors.white,
+                iconBackgroundColor: const Color(0xFF3A5B9A), // Darker blue
                 onTap: () {
                   Navigator.pop(context);
                   openYamaprarthanakalApp(context);
                 },
               ),
-
               const SizedBox(height: 20),
             ],
           ),
@@ -139,6 +149,91 @@ class LoginScreen extends StatelessWidget {
       },
     );
   }
+
+  // --- FIX: ADDED MISSING HELPER WIDGET ---
+  Widget _buildResourceItem({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    IconData? icon,
+    Widget? customIcon,
+    required Color iconBackgroundColor,
+    Color iconColor = Colors.white,
+    required VoidCallback onTap,
+  }) {
+    // Determine the icon widget based on whether a FontAwesome/Material icon or a custom asset is provided
+    final Widget leadingIcon = customIcon ??
+        Icon(
+          icon,
+          color: iconColor,
+          size: 24,
+        );
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 2,
+              blurRadius: 5,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Icon Background
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: iconBackgroundColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: leadingIcon,
+            ),
+            const SizedBox(width: 16),
+            // Title and Subtitle
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Trailing arrow
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: Colors.blue.shade900.withOpacity(0.7),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  // --- END OF ADDED HELPER WIDGET ---
 
   // Helper widget to build styled list tiles for the menu
   Widget _buildMenuListItem({
@@ -451,6 +546,15 @@ class LoginScreen extends StatelessWidget {
               return GestureDetector(
                 onTap: () {
                   // Navigate to the event detail screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EventDetailScreenFromHome(
+                        eventId: eventId,
+                        // You may need to pass other event data if EventDetailScreenFromHome requires it
+                      ),
+                    ),
+                  );
                 },
                 child: _buildCarouselItem(imageUrl, title, subtitle: place),
               );
