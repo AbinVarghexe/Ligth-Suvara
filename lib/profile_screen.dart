@@ -17,9 +17,12 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProviderStateMixin {
+class _ProfileScreenState extends State<ProfileScreen>
+    with SingleTickerProviderStateMixin {
   final _fullNameController = TextEditingController();
   final _phoneNumberController = TextEditingController();
+  final _foraneController = TextEditingController();
+  final _parishController = TextEditingController();
 
   String _schoolName = 'Loading...';
   String? _userDocId;
@@ -45,10 +48,13 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _loadUserProfile();
   }
@@ -58,18 +64,25 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     _animationController.dispose();
     _fullNameController.dispose();
     _phoneNumberController.dispose();
+    _foraneController.dispose();
+    _parishController.dispose();
     super.dispose();
   }
 
   Future<void> _loadUserProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      setState(() { _isLoading = false; });
+      setState(() {
+        _isLoading = false;
+      });
       return;
     }
 
     try {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
       if (userDoc.exists) {
         final data = userDoc.data()!;
@@ -79,6 +92,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           _schoolName = data['schoolname'] ?? 'Not Set';
           _fullNameController.text = data['fullName'] ?? '';
           _phoneNumberController.text = data['phoneNumber'] ?? '';
+          _foraneController.text = data['forane'] ?? '';
+          _parishController.text = data['parish'] ?? '';
           _profileImageUrl = data['profileImageUrl'];
           _isLoading = false;
         });
@@ -91,12 +106,16 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       }
     } catch (e) {
       print("Error loading profile: $e");
-      setState(() { _isLoading = false; });
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   Future<void> _pickImage() async {
-    final pickedImage = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final pickedImage = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
     if (pickedImage != null) {
       setState(() {
         _newImageFile = File(pickedImage.path);
@@ -106,7 +125,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
   Future<File?> _compressImage(File file) async {
     final tempDir = await getTemporaryDirectory();
-    final targetPath = p.join(tempDir.path, '${DateTime.now().millisecondsSinceEpoch}_compressed.jpg');
+    final targetPath = p.join(
+      tempDir.path,
+      '${DateTime.now().millisecondsSinceEpoch}_compressed.jpg',
+    );
 
     final compressedXFile = await FlutterImageCompress.compressAndGetFile(
       file.absolute.path,
@@ -123,7 +145,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   Future<void> _updateProfile() async {
     if (_userDocId == null) return;
 
-    setState(() { _isSaving = true; });
+    setState(() {
+      _isSaving = true;
+    });
 
     try {
       String? updatedImageUrl = _profileImageUrl;
@@ -137,7 +161,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         }
         uploadFile = compressedFile;
 
-        final storageRef = FirebaseStorage.instance.ref().child('profile_pictures/${_userDocId}');
+        final storageRef = FirebaseStorage.instance.ref().child(
+          'profile_pictures/${_userDocId}',
+        );
         final uploadTask = await storageRef.putFile(uploadFile);
         updatedImageUrl = await uploadTask.ref.getDownloadURL();
       }
@@ -146,18 +172,21 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         throw Exception("Full Name cannot be empty.");
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(_userDocId!).update({
-        'fullName': _fullNameController.text.trim(),
-        'phoneNumber': _phoneNumberController.text.trim(),
-        'profileImageUrl': updatedImageUrl,
-      });
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_userDocId!)
+          .update({
+            'fullName': _fullNameController.text.trim(),
+            'phoneNumber': _phoneNumberController.text.trim(),
+            'profileImageUrl': updatedImageUrl,
+          });
 
       setState(() {
         _profileImageUrl = updatedImageUrl;
         _newImageFile = null;
       });
 
-      if(mounted) {
+      if (mounted) {
         _showStatusDialog(
           context: context,
           isSuccess: true,
@@ -166,17 +195,20 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         );
       }
     } catch (e) {
-      if(mounted) {
+      if (mounted) {
         _showStatusDialog(
           context: context,
           isSuccess: false,
           title: "Error",
-          message: "Update failed: ${e.toString().contains('Exception:') ? e.toString().split('Exception: ')[1] : 'Please check your inputs.'}",
+          message:
+              "Update failed: ${e.toString().contains('Exception:') ? e.toString().split('Exception: ')[1] : 'Please check your inputs.'}",
         );
       }
     } finally {
-      if(mounted) {
-        setState(() { _isSaving = false; });
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
       }
     }
   }
@@ -194,7 +226,11 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             elevation: 0,
             backgroundColor: Colors.white,
             leading: IconButton(
-              icon: Icon(Icons.arrow_back_ios_new, color: Colors.blue.shade900, size: 20),
+              icon: Icon(
+                Icons.arrow_back_ios_new,
+                color: Colors.blue.shade900,
+                size: 20,
+              ),
               onPressed: () => Navigator.of(context).pop(),
             ),
             flexibleSpace: FlexibleSpaceBar(
@@ -213,42 +249,42 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           SliverToBoxAdapter(
             child: _isLoading
                 ? SizedBox(
-              height: MediaQuery.of(context).size.height - 200,
-              child: const Center(child: CircularProgressIndicator()),
-            )
+                    height: MediaQuery.of(context).size.height - 200,
+                    child: const Center(child: CircularProgressIndicator()),
+                  )
                 : FadeTransition(
-              opacity: _fadeAnimation,
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildModernProfilePicture(),
-                      const SizedBox(height: 32),
-                      _buildInfoCard(),
-                      const SizedBox(height: 24),
-                      _buildModernTextField(
-                        label: 'Full Name',
-                        controller: _fullNameController,
-                        icon: Icons.person_outline_rounded,
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildModernProfilePicture(),
+                            const SizedBox(height: 32),
+                            _buildInfoCard(),
+                            const SizedBox(height: 24),
+                            _buildModernTextField(
+                              label: 'Full Name',
+                              controller: _fullNameController,
+                              icon: Icons.person_outline_rounded,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildModernTextField(
+                              label: 'Phone Number',
+                              controller: _phoneNumberController,
+                              icon: Icons.phone_outlined,
+                              keyboardType: TextInputType.phone,
+                            ),
+                            const SizedBox(height: 32),
+                            _buildModernButton(),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      _buildModernTextField(
-                        label: 'Phone Number',
-                        controller: _phoneNumberController,
-                        icon: Icons.phone_outlined,
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 32),
-                      _buildModernButton(),
-                      const SizedBox(height: 24),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ),
           ),
         ],
       ),
@@ -301,13 +337,13 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       : _profileImageUrl != null
                       ? Image.network(_profileImageUrl!, fit: BoxFit.cover)
                       : Container(
-                    color: Colors.blue.shade50,
-                    child: Icon(
-                      Icons.person_rounded,
-                      color: Colors.blue.shade900,
-                      size: 56,
-                    ),
-                  ),
+                          color: Colors.blue.shade50,
+                          child: Icon(
+                            Icons.person_rounded,
+                            color: Colors.blue.shade900,
+                            size: 56,
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -336,7 +372,11 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     ),
                   ],
                 ),
-                child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ),
           ),
@@ -363,40 +403,140 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.church_rounded, color: Colors.white, size: 28),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.church_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Church Name',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _schoolName,
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Church Name',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
+          const SizedBox(height: 16),
+          Container(height: 1, color: Colors.white.withOpacity(0.2)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _schoolName,
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: const Icon(
+                  Icons.location_city_rounded,
+                  color: Colors.white,
+                  size: 28,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Forane',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _foraneController.text.isEmpty
+                          ? 'Not Set'
+                          : _foraneController.text,
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(height: 1, color: Colors.white.withValues(alpha: 0.2)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.church_outlined,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Parish',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _parishController.text.isEmpty
+                          ? 'Not Set'
+                          : _parishController.text,
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -464,7 +604,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(color: Colors.blue.shade900, width: 2),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 18,
+              ),
             ),
           ),
         ),
@@ -495,30 +638,35 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
         child: _isSaving
             ? const SizedBox(
-          height: 24,
-          width: 24,
-          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-        )
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
             : Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.save_rounded, color: Colors.white, size: 22),
-            const SizedBox(width: 12),
-            Text(
-              'Update Profile',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-                letterSpacing: 0.5,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.save_rounded, color: Colors.white, size: 22),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Update Profile',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -533,10 +681,14 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       context: context,
       builder: (BuildContext context) {
         final color = isSuccess ? const Color(0xFF22C55E) : Colors.red;
-        final icon = isSuccess ? Icons.check_circle_rounded : Icons.error_rounded;
+        final icon = isSuccess
+            ? Icons.check_circle_rounded
+            : Icons.error_rounded;
 
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           contentPadding: const EdgeInsets.fromLTRB(24, 32, 24, 20),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -585,7 +737,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: color,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   elevation: 0,
                 ),
                 child: Text(
