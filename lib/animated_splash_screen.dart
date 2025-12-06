@@ -1,8 +1,5 @@
-
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:sundayschool_app/login_screen.dart';
+import 'package:sundayschool_app/auth_wrapper.dart'; // Update import
 import 'package:lottie/lottie.dart';
 
 class AnimatedSplashScreen extends StatefulWidget {
@@ -20,9 +17,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
   void initState() {
     super.initState();
 
-    _controller = AnimationController(
-      vsync: this,
-    );
+    _controller = AnimationController(vsync: this);
 
     // Use a listener for precise navigation
     _controller.addStatusListener((status) {
@@ -32,11 +27,15 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
           Navigator.of(context).pushReplacement(
             // Use a fade transition for a smoother visual hand-off
             PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-              transitionDuration: const Duration(milliseconds: 400), // Quick fade
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const AuthWrapper(),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(opacity: animation, child: child);
+                  },
+              transitionDuration: const Duration(
+                milliseconds: 400,
+              ), // Quick fade
             ),
           );
         }

@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http; // Needed for downloading files
-import 'package:path_provider/path_provider.dart'; // Needed for file system paths
-import 'package:open_file/open_file.dart'; // Needed to open the downloaded file
 import 'dart:io'; // Needed for File and Platform checks
+import 'package:path_provider/path_provider.dart'; // For app's private directory
+import 'package:open_file/open_file.dart'; // Needed to open the downloaded file
 
 class CatechismScreen extends StatefulWidget {
   const CatechismScreen({super.key});
@@ -65,7 +65,7 @@ class _CatechismScreenState extends State<CatechismScreen> {
       final pathSegments = uri.pathSegments;
       if (pathSegments.isNotEmpty) {
         final fileName = pathSegments.last;
-        if (fileName.isNotEmpty && fileName.contains('.')) {
+        if (fileName.isNotEmpty) {
           return fileName.split('?').first;
         }
       }
@@ -93,50 +93,48 @@ class _CatechismScreenState extends State<CatechismScreen> {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        Directory? downloadDir;
-        if (Platform.isAndroid) {
-          // Derive the public Downloads directory from external storage root
-          final externalDir = await getExternalStorageDirectory();
-          if (externalDir != null) {
-            final String rootPath = externalDir.path.split('/Android')[0];
-            downloadDir = Directory('$rootPath/Download');
-            if (!await downloadDir.exists()) {
-              downloadDir = Directory('$rootPath/Downloads');
-              if (!await downloadDir.exists()) {
-                await downloadDir.create(recursive: true);
-              }
-            }
-          }
-        } else {
-          // For iOS and other platforms
-          downloadDir = await getApplicationDocumentsDirectory();
-        }
-
-        if (downloadDir == null) {
-          throw Exception('Could not access download directory. Please check storage permissions.');
-        }
-
         String fileName = _getFileName(url);
+
+        // Extract filename from content-disposition header if available
         final contentDisposition = response.headers['content-disposition'];
         if (contentDisposition != null) {
-          final fileNameRegex = RegExp(r'filename[^;=\n]*=([^;\n]+)');
-          final fileNameMatch = fileNameRegex.firstMatch(contentDisposition);
-          if (fileNameMatch != null && fileNameMatch.groupCount >= 1) {
-            final extractedName = fileNameMatch.group(1);
-            if (extractedName != null) {
-              fileName = extractedName.trim().replaceAll('"', '').replaceAll("'", '');
+          final fileNameRegex = RegExp(r"filename[^;=\n]*=((['\u0022]|[^;\n]*))");
+          final match = fileNameRegex.firstMatch(contentDisposition);
+          if (match != null) {
+            String extractedName = match.group(1) ?? fileName;
+            // Clean up the filename
+            extractedName = extractedName.replaceAll(RegExp(r"['\u0022]"), '');
+            if(extractedName.isNotEmpty) {
+              fileName = extractedName;
             }
           }
         }
+        
+        // --- SAVE TO APP'S PRIVATE DIRECTORY ---
+        Directory? directory;
+        if (Platform.isAndroid) {
+          // Use the app's exclusive external storage directory.
+          // This is the recommended approach that doesn't require special permissions.
+          directory = await getExternalStorageDirectory();
+        } else {
+          // For iOS and other platforms
+          directory = await getApplicationDocumentsDirectory();
+        }
 
-        final file = File('${downloadDir.path}/$fileName');
+        if (directory == null) {
+          throw Exception('Could not access storage directory.');
+        }
+
+        final filePath = '${directory.path}/$fileName';
+        final file = File(filePath);
         await file.writeAsBytes(response.bodyBytes);
 
         if (await file.exists()) {
-          _showDownloadNotification(fileName, file.path);
+          _showDownloadNotification(fileName, filePath);
         } else {
-          throw Exception('File was not created successfully');
+          throw Exception('File was not saved successfully.');
         }
+
       } else {
         throw Exception('Download failed: HTTP ${response.statusCode}');
       }
@@ -155,6 +153,7 @@ class _CatechismScreenState extends State<CatechismScreen> {
       }
     }
   }
+
 
   @override
   void initState() {

@@ -1,7 +1,7 @@
 name: sundayschool_app
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.0.1+7
+version: 1.0.0+9
 
 environment:
   sdk: '>=3.8.1 <4.0.0' # Use range for better compatibility
@@ -37,6 +37,10 @@ dependencies:
   lottie: ^3.1.0
   external_app_launcher: ^4.0.3
   font_awesome_flutter: ^10.0.0
+  permission_handler: ^11.3.1
+  file_picker: ^8.0.7
+  printing: ^5.13.1
+  uuid: ^4.5.2
 
 dev_dependencies:
   flutter_test:

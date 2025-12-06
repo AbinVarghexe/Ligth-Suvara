@@ -2,13 +2,15 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart'; // ⭐️ 1. IMPORT PROVIDER
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:sundayschool_app/providers/user_data_provider.dart'; // ⭐️ 2. IMPORT YOUR NEW PROVIDER
 import 'firebase_options.dart';
-import 'package:sundayschool_app/animated_splash_screen.dart';
+import 'package:sundayschool_app/auth_wrapper.dart'; // Import the new AuthWrapper
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:sundayschool_app/animated_splash_screen.dart'; // Import the animated splash screen
 
 void main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -23,11 +25,23 @@ void main() async {
     return false;
   };
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint("Firebase initialization failed: $e");
+  }
 
-  await FirebaseAppCheck.instance.activate(
-    androidProvider: AndroidProvider.debug,
-  );
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kReleaseMode
+          ? AndroidProvider.playIntegrity
+          : AndroidProvider.debug,
+    );
+  } catch (e) {
+    debugPrint("App Check activation failed: $e");
+  }
 
   await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
     DeviceOrientation.portraitUp,
@@ -56,7 +70,7 @@ class MyApp extends StatelessWidget {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Sunday School Events',
-      home: AnimatedSplashScreen(),
+      home: AnimatedSplashScreen(), // Start with Animated Splash Screen
     );
   }
 }

@@ -3,11 +3,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:sundayschool_app/firestore_service.dart';
 import 'package:sundayschool_app/homescreen.dart';
 import 'package:sundayschool_app/admin_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sundayschool_app/login_screen.dart';
+import 'package:sundayschool_app/animator/animator_dashboard_screen.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 
 class AuthScreen extends StatefulWidget {
@@ -55,14 +56,15 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeIn));
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
 
     _logoFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
@@ -72,14 +74,15 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     );
 
     // Exit animations
-    _exitFadeAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _exitController, curve: Curves.easeOut),
-    );
+    _exitFadeAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _exitController, curve: Curves.easeOut));
 
-    _exitSlideAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: const Offset(0, -0.3),
-    ).animate(CurvedAnimation(parent: _exitController, curve: Curves.easeInCubic));
+    _exitSlideAnimation =
+        Tween<Offset>(begin: Offset.zero, end: const Offset(0, -0.3)).animate(
+          CurvedAnimation(parent: _exitController, curve: Curves.easeInCubic),
+        );
 
     // Start animations
     _fadeController.forward();
@@ -104,7 +107,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) => destination,
-          transitionDuration: Duration.zero, // No additional transition since we're animating in this screen
+          transitionDuration: Duration
+              .zero, // No additional transition since we're animating in this screen
         ),
       );
     }
@@ -174,15 +178,18 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     });
 
     try {
-      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+      final userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
 
       final user = userCredential.user;
       if (user != null) {
         // CORE FIX: Check for existing profile and create a placeholder if missing.
-        final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        final userDocRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid);
         final userDoc = await userDocRef.get();
 
         if (!userDoc.exists) {
@@ -191,22 +198,40 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           await userDocRef.set({
             'email': user.email,
             'role': 'school', // Default role
-            'schoolname': schoolNameFromEmail, // Default school name from email prefix
+            'schoolname':
+                schoolNameFromEmail, // Default school name from email prefix
             'fullName': '', // Placeholder
             'phoneNumber': '', // Placeholder
             'profileImageUrl': null, // Placeholder
+            'forane': '', // Initialize empty Forane
+            'parish': '', // Initialize empty Parish
           }, SetOptions(merge: true));
-          // Note: The ProfileScreen already handles updating these fields.
         }
 
-        final isUserAdmin = await isAdmin();
+        // Fetch role directly from the doc we just got
+        String? role;
+        if (userDoc.exists) {
+          final data = userDoc.data();
+          if (data != null && data is Map<String, dynamic>) {
+            role = data['role'];
+          }
+        }
+
+        final isUserAdmin = role == 'admin';
+        final isAnimator = role == 'animator';
 
         if (mounted) {
-          final destination = isUserAdmin ? const AdminDashboardScreen() : const HomeScreen();
+          Widget destination;
+          if (isUserAdmin) {
+            destination = const AdminDashboardScreen();
+          } else if (isAnimator) {
+            destination = const AnimatorDashboardScreen();
+          } else {
+            destination = const HomeScreen();
+          }
           await _animatedNavigate(destination);
         }
       }
-
     } on FirebaseAuthException catch (e) {
       String message = 'Invalid credentials. Please try again.';
       if (e.code == 'user-not-found' ||
@@ -257,11 +282,15 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           children: [
             // --- MAIN CONTENT (ListView) ---
             FadeTransition(
-              opacity: _exitController.status == AnimationStatus.forward || _exitController.status == AnimationStatus.completed
+              opacity:
+                  _exitController.status == AnimationStatus.forward ||
+                      _exitController.status == AnimationStatus.completed
                   ? _exitFadeAnimation
                   : _fadeAnimation,
               child: SlideTransition(
-                position: _exitController.status == AnimationStatus.forward || _exitController.status == AnimationStatus.completed
+                position:
+                    _exitController.status == AnimationStatus.forward ||
+                        _exitController.status == AnimationStatus.completed
                     ? _exitSlideAnimation
                     : _slideAnimation,
                 child: ListView(
@@ -328,7 +357,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue.shade900,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16), // Reduced padding
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                        ), // Reduced padding
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -336,24 +367,27 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                       ),
                       child: _isLoading
                           ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
                           : Text(
-                        'Log In',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16, // Slightly smaller font
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                              'Log In',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16, // Slightly smaller font
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                     const SizedBox(height: 60), // Reduced spacing
                     FadeTransition(
-                      opacity: _exitController.status == AnimationStatus.forward || _exitController.status == AnimationStatus.completed
+                      opacity:
+                          _exitController.status == AnimationStatus.forward ||
+                              _exitController.status ==
+                                  AnimationStatus.completed
                           ? _exitFadeAnimation
                           : _logoFadeAnimation,
                       child: Column(
@@ -388,7 +422,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               left: 0,
               right: 0,
               child: FadeTransition(
-                opacity: _exitController.status == AnimationStatus.forward || _exitController.status == AnimationStatus.completed
+                opacity:
+                    _exitController.status == AnimationStatus.forward ||
+                        _exitController.status == AnimationStatus.completed
                     ? _exitFadeAnimation
                     : _logoFadeAnimation,
                 child: Text(
@@ -437,16 +473,16 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           border: InputBorder.none,
           suffixIcon: isPassword
               ? IconButton(
-            icon: Icon(
-              _passwordVisible ? Icons.visibility : Icons.visibility_off,
-              color: Colors.grey[600],
-            ),
-            onPressed: () {
-              setState(() {
-                _passwordVisible = !_passwordVisible;
-              });
-            },
-          )
+                  icon: Icon(
+                    _passwordVisible ? Icons.visibility : Icons.visibility_off,
+                    color: Colors.grey[600],
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _passwordVisible = !_passwordVisible;
+                    });
+                  },
+                )
               : null,
         ),
       ),

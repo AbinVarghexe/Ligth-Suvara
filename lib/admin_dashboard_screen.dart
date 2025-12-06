@@ -1,14 +1,18 @@
-// lib/admin_dashboard_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added import
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:sundayschool_app/admin_notification_screen.dart';
 import 'package:sundayschool_app/event_detail_screen.dart';
-import 'package:sundayschool_app/edit_event_screen.dart';
+
 import 'package:sundayschool_app/login_screen.dart';
+import 'package:sundayschool_app/admin/admin_question_manager.dart';
+import 'package:sundayschool_app/admin/admin_assignment_manager.dart';
+import 'package:sundayschool_app/admin/admin_marks_viewer.dart';
+import 'package:sundayschool_app/admin/admin_manage_animators.dart';
+import 'package:sundayschool_app/admin/admin_create_animator.dart';
 
 enum SortOption { newestFirst, alphabetical }
 
@@ -16,10 +20,11 @@ class EventListSkeleton extends StatelessWidget {
   const EventListSkeleton({super.key});
   @override
   Widget build(BuildContext context) {
-    Widget buildShimmerBlock(
-        {required double height,
-          double width = double.infinity,
-          double radius = 15.0}) {
+    Widget buildShimmerBlock({
+      required double height,
+      double width = double.infinity,
+      double radius = 15.0,
+    }) {
       return Container(
         height: height,
         width: width,
@@ -29,6 +34,7 @@ class EventListSkeleton extends StatelessWidget {
         ),
       );
     }
+
     return Shimmer.fromColors(
       baseColor: Colors.grey.shade300,
       highlightColor: Colors.grey.shade100,
@@ -78,7 +84,8 @@ class AdminDashboardScreen extends StatefulWidget {
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
-class _AdminDashboardScreenState extends State<AdminDashboardScreen> with SingleTickerProviderStateMixin {
+class _AdminDashboardScreenState extends State<AdminDashboardScreen>
+    with SingleTickerProviderStateMixin {
   int _selectedCategoryIndex = 0;
   final List<String> _categories = ['ALL', 'CML', 'SUVARA'];
   String _searchQuery = '';
@@ -132,11 +139,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     });
 
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('events').get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('events')
+          .get();
 
       final allEvents = snapshot.docs;
       final total = allEvents.length;
-      final public = allEvents.where((doc) => (doc.data())['isPublic'] == true).length;
+      final public = allEvents
+          .where((doc) => (doc.data())['isPublic'] == true)
+          .length;
       final draft = total - public;
 
       if (mounted) {
@@ -159,7 +170,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
             ),
             backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -172,12 +185,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     }
   }
 
-  Future<void> _toggleEventVisibility(BuildContext context, String eventId, bool currentStatus) async {
+  Future<void> _toggleEventVisibility(
+    BuildContext context,
+    String eventId,
+    bool currentStatus,
+  ) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('events')
-          .doc(eventId)
-          .update({'isPublic': !currentStatus});
+      await FirebaseFirestore.instance.collection('events').doc(eventId).update(
+        {'isPublic': !currentStatus},
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -189,12 +205,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                   color: Colors.white,
                 ),
                 const SizedBox(width: 12),
-                Text(!currentStatus ? 'Event published successfully!' : 'Event moved to drafts'),
+                Text(
+                  !currentStatus
+                      ? 'Event published successfully!'
+                      : 'Event moved to drafts',
+                ),
               ],
             ),
-            backgroundColor: !currentStatus ? Colors.green.shade600 : Colors.orange.shade600,
+            backgroundColor: !currentStatus
+                ? Colors.green.shade600
+                : Colors.orange.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -213,7 +237,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
             ),
             backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -225,7 +251,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -248,7 +276,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                         color: Colors.blue.shade900,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.sort, color: Colors.white, size: 24),
+                      child: const Icon(
+                        Icons.sort,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     Text(
@@ -321,8 +353,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                 ),
               ),
             ),
-            if (isSelected)
-              const Icon(Icons.check_circle, color: Colors.white),
+            if (isSelected) const Icon(Icons.check_circle, color: Colors.white),
           ],
         ),
       ),
@@ -354,7 +385,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                   color: Colors.red.shade100,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.delete_forever, color: Colors.red.shade700, size: 40),
+                child: Icon(
+                  Icons.delete_forever,
+                  color: Colors.red.shade700,
+                  size: 40,
+                ),
               ),
               const SizedBox(height: 20),
               Text(
@@ -379,7 +414,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                 controller: controller,
                 decoration: InputDecoration(
                   hintText: "Enter Deleted User ID (UID)",
-                  prefixIcon: Icon(Icons.person_off, color: Colors.red.shade700),
+                  prefixIcon: Icon(
+                    Icons.person_off,
+                    color: Colors.red.shade700,
+                  ),
                   filled: true,
                   fillColor: Colors.red.shade50,
                   border: OutlineInputBorder(
@@ -412,7 +450,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+                      onPressed: () =>
+                          Navigator.of(ctx).pop(controller.text.trim()),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red.shade700,
                         foregroundColor: Colors.white,
@@ -449,7 +488,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
             ),
             backgroundColor: Colors.blueGrey,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -474,12 +515,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                 children: [
                   const Icon(Icons.info_outline, color: Colors.white),
                   const SizedBox(width: 12),
-                  Expanded(child: Text('No events found for user ID: $deletedUserId')),
+                  Expanded(
+                    child: Text('No events found for user ID: $deletedUserId'),
+                  ),
                 ],
               ),
               backgroundColor: Colors.blueGrey,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           );
         }
@@ -501,13 +546,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                 const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text('${querySnapshot.docs.length} events deleted for user ID: $deletedUserId'),
+                  child: Text(
+                    '${querySnapshot.docs.length} events deleted for user ID: $deletedUserId',
+                  ),
                 ),
               ],
             ),
             backgroundColor: Colors.green.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -524,7 +573,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
             ),
             backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -542,59 +593,64 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
       padding: const EdgeInsets.symmetric(vertical: 20.0),
       child: _isStatsLoading
           ? Center(
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.blue.shade100,
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.shade100,
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: const CircularProgressIndicator(),
               ),
-            ],
-          ),
-          child: const CircularProgressIndicator(),
-        ),
-      )
+            )
           : IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _buildGradientStatCard(
-                'Total Events',
-                _totalEvents,
-                Icons.event_note_rounded,
-                [Colors.blue.shade700, Colors.blue.shade900],
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _buildGradientStatCard(
+                      'Total Events',
+                      _totalEvents,
+                      Icons.event_note_rounded,
+                      [Colors.blue.shade700, Colors.blue.shade900],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildGradientStatCard(
+                      'Public',
+                      _publicEvents,
+                      Icons.public_rounded,
+                      [Colors.green.shade600, Colors.green.shade800],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildGradientStatCard(
+                      'Drafts',
+                      _draftEvents,
+                      Icons.drafts_rounded,
+                      [Colors.orange.shade600, Colors.orange.shade800],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildGradientStatCard(
-                'Public',
-                _publicEvents,
-                Icons.public_rounded,
-                [Colors.green.shade600, Colors.green.shade800],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildGradientStatCard(
-                'Drafts',
-                _draftEvents,
-                Icons.drafts_rounded,
-                [Colors.orange.shade600, Colors.orange.shade800],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildGradientStatCard(String title, int count, IconData icon, List<Color> gradientColors) {
+  Widget _buildGradientStatCard(
+    String title,
+    int count,
+    IconData icon,
+    List<Color> gradientColors,
+  ) {
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 600),
       tween: Tween(begin: 0.0, end: 1.0),
@@ -612,7 +668,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: gradientColors[0].withOpacity(0.4),
+                  color: gradientColors[0].withValues(alpha: 0.4),
                   blurRadius: 15,
                   offset: const Offset(0, 8),
                 ),
@@ -625,7 +681,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: Colors.white, size: 28),
@@ -692,19 +748,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                 decoration: BoxDecoration(
                   gradient: isSelected
                       ? LinearGradient(
-                    colors: [Colors.blue.shade700, Colors.blue.shade900],
-                  )
+                          colors: [Colors.blue.shade700, Colors.blue.shade900],
+                        )
                       : null,
                   color: isSelected ? null : Colors.transparent,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: isSelected
                       ? [
-                    BoxShadow(
-                      color: Colors.blue.shade300,
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
+                          BoxShadow(
+                            color: Colors.blue.shade300,
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
                       : null,
                 ),
                 child: Center(
@@ -744,12 +800,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
         decoration: InputDecoration(
           hintText: 'Search events...',
           hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-          prefixIcon: Icon(Icons.search_rounded, color: Colors.blue.shade700, size: 26),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: Colors.blue.shade700,
+            size: 26,
+          ),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-            icon: Icon(Icons.clear_rounded, color: Colors.grey.shade600),
-            onPressed: () => _searchController.clear(),
-          )
+                  icon: Icon(Icons.clear_rounded, color: Colors.grey.shade600),
+                  onPressed: () => _searchController.clear(),
+                )
               : null,
           filled: true,
           fillColor: Colors.white,
@@ -757,7 +817,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
             borderRadius: BorderRadius.circular(20),
             borderSide: BorderSide.none,
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
+          ),
         ),
       ),
     );
@@ -771,7 +834,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
         .orderBy('timestamp', descending: true);
 
     if (selectedCategory != 'ALL') {
-      baseQuery = baseQuery.where('category', isEqualTo: selectedCategory.toLowerCase());
+      baseQuery = baseQuery.where(
+        'category',
+        isEqualTo: selectedCategory.toLowerCase(),
+      );
     }
 
     return StreamBuilder<QuerySnapshot>(
@@ -795,7 +861,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.error_outline, color: Colors.red.shade700, size: 48),
+                    Icon(
+                      Icons.error_outline,
+                      color: Colors.red.shade700,
+                      size: 48,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       "Database Index Required",
@@ -839,8 +909,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
 
         if (_currentSortOption == SortOption.alphabetical) {
           filteredDocs.sort((a, b) {
-            String aTitle = (a.data() as Map<String, dynamic>)['title']?.toString().toLowerCase() ?? '';
-            String bTitle = (b.data() as Map<String, dynamic>)['title']?.toString().toLowerCase() ?? '';
+            String aTitle =
+                (a.data() as Map<String, dynamic>)['title']
+                    ?.toString()
+                    .toLowerCase() ??
+                '';
+            String bTitle =
+                (b.data() as Map<String, dynamic>)['title']
+                    ?.toString()
+                    .toLowerCase() ??
+                '';
             return aTitle.compareTo(bTitle);
           });
         }
@@ -853,7 +931,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    _searchQuery.isNotEmpty ? Icons.search_off : Icons.event_busy,
+                    _searchQuery.isNotEmpty
+                        ? Icons.search_off
+                        : Icons.event_busy,
                     size: 80,
                     color: Colors.grey.shade400,
                   ),
@@ -861,7 +941,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                   Text(
                     _searchQuery.isNotEmpty
                         ? 'No events matching "$_searchQuery"'
-                        : (selectedCategory == 'ALL' ? "No events found" : "No events found for $selectedCategory"),
+                        : (selectedCategory == 'ALL'
+                              ? "No events found"
+                              : "No events found for $selectedCategory"),
                     style: GoogleFonts.poppins(
                       color: Colors.grey.shade600,
                       fontSize: 16,
@@ -920,7 +1002,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                             HapticFeedback.lightImpact();
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (context) => EventDetailScreen(eventId: eventDoc.id),
+                                builder: (context) =>
+                                    EventDetailScreen(eventId: eventDoc.id),
                               ),
                             );
                           },
@@ -938,30 +1021,42 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                                         width: 80,
                                         height: 80,
                                         decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                           gradient: LinearGradient(
                                             colors: isPublic
-                                                ? [Colors.green.shade200, Colors.green.shade400]
-                                                : [Colors.orange.shade200, Colors.orange.shade400],
+                                                ? [
+                                                    Colors.green.shade200,
+                                                    Colors.green.shade400,
+                                                  ]
+                                                : [
+                                                    Colors.orange.shade200,
+                                                    Colors.orange.shade400,
+                                                  ],
                                           ),
                                         ),
                                         child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                           child: data['imageUrl'] != null
                                               ? Image.network(
-                                            data['imageUrl'],
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (ctx, err, st) => Icon(
-                                              Icons.broken_image_rounded,
-                                              color: Colors.white,
-                                              size: 40,
-                                            ),
-                                          )
+                                                  data['imageUrl'],
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder:
+                                                      (ctx, err, st) => Icon(
+                                                        Icons
+                                                            .broken_image_rounded,
+                                                        color: Colors.white,
+                                                        size: 40,
+                                                      ),
+                                                )
                                               : Icon(
-                                            Icons.image_rounded,
-                                            color: Colors.white,
-                                            size: 40,
-                                          ),
+                                                  Icons.image_rounded,
+                                                  color: Colors.white,
+                                                  size: 40,
+                                                ),
                                         ),
                                       ),
                                     ),
@@ -971,11 +1066,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                                       child: Container(
                                         padding: const EdgeInsets.all(6),
                                         decoration: BoxDecoration(
-                                          color: isPublic ? Colors.green.shade600 : Colors.orange.shade600,
+                                          color: isPublic
+                                              ? Colors.green.shade600
+                                              : Colors.orange.shade600,
                                           shape: BoxShape.circle,
                                           boxShadow: [
                                             BoxShadow(
-                                              color: (isPublic ? Colors.green : Colors.orange).withOpacity(0.5),
+                                              color:
+                                                  (isPublic
+                                                          ? Colors.green
+                                                          : Colors.orange)
+                                                      .withOpacity(0.5),
                                               blurRadius: 8,
                                               spreadRadius: 2,
                                             ),
@@ -994,7 +1095,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                                 // Event Details
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         data['title'] ?? 'No Title',
@@ -1008,13 +1110,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                                       ),
                                       const SizedBox(height: 6),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: Colors.blue.shade100,
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
                                         child: Text(
-                                          (data['category'] ?? 'N/A').toUpperCase(),
+                                          (data['category'] ?? 'N/A')
+                                              .toUpperCase(),
                                           style: GoogleFonts.poppins(
                                             color: Colors.blue.shade900,
                                             fontSize: 11,
@@ -1030,7 +1138,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                                             width: 8,
                                             height: 8,
                                             decoration: BoxDecoration(
-                                              color: isPublic ? Colors.green.shade600 : Colors.orange.shade600,
+                                              color: isPublic
+                                                  ? Colors.green.shade600
+                                                  : Colors.orange.shade600,
                                               shape: BoxShape.circle,
                                             ),
                                           ),
@@ -1038,7 +1148,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                                           Text(
                                             isPublic ? 'Published' : 'Draft',
                                             style: GoogleFonts.poppins(
-                                              color: isPublic ? Colors.green.shade700 : Colors.orange.shade700,
+                                              color: isPublic
+                                                  ? Colors.green.shade700
+                                                  : Colors.orange.shade700,
                                               fontWeight: FontWeight.w600,
                                               fontSize: 12,
                                             ),
@@ -1054,13 +1166,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: isPublic
-                                          ? [Colors.orange.shade500, Colors.orange.shade700]
-                                          : [Colors.green.shade500, Colors.green.shade700],
+                                          ? [
+                                              Colors.orange.shade500,
+                                              Colors.orange.shade700,
+                                            ]
+                                          : [
+                                              Colors.green.shade500,
+                                              Colors.green.shade700,
+                                            ],
                                     ),
                                     borderRadius: BorderRadius.circular(12),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: (isPublic ? Colors.orange : Colors.green).withOpacity(0.3),
+                                        color:
+                                            (isPublic
+                                                    ? Colors.orange
+                                                    : Colors.green)
+                                                .withOpacity(0.3),
                                         blurRadius: 8,
                                         offset: const Offset(0, 4),
                                       ),
@@ -1071,22 +1193,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                                     child: InkWell(
                                       onTap: () {
                                         HapticFeedback.mediumImpact();
-                                        _toggleEventVisibility(context, eventDoc.id, isPublic);
+                                        _toggleEventVisibility(
+                                          context,
+                                          eventDoc.id,
+                                          isPublic,
+                                        );
                                       },
                                       borderRadius: BorderRadius.circular(12),
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Icon(
-                                              isPublic ? Icons.unpublished : Icons.publish,
+                                              isPublic
+                                                  ? Icons.unpublished
+                                                  : Icons.publish,
                                               color: Colors.white,
                                               size: 22,
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
-                                              isPublic ? 'Unpublish' : 'Publish',
+                                              isPublic
+                                                  ? 'Unpublish'
+                                                  : 'Publish',
                                               style: GoogleFonts.poppins(
                                                 fontSize: 10,
                                                 color: Colors.white,
@@ -1145,14 +1278,56 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
             backgroundColor: Colors.transparent,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-              onPressed: () {
-                if (Navigator.of(context).canPop()) {
-                  Navigator.of(context).pop();
-                } else {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  );
+              icon: const Icon(Icons.logout_rounded, color: Colors.white),
+              onPressed: () async {
+                // Show logout confirmation dialog
+                final shouldLogout = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text(
+                      'Logout',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                    ),
+                    content: Text(
+                      'Are you sure you want to logout?',
+                      style: GoogleFonts.poppins(),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.poppins(color: Colors.grey),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Text('Logout', style: GoogleFonts.poppins()),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (shouldLogout == true) {
+                  await FirebaseAuth.instance.signOut();
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
+                      ),
+                      (route) => false,
+                    );
+                  }
                 }
               },
             ),
@@ -1160,7 +1335,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
               _buildAppBarAction(
                 icon: Icons.cleaning_services_outlined,
                 color: Colors.red.shade300,
-                onPressed: _isStatsLoading ? null : () => _deleteEventsByUserId(context),
+                onPressed: _isStatsLoading
+                    ? null
+                    : () => _deleteEventsByUserId(context),
                 tooltip: 'Delete User Events',
               ),
               _buildAppBarAction(
@@ -1174,7 +1351,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                 color: Colors.white,
                 onPressed: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const AdminNotificationScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const AdminNotificationScreen(),
+                  ),
                 ),
                 tooltip: 'Send Notification',
               ),
@@ -1232,14 +1411,108 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
 
               const SizedBox(height: 24),
 
-              // Filters Section
+              // Animator Management Section
               Text(
-                'Filters & Search',
+                'Animator Management',
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: Colors.grey.shade800,
                 ),
+              ),
+              const SizedBox(height: 16),
+              Column(
+                children: [
+                  // Row 1
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAdminActionCard(
+                          context,
+                          'Questions',
+                          Icons.quiz,
+                          Colors.purple,
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const AdminQuestionManager(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildAdminActionCard(
+                          context,
+                          'Assignments',
+                          Icons.assignment_ind,
+                          Colors.orange,
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const AdminAssignmentManager(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildAdminActionCard(
+                          context,
+                          'View Marks',
+                          Icons.grade,
+                          Colors.teal,
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AdminMarksViewer(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Row 2
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAdminActionCard(
+                          context,
+                          'Manage Animators',
+                          Icons.manage_accounts_outlined,
+                          Colors.indigo,
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const AdminManageAnimators(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildAdminActionCard(
+                          context,
+                          'Create Animator',
+                          Icons.person_add_outlined,
+                          Colors.blue,
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AdminCreateAnimator(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Spacer(), // Keeps layout balanced
+                    ],
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               _buildModernCategoryFilter(),
@@ -1261,13 +1534,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.blue.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      _currentSortOption == SortOption.newestFirst ? 'Newest First' : 'A-Z',
+                      _currentSortOption == SortOption.newestFirst
+                          ? 'Newest First'
+                          : 'A-Z',
                       style: GoogleFonts.poppins(
                         color: Colors.blue.shade900,
                         fontWeight: FontWeight.w600,
@@ -1305,6 +1583,55 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
         icon: Icon(icon, color: color, size: 22),
         onPressed: onPressed,
         tooltip: tooltip,
+      ),
+    );
+  }
+
+  Widget _buildAdminActionCard(
+    BuildContext context,
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade200,
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: Colors.grey.shade800,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
