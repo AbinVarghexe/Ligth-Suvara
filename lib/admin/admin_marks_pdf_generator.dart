@@ -1,12 +1,7 @@
-import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:intl/intl.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:open_file/open_file.dart';
 
 class AdminMarksPdfGenerator {
   static Future<void> generateAndOpen({
@@ -19,25 +14,21 @@ class AdminMarksPdfGenerator {
     required Map<String, int> maxMarkMap,
     required List<String> sortedQuestionIds,
   }) async {
-    final pdf = pw.Document();
-
-    // Load Assets (Logos & Fonts)
-    final logoImage = await _loadAsset('assets/images/suvara logo wbg5.jpg');
-    final font = await PdfGoogleFonts.notoSansMalayalamRegular();
-
-    // Calculate Total
+    // 1. Calculate scores and prepare table rows
     int totalScore = 0;
     int maxTotalScore = 0;
-    final List<List<String>> tableData = [];
+
+    // Build table rows HTML
+    StringBuffer rowsBuffer = StringBuffer();
     int index = 1;
 
-    // Use sortedQuestionIds to iterate in correct order
     for (String key in sortedQuestionIds) {
+      if (!marks.containsKey(key)) continue;
+
       final String questionText = questionMap[key] ?? 'Unknown Question ($key)';
       final int maxMark = maxMarkMap[key] ?? 10;
       final dynamic rawValue = marks[key];
 
-      // If no mark is awarded (e.g. absent/null), treat as 0 or handle as needed
       final int awardedMark = rawValue is int
           ? rawValue
           : int.tryParse(rawValue?.toString() ?? '0') ?? 0;
@@ -45,205 +36,189 @@ class AdminMarksPdfGenerator {
       totalScore += awardedMark;
       maxTotalScore += maxMark;
 
-      tableData.add([
-        index.toString(),
-        questionText,
-        maxMark.toString(),
-        awardedMark.toString(),
-      ]);
+      rowsBuffer.writeln('''
+        <tr>
+          <td style="text-align: center;">$index</td>
+          <td>$questionText</td>
+          <td style="text-align: center;">$maxMark</td>
+          <td style="text-align: center;">$awardedMark</td>
+        </tr>
+      ''');
       index++;
     }
 
-    // Parse Year for Range
     final int parsedYear = int.tryParse(year) ?? DateTime.now().year;
     final String yearRange = '$parsedYear - ${parsedYear + 1}';
 
-    // Define PDF Page
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        theme: pw.ThemeData.withFont(base: font),
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // --- HEADER ---
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  if (logoImage != null)
-                    pw.Container(
-                      height: 60,
-                      width: 60,
-                      child: pw.Image(logoImage),
-                    ),
-                  pw.Expanded(
-                    child: pw.Column(
-                      children: [
-                        pw.Text(
-                          'SUVARA',
-                          style: pw.TextStyle(
-                            fontSize: 24,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
-                        pw.Text(
-                          'CENTRE FOR CATECHESIS, EPARCHY OF KANJIRAPALLY',
-                          style: pw.TextStyle(fontSize: 10),
-                        ),
-                        pw.Text(
-                          'Viswasajeevitha Parisheelanam',
-                          style: pw.TextStyle(
-                            fontSize: 12,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
-                        pw.Text(
-                          'Edavaka Vilayiruthal $yearRange',
-                          style: pw.TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 20),
+    // 2. Load Logo and convert to Base64
+    String logoHtml = '';
+    try {
+      final ByteData bytes = await rootBundle.load(
+        'assets/images/reportlogo.jpg',
+      );
+      final Uint8List list = bytes.buffer.asUint8List();
+      final String base64Image = base64Encode(list);
+      // Ensure we use the correct Data URI format
+      logoHtml =
+          '<img src="data:image/jpeg;base64,$base64Image" style="width: 100%; height: auto;" />';
+    } catch (e) {
+      print('Error loading logo: $e');
+    }
 
-              // --- INFO SECTION ---
-              // --- INFO SECTION ---
-              pw.Table(
-                columnWidths: {
-                  0: const pw.FixedColumnWidth(120), // Fixed width for labels
-                  1: const pw.FlexColumnWidth(),
-                },
-                children: [
-                  pw.TableRow(
-                    children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.only(bottom: 4),
-                        child: pw.Text(
-                          'Parish:',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.only(bottom: 4),
-                        child: pw.Text(parish),
-                      ),
-                    ],
-                  ),
-                  pw.TableRow(
-                    children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.only(bottom: 4),
-                        child: pw.Text(
-                          'Sunday School Name:',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.only(bottom: 4),
-                        child: pw.Text(sundaySchool),
-                      ),
-                    ],
-                  ),
-                  pw.TableRow(
-                    children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.only(bottom: 4),
-                        child: pw.Text(
-                          'Animator:',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.only(bottom: 4),
-                        child: pw.Text(animatorName),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+    // 3. Construct HTML
+    // We use a Google Font import for Noto Sans Malayalam to ensuring shaping works.
+    final String htmlContent =
+        '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Malayalam:wght@400;700&display=swap');
+        
+        body {
+          font-family: 'Noto Sans Malayalam', sans-serif;
+          padding: 40px;
+          color: #000;
+        }
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+        .logo-section {
+          width: 80px;
+          height: 80px;
+        }
+        .title-section {
+          text-align: center;
+          flex-grow: 1;
+        }
+        h1 {
+          font-size: 24px;
+          font-weight: bold;
+          margin: 0;
+        }
+        .subtitle {
+          font-size: 10px;
+          margin: 2px 0;
+        }
+        .malayalam-title {
+          font-size: 16px;
+          font-weight: bold;
+          margin: 5px 0;
+        }
+        .year-title {
+          font-size: 14px;
+        }
+        
+        .info-table {
+          width: 100%;
+          margin-bottom: 20px;
+          border-collapse: collapse;
+        }
+        .info-table td {
+          padding: 5px;
+          font-size: 14px;
+        }
+        .label {
+          font-weight: bold;
+          width: 150px;
+        }
+        
+        .score-box {
+          float: right;
+          border: 1px solid #000;
+          padding: 10px;
+          text-align: center;
+          width: 120px;
+          margin-bottom: 20px;
+        }
+        .score-label {
+          font-size: 10px;
+          display: block;
+        }
+        .score-value {
+          font-size: 18px;
+          font-weight: bold;
+        }
 
-              pw.SizedBox(height: 10),
-              // Align Total Score Box to right like in the image
-              pw.Align(
-                alignment: pw.Alignment.centerRight,
-                child: pw.Container(
-                  width: 100,
-                  height: 40,
-                  decoration: pw.BoxDecoration(border: pw.Border.all()),
-                  child: pw.Column(
-                    mainAxisAlignment: pw.MainAxisAlignment.center,
-                    children: [
-                      pw.Text(
-                        'Total Score',
-                        style: const pw.TextStyle(fontSize: 8),
-                      ),
-                      pw.Text(
-                        '$totalScore / $maxTotalScore',
-                        style: pw.TextStyle(
-                          fontSize: 14,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              pw.SizedBox(height: 20),
+        .marks-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+          clear: both;
+        }
+        .marks-table th, .marks-table td {
+          border: 1px solid #000;
+          padding: 8px;
+          font-size: 12px;
+        }
+        .marks-table th {
+          background-color: #f0f0f0;
+          font-weight: bold;
+        }
+      </style>
+    </head>
+    <body>
 
-              // --- TABLE ---
-              pw.Table.fromTextArray(
-                border: pw.TableBorder.all(),
-                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                headerDecoration: const pw.BoxDecoration(
-                  color: PdfColors.grey200,
-                ),
-                cellHeight: 25,
-                cellAlignments: {
-                  0: pw.Alignment.center,
-                  1: pw.Alignment.centerLeft,
-                  2: pw.Alignment.center,
-                  3: pw.Alignment.center,
-                },
-                headers: ['No.', 'Question', 'Max Mark', 'Mark Awarded'],
-                data: tableData,
-                columnWidths: {
-                  0: const pw.FixedColumnWidth(30), // No.
-                  1: const pw.FlexColumnWidth(4), // Question
-                  2: const pw.FixedColumnWidth(60), // Max
-                  3: const pw.FixedColumnWidth(60), // Awarded
-                },
-              ),
-            ],
-          );
-        },
-      ),
+      <div class="header">
+        <div class="logo-section">
+          $logoHtml
+        </div>
+        <div class="title-section">
+          <h1>SUVARA</h1>
+          <div class="subtitle">CENTRE FOR CATECHESIS, EPARCHY OF KANJIRAPALLY</div>
+          <div class="malayalam-title">വിശ്വാസജീവിത പരിശീലനം</div>
+          <div class="year-title">ഇടവകതല വിലയിരുത്തൽ $yearRange</div>
+        </div>
+      </div>
+
+      <table class="info-table">
+        <tr>
+          <td class="label">Parish:</td>
+          <td>$parish</td>
+        </tr>
+        <tr>
+          <td class="label">Sunday School:</td>
+          <td>$sundaySchool</td>
+        </tr>
+        <tr>
+          <td class="label">Animator:</td>
+          <td>$animatorName</td>
+        </tr>
+      </table>
+
+      <div class="score-box">
+        <span class="score-label">Total Score</span>
+        <span class="score-value">$totalScore / $maxTotalScore</span>
+      </div>
+
+      <table class="marks-table">
+        <thead>
+          <tr>
+            <th style="width: 40px;">No.</th>
+            <th>Question</th>
+            <th style="width: 80px;">Max Mark</th>
+            <th style="width: 80px;">Mark Awarded</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsBuffer.toString()}
+        </tbody>
+      </table>
+
+    </body>
+    </html>
+    ''';
+
+    // 4. Print / Generate PDF
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async {
+        return await Printing.convertHtml(format: format, html: htmlContent);
+      },
+      name: 'Marks_${parish}_$year',
     );
-
-    // Save and Open
-    try {
-      final output = await getTemporaryDirectory();
-      // Use parish in filename
-      final fileName =
-          "marks_${parish.replaceAll(' ', '_')}_${sundaySchool.replaceAll(' ', '_')}.pdf";
-      final file = File("${output.path}/$fileName");
-      await file.writeAsBytes(await pdf.save());
-      await OpenFile.open(file.path);
-    } catch (e) {
-      print("Error saving/opening PDF: $e");
-    }
-  }
-
-  static Future<pw.ImageProvider?> _loadAsset(String path) async {
-    try {
-      final data = await rootBundle.load(path);
-      return pw.MemoryImage(data.buffer.asUint8List());
-    } catch (e) {
-      print("Error loading asset $path: $e");
-      return null;
-    }
   }
 }

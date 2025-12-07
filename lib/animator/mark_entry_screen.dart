@@ -9,12 +9,14 @@ class MarkEntryScreen extends StatefulWidget {
   final String unitId;
   final String parish;
   final String sundaySchool;
+  final String schoolId; // Added schoolId
 
   const MarkEntryScreen({
     super.key,
     required this.unitId,
     required this.parish,
     required this.sundaySchool,
+    required this.schoolId, // Added required parameter
   });
 
   @override
@@ -71,7 +73,8 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
       _questions = questionsSnapshot.docs;
 
       final currentYear = DateTime.now().year.toString();
-      final docId = '${widget.unitId}_$currentYear';
+      // Use schoolId for persistent key: schoolUserId_Year
+      final docId = '${widget.schoolId}_$currentYear';
 
       final markDoc = await _firestore.collection('marks').doc(docId).get();
 
@@ -109,11 +112,13 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
 
     try {
       final currentYear = DateTime.now().year.toString();
-      final docId = '${widget.unitId}_$currentYear';
+      // Use schoolId for persistent key: schoolUserId_Year
+      final docId = '${widget.schoolId}_$currentYear';
       final animatorId = FirebaseAuth.instance.currentUser?.uid;
 
       await _firestore.collection('marks').doc(docId).set({
-        'unitId': widget.unitId,
+        'unitId': widget.unitId, // Keep unitId for reference if needed
+        'schoolId': widget.schoolId, // Store schoolId
         'parish': widget.parish,
         'sundaySchool': widget.sundaySchool,
         'animatorId': animatorId,
