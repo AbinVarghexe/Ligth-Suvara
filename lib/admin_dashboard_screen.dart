@@ -8,16 +8,20 @@ import 'package:sundayschool_app/admin_notification_screen.dart';
 import 'package:sundayschool_app/event_detail_screen.dart';
 
 import 'package:sundayschool_app/login_screen.dart';
-import 'package:sundayschool_app/admin/admin_question_manager.dart';
-import 'package:sundayschool_app/admin/admin_assignment_manager.dart';
-import 'package:sundayschool_app/admin/admin_marks_viewer.dart';
-import 'package:sundayschool_app/admin/admin_manage_animators.dart';
-import 'package:sundayschool_app/admin/admin_create_animator.dart';
-import 'package:sundayschool_app/admin/admin_program_manager.dart';
-import 'package:sundayschool_app/admin/admin_registration_manager.dart';
-import 'package:sundayschool_app/admin/admin_school_registrations.dart';
-import 'package:sundayschool_app/admin/admin_create_parish_user.dart'; // Added import
-import 'package:sundayschool_app/school_selection_screen.dart'; // Added import
+// import 'package:sundayschool_app/admin/admin_question_manager.dart'; // Moved to sub-menu
+// import 'package:sundayschool_app/admin/admin_assignment_manager.dart'; // Moved to sub-menu
+// import 'package:sundayschool_app/admin/admin_marks_viewer.dart'; // Moved to sub-menu
+// import 'package:sundayschool_app/admin/admin_manage_animators.dart'; // Moved to sub-menu
+// import 'package:sundayschool_app/admin/admin_create_animator.dart'; // Moved to sub-menu
+// import 'package:sundayschool_app/admin/admin_program_manager.dart'; // Moved to sub-menu
+// import 'package:sundayschool_app/admin/admin_school_registrations.dart'; // Moved to sub-menu
+// import 'package:sundayschool_app/admin/admin_create_parish_user.dart'; // Moved to sub-menu
+// import 'package:sundayschool_app/school_selection_screen.dart'; // Moved to sub-menu
+
+import 'package:sundayschool_app/admin/admin_animator_menu.dart';
+import 'package:sundayschool_app/admin/admin_program_menu.dart';
+import 'package:sundayschool_app/admin/admin_parish_menu.dart';
+import 'package:sundayschool_app/admin/admin_all_events_screen.dart';
 
 enum SortOption { newestFirst, alphabetical }
 
@@ -93,8 +97,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     with SingleTickerProviderStateMixin {
   int _selectedCategoryIndex = 0;
   final List<String> _categories = ['ALL', 'CML', 'SUVARA'];
-  String _searchQuery = '';
-  final TextEditingController _searchController = TextEditingController();
+
   SortOption _currentSortOption = SortOption.newestFirst;
 
   int _totalEvents = 0;
@@ -108,7 +111,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(_onSearchChanged);
+
     _fetchAndSetStatistics();
 
     _animationController = AnimationController(
@@ -124,16 +127,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   @override
   void dispose() {
-    _searchController.removeListener(_onSearchChanged);
-    _searchController.dispose();
     _animationController.dispose();
     super.dispose();
-  }
-
-  void _onSearchChanged() {
-    setState(() {
-      _searchQuery = _searchController.text.trim().toLowerCase();
-    });
   }
 
   Future<void> _fetchAndSetStatistics() async {
@@ -186,67 +181,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         setState(() {
           _isStatsLoading = false;
         });
-      }
-    }
-  }
-
-  Future<void> _toggleEventVisibility(
-    BuildContext context,
-    String eventId,
-    bool currentStatus,
-  ) async {
-    try {
-      await FirebaseFirestore.instance.collection('events').doc(eventId).update(
-        {'isPublic': !currentStatus},
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(
-                  !currentStatus ? Icons.check_circle : Icons.lock,
-                  color: Colors.white,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  !currentStatus
-                      ? 'Event published successfully!'
-                      : 'Event moved to drafts',
-                ),
-              ],
-            ),
-            backgroundColor: !currentStatus
-                ? Colors.green.shade600
-                : Colors.orange.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        _fetchAndSetStatistics();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(child: Text('Operation failed: $e')),
-              ],
-            ),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
       }
     }
   }
@@ -743,7 +677,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 HapticFeedback.mediumImpact();
                 setState(() {
                   _selectedCategoryIndex = index;
-                  _searchController.clear();
+                  _selectedCategoryIndex = index;
                 });
               },
               child: AnimatedContainer(
@@ -786,46 +720,351 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  Widget _buildSearchBox() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade300,
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+  // State for Bottom Navigation
+  int _selectedIndex = 0;
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  Future<void> _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Logout',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to logout?',
+          style: GoogleFonts.poppins(),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text('Logout', style: GoogleFonts.poppins()),
           ),
         ],
       ),
-      child: TextField(
-        controller: _searchController,
-        style: GoogleFonts.poppins(),
-        decoration: InputDecoration(
-          hintText: 'Search events...',
-          hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-          prefixIcon: Icon(
-            Icons.search_rounded,
-            color: Colors.blue.shade700,
-            size: 26,
+    );
+
+    if (shouldLogout == true) {
+      await FirebaseAuth.instance.signOut();
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color themeColor = Colors.blue.shade900;
+
+    // Determine the AppBar content based on selected index
+    PreferredSizeWidget? appBar;
+
+    if (_selectedIndex == 0) {
+      // Home AppBar (Existing fancy app bar)
+      appBar = PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Colors.blue.shade700, Colors.blue.shade900],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.shade300.withOpacity(0.5),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: Icon(Icons.clear_rounded, color: Colors.grey.shade600),
-                  onPressed: () => _searchController.clear(),
-                )
-              : null,
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(20),
-            borderSide: BorderSide.none,
+          child: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leadingWidth: 280,
+            leading: Row(
+              children: [
+                const SizedBox(width: 8),
+                _buildAppBarAction(
+                  icon: Icons.cleaning_services_outlined,
+                  color: Colors.red.shade300,
+                  onPressed: _isStatsLoading
+                      ? null
+                      : () => _deleteEventsByUserId(context),
+                  tooltip: 'Delete User Events',
+                ),
+                _buildAppBarAction(
+                  icon: Icons.refresh_rounded,
+                  color: _isStatsLoading ? Colors.grey.shade400 : Colors.white,
+                  onPressed: _isStatsLoading ? null : _fetchAndSetStatistics,
+                  tooltip: 'Refresh Statistics',
+                ),
+                _buildAppBarAction(
+                  icon: Icons.notifications_active_rounded,
+                  color: Colors.white,
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminNotificationScreen(),
+                    ),
+                  ),
+                  tooltip: 'Send Notification',
+                ),
+                _buildAppBarAction(
+                  icon: Icons.sort_rounded,
+                  color: Colors.white,
+                  onPressed: _showSortDialog,
+                  tooltip: 'Sort Events',
+                ),
+              ],
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                onPressed: _handleLogout,
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 18,
+        ),
+      );
+    } else {
+      // Standardized AppBar for other tabs
+      String title = '';
+      if (_selectedIndex == 1) title = 'Animator Management';
+      if (_selectedIndex == 2) title = 'Program Management';
+      if (_selectedIndex == 3) title = 'Parish Management';
+
+      appBar = AppBar(
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue.shade900, Colors.blue.shade700],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
+        ),
+        title: Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.white,
+          ),
+        ),
+        elevation: 0,
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: Colors.white),
+            onPressed: _handleLogout,
+          ),
+        ],
+        iconTheme: const IconThemeData(color: Colors.white),
+        automaticallyImplyLeading: false,
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      extendBody: true, // Allow body to scroll behind the floating bar
+      extendBodyBehindAppBar: false,
+      appBar: appBar,
+      body: _buildBody(),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(30),
+            child: NavigationBar(
+              height: 70,
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: (index) {
+                HapticFeedback.lightImpact();
+                _onItemTapped(index);
+              },
+              backgroundColor: Colors.white,
+              elevation: 0,
+              indicatorColor: Colors.blue.shade50,
+              labelBehavior:
+                  NavigationDestinationLabelBehavior.onlyShowSelected,
+              animationDuration: const Duration(milliseconds: 500),
+              destinations: [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined, color: Colors.grey.shade600),
+                  selectedIcon: Icon(
+                    Icons.home_rounded,
+                    color: Colors.blue.shade700,
+                  ),
+                  label: 'Home',
+                ),
+                NavigationDestination(
+                  icon: Icon(
+                    Icons.supervised_user_circle_outlined,
+                    color: Colors.grey.shade600,
+                  ),
+                  selectedIcon: Icon(
+                    Icons.supervised_user_circle_rounded,
+                    color: Colors.blue.shade700,
+                  ),
+                  label: 'Animator',
+                ),
+                NavigationDestination(
+                  icon: Icon(
+                    Icons.event_note_outlined,
+                    color: Colors.grey.shade600,
+                  ),
+                  selectedIcon: Icon(
+                    Icons.event_note_rounded,
+                    color: Colors.blue.shade700,
+                  ),
+                  label: 'Program',
+                ),
+                NavigationDestination(
+                  icon: Icon(
+                    Icons.church_outlined,
+                    color: Colors.grey.shade600,
+                  ),
+                  selectedIcon: Icon(
+                    Icons.church_rounded,
+                    color: Colors.blue.shade700,
+                  ),
+                  label: 'Parish',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_selectedIndex == 1) {
+      return const AdminAnimatorMenu();
+    } else if (_selectedIndex == 2) {
+      return const AdminProgramMenu();
+    } else if (_selectedIndex == 3) {
+      return const AdminParishMenu();
+    }
+
+    final Color themeColor = Colors.blue.shade900;
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Event Management',
+                        style: GoogleFonts.poppins(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: themeColor,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Manage and monitor all events',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            _buildStatisticsCards(themeColor),
+            const SizedBox(height: 24),
+
+            _buildModernCategoryFilter(),
+            const SizedBox(height: 32),
+
+            // Header for List
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Latest Events',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminAllEventsScreen(),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'View All',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            _buildAllEventsList(), // Modified to only show top 3
+            const SizedBox(height: 100),
+          ],
         ),
       ),
     );
@@ -846,118 +1085,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
 
     return StreamBuilder<QuerySnapshot>(
-      stream: baseQuery.snapshots(),
+      stream: baseQuery.limit(3).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const EventListSkeleton();
         }
+        if (snapshot.hasError)
+          return Center(child: Text('Error: ${snapshot.error}'));
 
-        if (snapshot.hasError) {
-          if (snapshot.error.toString().contains('requires an index')) {
-            return Center(
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                margin: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.red.shade200, width: 2),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: Colors.red.shade700,
-                      size: 48,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "Database Index Required",
-                      style: GoogleFonts.poppins(
-                        color: Colors.red.shade900,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "This query combination requires an index",
-                      style: GoogleFonts.poppins(color: Colors.red.shade700),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) {
           return Center(
-            child: Text(
-              'Error: ${snapshot.error}',
-              style: GoogleFonts.poppins(color: Colors.red),
-            ),
-          );
-        }
-
-        final eventDocs = snapshot.data!.docs;
-
-        List<DocumentSnapshot> filteredDocs = eventDocs;
-
-        if (_searchQuery.isNotEmpty) {
-          filteredDocs = eventDocs.where((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            final title = data['title']?.toString().toLowerCase() ?? '';
-            return title.contains(_searchQuery);
-          }).toList();
-        }
-
-        if (_currentSortOption == SortOption.alphabetical) {
-          filteredDocs.sort((a, b) {
-            String aTitle =
-                (a.data() as Map<String, dynamic>)['title']
-                    ?.toString()
-                    .toLowerCase() ??
-                '';
-            String bTitle =
-                (b.data() as Map<String, dynamic>)['title']
-                    ?.toString()
-                    .toLowerCase() ??
-                '';
-            return aTitle.compareTo(bTitle);
-          });
-        }
-
-        if (filteredDocs.isEmpty) {
-          return Center(
-            child: Container(
-              padding: const EdgeInsets.all(40),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _searchQuery.isNotEmpty
-                        ? Icons.search_off
-                        : Icons.event_busy,
-                    size: 80,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    _searchQuery.isNotEmpty
-                        ? 'No events matching "$_searchQuery"'
-                        : (selectedCategory == 'ALL'
-                              ? "No events found"
-                              : "No events found for $selectedCategory"),
-                    style: GoogleFonts.poppins(
-                      color: Colors.grey.shade600,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text("No events found"),
             ),
           );
         }
@@ -965,11 +1106,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: filteredDocs.length,
+          itemCount: docs.length,
           itemBuilder: (context, index) {
-            var eventDoc = filteredDocs[index];
+            var eventDoc = docs[index];
             var data = eventDoc.data() as Map<String, dynamic>;
-            final bool isPublic = data['isPublic'] ?? false;
+            bool isPublic = data['isPublic'] ?? false;
 
             return TweenAnimationBuilder<double>(
               duration: Duration(milliseconds: 300 + (index * 50)),
@@ -1005,9 +1146,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         child: InkWell(
                           onTap: () {
                             HapticFeedback.lightImpact();
-                            Navigator.of(context).push(
+                            Navigator.push(
+                              context,
                               MaterialPageRoute(
-                                builder: (context) =>
+                                builder: (_) =>
                                     EventDetailScreen(eventId: eventDoc.id),
                               ),
                             );
@@ -1017,87 +1159,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                             padding: const EdgeInsets.all(16.0),
                             child: Row(
                               children: [
-                                // Event Image with Status Badge
-                                Stack(
-                                  children: [
-                                    Hero(
-                                      tag: 'event_${eventDoc.id}',
-                                      child: Container(
-                                        width: 80,
-                                        height: 80,
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                          gradient: LinearGradient(
-                                            colors: isPublic
-                                                ? [
-                                                    Colors.green.shade200,
-                                                    Colors.green.shade400,
-                                                  ]
-                                                : [
-                                                    Colors.orange.shade200,
-                                                    Colors.orange.shade400,
-                                                  ],
-                                          ),
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                          child: data['imageUrl'] != null
-                                              ? Image.network(
-                                                  data['imageUrl'],
-                                                  fit: BoxFit.cover,
-                                                  errorBuilder:
-                                                      (ctx, err, st) => Icon(
-                                                        Icons
-                                                            .broken_image_rounded,
-                                                        color: Colors.white,
-                                                        size: 40,
-                                                      ),
-                                                )
-                                              : Icon(
-                                                  Icons.image_rounded,
-                                                  color: Colors.white,
-                                                  size: 40,
-                                                ),
-                                        ),
-                                      ),
-                                    ),
-                                    Positioned(
-                                      top: -4,
-                                      right: -4,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: BoxDecoration(
-                                          color: isPublic
-                                              ? Colors.green.shade600
-                                              : Colors.orange.shade600,
-                                          shape: BoxShape.circle,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color:
-                                                  (isPublic
-                                                          ? Colors.green
-                                                          : Colors.orange)
-                                                      .withOpacity(0.5),
-                                              blurRadius: 8,
-                                              spreadRadius: 2,
-                                            ),
-                                          ],
-                                        ),
-                                        child: Icon(
-                                          isPublic ? Icons.public : Icons.lock,
-                                          color: Colors.white,
-                                          size: 16,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                // Thumbnail
+                                Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    color: Colors.grey.shade200,
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: data['imageUrl'] != null
+                                        ? Image.network(
+                                            data['imageUrl'],
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) =>
+                                                Icon(Icons.broken_image),
+                                          )
+                                        : Icon(Icons.image),
+                                  ),
                                 ),
                                 const SizedBox(width: 16),
-                                // Event Details
+                                // Text
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -1108,136 +1191,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                         style: GoogleFonts.poppins(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
-                                          color: Colors.blue.shade900,
                                         ),
-                                        maxLines: 2,
+                                        maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
-                                      const SizedBox(height: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
+                                      Text(
+                                        isPublic ? 'Published' : 'Draft',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: isPublic
+                                              ? Colors.green
+                                              : Colors.orange,
                                         ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.blue.shade100,
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          (data['category'] ?? 'N/A')
-                                              .toUpperCase(),
-                                          style: GoogleFonts.poppins(
-                                            color: Colors.blue.shade900,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Row(
-                                        children: [
-                                          Container(
-                                            width: 8,
-                                            height: 8,
-                                            decoration: BoxDecoration(
-                                              color: isPublic
-                                                  ? Colors.green.shade600
-                                                  : Colors.orange.shade600,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            isPublic ? 'Published' : 'Draft',
-                                            style: GoogleFonts.poppins(
-                                              color: isPublic
-                                                  ? Colors.green.shade700
-                                                  : Colors.orange.shade700,
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
                                       ),
                                     ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                // Action Button - Responsive Design
-                                Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: isPublic
-                                          ? [
-                                              Colors.orange.shade500,
-                                              Colors.orange.shade700,
-                                            ]
-                                          : [
-                                              Colors.green.shade500,
-                                              Colors.green.shade700,
-                                            ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color:
-                                            (isPublic
-                                                    ? Colors.orange
-                                                    : Colors.green)
-                                                .withOpacity(0.3),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: () {
-                                        HapticFeedback.mediumImpact();
-                                        _toggleEventVisibility(
-                                          context,
-                                          eventDoc.id,
-                                          isPublic,
-                                        );
-                                      },
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 10,
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              isPublic
-                                                  ? Icons.unpublished
-                                                  : Icons.publish,
-                                              color: Colors.white,
-                                              size: 22,
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              isPublic
-                                                  ? 'Unpublish'
-                                                  : 'Publish',
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 10,
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
                                   ),
                                 ),
                               ],
@@ -1253,414 +1220,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           },
         );
       },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final Color themeColor = Colors.blue.shade900;
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      extendBodyBehindAppBar: false,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(70),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Colors.blue.shade700, Colors.blue.shade900],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.blue.shade300.withOpacity(0.5),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.logout_rounded, color: Colors.white),
-              onPressed: () async {
-                // Show logout confirmation dialog
-                final shouldLogout = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: Text(
-                      'Logout',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-                    ),
-                    content: Text(
-                      'Are you sure you want to logout?',
-                      style: GoogleFonts.poppins(),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: Text(
-                          'Cancel',
-                          style: GoogleFonts.poppins(color: Colors.grey),
-                        ),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Text('Logout', style: GoogleFonts.poppins()),
-                      ),
-                    ],
-                  ),
-                );
-
-                if (shouldLogout == true) {
-                  await FirebaseAuth.instance.signOut();
-                  if (context.mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (context) => const LoginScreen(),
-                      ),
-                      (route) => false,
-                    );
-                  }
-                }
-              },
-            ),
-            actions: [
-              _buildAppBarAction(
-                icon: Icons.cleaning_services_outlined,
-                color: Colors.red.shade300,
-                onPressed: _isStatsLoading
-                    ? null
-                    : () => _deleteEventsByUserId(context),
-                tooltip: 'Delete User Events',
-              ),
-              _buildAppBarAction(
-                icon: Icons.refresh_rounded,
-                color: _isStatsLoading ? Colors.grey.shade400 : Colors.white,
-                onPressed: _isStatsLoading ? null : _fetchAndSetStatistics,
-                tooltip: 'Refresh Statistics',
-              ),
-              _buildAppBarAction(
-                icon: Icons.notifications_active_rounded,
-                color: Colors.white,
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AdminNotificationScreen(),
-                  ),
-                ),
-                tooltip: 'Send Notification',
-              ),
-              _buildAppBarAction(
-                icon: Icons.sort_rounded,
-                color: Colors.white,
-                onPressed: _showSortDialog,
-                tooltip: 'Sort Events',
-              ),
-              const SizedBox(width: 8),
-            ],
-          ),
-        ),
-      ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Section
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Event Management',
-                          style: GoogleFonts.poppins(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: themeColor,
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Manage and monitor all events',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              // Statistics Cards
-              _buildStatisticsCards(themeColor),
-
-              const SizedBox(height: 24),
-
-              // Animator Management Section
-              Text(
-                'Animator Management',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Column(
-                children: [
-                  // Row 1
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildAdminActionCard(
-                          context,
-                          'Questions',
-                          Icons.quiz,
-                          Colors.purple,
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const AdminQuestionManager(),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildAdminActionCard(
-                          context,
-                          'Assignments',
-                          Icons.assignment_ind,
-                          Colors.orange,
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const AdminAssignmentManager(),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildAdminActionCard(
-                          context,
-                          'View Marks',
-                          Icons.grade,
-                          Colors.teal,
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const AdminMarksViewer(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Row 2
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildAdminActionCard(
-                          context,
-                          'Manage Animators',
-                          Icons.manage_accounts_outlined,
-                          Colors.indigo,
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const AdminManageAnimators(),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildAdminActionCard(
-                          context,
-                          'Create Animator',
-                          Icons.person_add_outlined,
-                          Colors.blue,
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const AdminCreateAnimator(),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildAdminActionCard(
-                          context,
-                          'Create Parish User',
-                          Icons.church_rounded,
-                          Colors.brown,
-                          () async {
-                            final selectedSchool = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const SchoolSelectionScreen(
-                                      enableBroadcast: false,
-                                    ),
-                              ),
-                            );
-
-                            if (selectedSchool != null && mounted) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => AdminCreateParishUser(
-                                    schoolId: selectedSchool['id'],
-                                    schoolName: selectedSchool['name'],
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              // Program Management Section
-              Text(
-                'Program Management',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildAdminActionCard(
-                      context,
-                      'Manage Programs', // New Feature
-                      Icons.event_available_outlined,
-                      Colors.purpleAccent,
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AdminProgramManager(),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildAdminActionCard(
-                      context,
-                      'Review Registrations',
-                      Icons.checklist_rtl_rounded,
-                      Colors.teal,
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const AdminRegistrationManager(),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildAdminActionCard(
-                      context,
-                      'See Registrations',
-                      Icons.school_rounded,
-                      Colors.indigo,
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const AdminSchoolRegistrations(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              _buildModernCategoryFilter(),
-              const SizedBox(height: 16),
-              _buildSearchBox(),
-
-              const SizedBox(height: 32),
-
-              // Event List Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'All Events',
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.grey.shade800,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _currentSortOption == SortOption.newestFirst
-                          ? 'Newest First'
-                          : 'A-Z',
-                      style: GoogleFonts.poppins(
-                        color: Colors.blue.shade900,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Event List
-              _buildAllEventsList(),
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -1680,55 +1239,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         icon: Icon(icon, color: color, size: 22),
         onPressed: onPressed,
         tooltip: tooltip,
-      ),
-    );
-  }
-
-  Widget _buildAdminActionCard(
-    BuildContext context,
-    String title,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.shade200,
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: Colors.grey.shade800,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -10,6 +10,7 @@ class AdminMarksPdfGenerator {
     required String animatorName,
     required String year,
     required Map<String, dynamic> marks,
+    required String remarks,
     required Map<String, String> questionMap,
     required Map<String, int> maxMarkMap,
     required List<String> sortedQuestionIds,
@@ -188,6 +189,10 @@ class AdminMarksPdfGenerator {
           <td class="label">Animator:</td>
           <td>$animatorName</td>
         </tr>
+        <tr>
+          <td class="label">Date:</td>
+          <td>${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}</td>
+        </tr>
       </table>
 
       <div class="score-box">
@@ -208,6 +213,13 @@ class AdminMarksPdfGenerator {
           ${rowsBuffer.toString()}
         </tbody>
       </table>
+
+      ${remarks.isNotEmpty ? '''
+      <div style="margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9;">
+        <span style="font-weight: bold; font-size: 12px; display: block; margin-bottom: 5px;">General Remarks:</span>
+        <span style="font-size: 12px;">$remarks</span>
+      </div>
+      ''' : ''}
 
     </body>
     </html>

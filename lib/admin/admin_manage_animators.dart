@@ -104,6 +104,10 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: Container(
           decoration: BoxDecoration(
@@ -118,6 +122,7 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
           'Manage Animators',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.bold,
+            fontSize: 20,
             color: Colors.white,
           ),
         ),

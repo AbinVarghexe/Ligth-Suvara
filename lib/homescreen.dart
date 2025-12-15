@@ -13,8 +13,9 @@ import 'package:sundayschool_app/profile_screen.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:async/async.dart';
-import 'dart:math' as math;
+
 import 'package:sundayschool_app/animator/registration_dashboard.dart';
+import 'package:sundayschool_app/animator/school_my_registrations_screen.dart';
 
 enum SortOption { newestFirst, alphabetical }
 
@@ -30,6 +31,135 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
+  bool _isFabExpanded = false;
+
+  void _toggleFab() {
+    setState(() {
+      _isFabExpanded = !_isFabExpanded;
+      if (_isFabExpanded) {
+        _fabMenuController.forward();
+      } else {
+        _fabMenuController.reverse();
+      }
+    });
+  }
+
+  void _showRegistrationOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Registration Options',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const RegistrationDashboard(),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.blue.shade100),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.app_registration_rounded,
+                            size: 40,
+                            color: Colors.blue.shade900,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'New\nRegistration',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const SchoolMyRegistrationsScreen(),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.green.shade100),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.assignment_turned_in_rounded,
+                            size: 40,
+                            color: Colors.green.shade800,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'My\nRegistrations',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   int _selectedCategoryIndex = 0;
   final List<String> _categories = ['ALL', 'CML', 'SUVARA'];
 
@@ -39,8 +169,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   late AnimationController _headerAnimationController;
   late AnimationController _fabAnimationController;
+  late AnimationController _fabMenuController; // New controller
   late Animation<double> _headerAnimation;
   late Animation<double> _fabAnimation;
+  late Animation<double> _fabMenuAnimation; // New animation
 
   @override
   void initState() {
@@ -66,6 +198,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       parent: _fabAnimationController,
       curve: Curves.elasticOut,
     );
+
+    // New Menu Animation
+    _fabMenuController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _fabMenuAnimation = CurvedAnimation(
+      parent: _fabMenuController,
+      curve: Curves.easeOut,
+    );
+
     Future.delayed(const Duration(milliseconds: 600), () {
       if (mounted) _fabAnimationController.forward();
     });
@@ -77,6 +220,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _searchController.dispose();
     _headerAnimationController.dispose();
     _fabAnimationController.dispose();
+    _fabMenuController.dispose(); // Dispose new controller
     super.dispose();
   }
 
@@ -310,7 +454,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 children: [
                   const SizedBox(height: 16),
                   const SizedBox(height: 16),
-                  _buildRegistrationCard(),
                   const SizedBox(height: 16),
                   _buildHighlightSection(),
                   const SizedBox(height: 32),
@@ -321,44 +464,81 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
-      floatingActionButton: ScaleTransition(
-        scale: _fabAnimation,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Colors.blue.shade700, Colors.blue.shade900],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.blue.shade900.withAlpha(102),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (_isFabExpanded) ...[
+            ScaleTransition(
+              scale: _fabMenuAnimation,
+              child: FloatingActionButton.extended(
+                heroTag: 'fab_new_event',
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  _toggleFab();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UploadScreen(),
+                    ),
+                  );
+                },
+                backgroundColor: Colors.blue.shade900,
+                icon: const Icon(
+                  Icons.add_photo_alternate_rounded,
+                  color: Colors.white,
+                ),
+                label: Text(
+                  'New Event',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ],
-          ),
-          child: FloatingActionButton.extended(
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const UploadScreen()),
-              );
-            },
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            icon: const Icon(Icons.add_rounded, color: Colors.white),
-            label: Text(
-              'New Event',
-              style: GoogleFonts.poppins(
+            ),
+            const SizedBox(height: 16),
+            ScaleTransition(
+              scale: _fabMenuAnimation,
+              child: FloatingActionButton.extended(
+                heroTag: 'fab_registration',
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  _toggleFab();
+                  _showRegistrationOptions();
+                },
+                backgroundColor: Colors.orange.shade800,
+                icon: const Icon(Icons.how_to_reg_rounded, color: Colors.white),
+                label: Text(
+                  'Registration',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          ScaleTransition(
+            scale: _fabAnimation,
+            child: FloatingActionButton(
+              heroTag: 'fab_main',
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                _toggleFab();
+              },
+              backgroundColor: _isFabExpanded
+                  ? Colors.grey.shade800
+                  : Colors.blue.shade900,
+              child: Icon(
+                _isFabExpanded ? Icons.close_rounded : Icons.add_rounded,
                 color: Colors.white,
-                fontWeight: FontWeight.w600,
+                size: 28,
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -726,85 +906,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         const SizedBox(height: 100),
       ],
-    );
-  }
-
-  Widget _buildRegistrationCard() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Card(
-        elevation: 4,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const RegistrationDashboard(),
-              ),
-            );
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                colors: [Colors.orange.shade50, Colors.white],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              border: Border.all(color: Colors.orange.shade200),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade700,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.app_registration_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Program Registration',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Register students for active programs',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: Colors.orange.shade800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 20,
-                  color: Colors.orange.shade700,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 

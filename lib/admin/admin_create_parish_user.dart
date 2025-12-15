@@ -104,13 +104,20 @@ class _AdminCreateParishUserState extends State<AdminCreateParishUser> {
             ),
           ),
         ),
-        title: Text(
-          'Create Parish User',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.white,
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Create Parish User',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: Colors.white,
+            ),
           ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
@@ -127,197 +134,211 @@ class _AdminCreateParishUserState extends State<AdminCreateParishUser> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Center(
-            child: Card(
-              elevation: 4,
-              shadowColor: Colors.blue.withOpacity(0.1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 500),
-                padding: const EdgeInsets.all(32.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Icon Header
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.church_rounded,
-                          size: 48,
-                          color: Colors.blue.shade900,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'New Parish User',
-                        style: GoogleFonts.poppins(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade900,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Associated with: ${widget.schoolName}',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Fill in the details below',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Name Field
-                      TextFormField(
-                        controller: _nameController,
-                        style: GoogleFonts.inter(),
-                        decoration: _buildInputDecoration(
-                          'Parish Name',
-                          Icons.church_outlined,
-                        ),
-                        validator: (v) => v == null || v.isEmpty
-                            ? 'Parish Name is required'
-                            : null,
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Email Field
-                      TextFormField(
-                        controller: _emailController,
-                        style: GoogleFonts.inter(),
-                        decoration: _buildInputDecoration(
-                          'Email Address',
-                          Icons.email_outlined,
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (v) => v == null || !v.contains('@')
-                            ? 'Invalid email address'
-                            : null,
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Password Field
-                      TextFormField(
-                        controller: _passwordController,
-                        style: GoogleFonts.inter(),
-                        decoration:
-                            _buildInputDecoration(
-                              'Password',
-                              Icons.lock_outline_rounded,
-                            ).copyWith(
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_off_rounded
-                                      : Icons.visibility_rounded,
-                                  color: Colors.blue.shade700,
-                                ),
-                                onPressed: () {
-                                  setState(
-                                    () => _obscurePassword = !_obscurePassword,
-                                  );
-                                },
-                              ),
-                            ),
-                        obscureText: _obscurePassword,
-                        validator: (v) => v == null || v.length < 6
-                            ? 'Minimum 6 characters required'
-                            : null,
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Forane Field
-                      TextFormField(
-                        controller: _foraneController,
-                        style: GoogleFonts.inter(),
-                        decoration: _buildInputDecoration(
-                          'Forane Name',
-                          Icons.location_city_rounded,
-                        ),
-                        validator: (v) => v == null || v.isEmpty
-                            ? 'Forane Name is required'
-                            : null,
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Create Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: Container(
+            child: TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 600),
+              tween: Tween(begin: 0.0, end: 1.0),
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, 20 * (1 - value)),
+                  child: Opacity(opacity: value, child: child),
+                );
+              },
+              child: Card(
+                elevation: 8,
+                shadowColor: Colors.blue.shade900.withOpacity(0.15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  padding: const EdgeInsets.all(40.0),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    color: Colors.white,
+                    border: Border.all(color: Colors.white),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white,
+                        Colors.blue.shade50.withOpacity(0.3),
+                      ],
+                    ),
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Icon Header with Glow
+                        Container(
+                          padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.blue.shade800,
-                                Colors.blue.shade900,
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
+                            color: Colors.blue.shade50,
+                            shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.blue.shade900.withOpacity(0.3),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                                color: Colors.blue.withOpacity(0.1),
+                                blurRadius: 20,
+                                spreadRadius: 5,
                               ),
                             ],
                           ),
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _createParishUser,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.check_circle_rounded,
-                                        size: 24,
-                                        color: Colors.white,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        'CREATE ACCOUNT',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1.2,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                          child: Icon(
+                            Icons.church_rounded,
+                            size: 48,
+                            color: Colors.blue.shade800,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 28),
+                        Text(
+                          'New Parish User',
+                          style: GoogleFonts.poppins(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade900,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'School: ${widget.schoolName}',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: Colors.blue.shade800,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+
+                        // Form Fields
+                        _buildAnimatedField(
+                          controller: _nameController,
+                          label: 'Parish Name',
+                          icon: Icons.church_outlined,
+                          delay: 100,
+                        ),
+                        const SizedBox(height: 20),
+                        _buildAnimatedField(
+                          controller: _emailController,
+                          label: 'Email Address',
+                          icon: Icons.email_outlined,
+                          isEmail: true,
+                          delay: 200,
+                        ),
+                        const SizedBox(height: 20),
+                        _buildAnimatedField(
+                          controller: _passwordController,
+                          label: 'Password',
+                          icon: Icons.lock_outline_rounded,
+                          isPassword: true,
+                          delay: 300,
+                        ),
+                        const SizedBox(height: 20),
+                        _buildAnimatedField(
+                          controller: _foraneController,
+                          label: 'Forane Name',
+                          icon: Icons.location_city_rounded,
+                          delay: 400,
+                        ),
+                        const SizedBox(height: 40),
+
+                        // Create Button
+                        TweenAnimationBuilder<double>(
+                          duration: const Duration(milliseconds: 600),
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          curve: const Interval(
+                            0.6,
+                            1.0,
+                            curve: Curves.easeOut,
+                          ),
+                          builder: (context, value, child) {
+                            return Transform.scale(
+                              scale: value,
+                              child: Opacity(opacity: value, child: child),
+                            );
+                          },
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 60,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.blue.shade700,
+                                    Colors.blue.shade900,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.blue.shade900.withOpacity(
+                                      0.3,
+                                    ),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: ElevatedButton(
+                                onPressed: _isLoading
+                                    ? null
+                                    : _createParishUser,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 24,
+                                        width: 24,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(
+                                            Icons.add_task_rounded,
+                                            size: 24,
+                                            color: Colors.white,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'Create Account',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 17,
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: 0.5,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -328,23 +349,92 @@ class _AdminCreateParishUserState extends State<AdminCreateParishUser> {
     );
   }
 
-  InputDecoration _buildInputDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: GoogleFonts.inter(color: Colors.blue.shade700),
-      prefixIcon: Icon(icon, color: Colors.blue.shade700),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.blue.shade100),
+  Widget _buildAnimatedField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isPassword = false,
+    bool isEmail = false,
+    required int delay,
+  }) {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 500),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Interval(
+        delay / 1000,
+        (delay + 300) / 1000,
+        curve: Curves.easeOut,
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.blue.shade900, width: 2),
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(20 * (1 - value), 0),
+          child: Opacity(opacity: value, child: child),
+        );
+      },
+      child: TextFormField(
+        controller: controller,
+        style: GoogleFonts.inter(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: Colors.grey.shade900,
+        ),
+        obscureText: isPassword && _obscurePassword,
+        keyboardType: isEmail ? TextInputType.emailAddress : TextInputType.text,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: GoogleFonts.inter(
+            color: Colors.grey.shade600,
+            fontSize: 14,
+          ),
+          floatingLabelStyle: GoogleFonts.inter(
+            color: Colors.blue.shade800,
+            fontWeight: FontWeight.bold,
+          ),
+          prefixIcon: Icon(icon, color: Colors.blue.shade700, size: 22),
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    color: Colors.grey.shade500,
+                    size: 22,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                )
+              : null,
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.grey.shade200, width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.blue.shade700, width: 2),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.red.shade400, width: 1.5),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.red.shade700, width: 2),
+          ),
+          filled: true,
+          fillColor: Colors.grey.shade50,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 20,
+          ),
+        ),
+        validator: (v) {
+          if (v == null || v.isEmpty) return '$label is required';
+          if (isEmail && !v.contains('@')) return 'Invalid email address';
+          if (isPassword && v.length < 6)
+            return 'Minimum 6 characters required';
+          return null;
+        },
       ),
-      filled: true,
-      fillColor: Colors.grey.shade50,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
     );
   }
 

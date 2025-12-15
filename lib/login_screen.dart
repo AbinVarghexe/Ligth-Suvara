@@ -14,12 +14,11 @@ import 'package:shimmer/shimmer.dart';
 import 'package:sundayschool_app/catechism_screen.dart';
 // Note: This import was missing in your provided code but is used in the carousel.
 // Ensure this file exists and is correct.
-import 'package:sundayschool_app/event_detail_screen_from_home.dart';
+
 import 'package:sundayschool_app/bible.dart';
 import 'package:sundayschool_app/japamala.dart';
 import 'package:sundayschool_app/home_events.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -55,7 +54,11 @@ class LoginScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.grid_view_rounded, color: Colors.blue.shade900, size: 26),
+                  Icon(
+                    Icons.grid_view_rounded,
+                    color: Colors.blue.shade900,
+                    size: 26,
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     'Resources',
@@ -80,6 +83,24 @@ class LoginScreen extends StatelessWidget {
               // --- MENU BUTTONS ---
               _buildResourceItem(
                 context: context,
+                title: 'CATECHISM MATERIALS',
+                subtitle: 'Study resources and guides',
+                icon: Icons.school_rounded,
+                iconColor: Colors.white,
+                iconBackgroundColor: Colors.teal.shade500,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CatechismScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              _buildResourceItem(
+                context: context,
                 title: 'POC BIBLE',
                 subtitle: 'Light for your path',
                 icon: FontAwesomeIcons.bookBible,
@@ -89,7 +110,9 @@ class LoginScreen extends StatelessWidget {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const PocBibleScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const PocBibleScreen(),
+                    ),
                   );
                 },
               ),
@@ -109,23 +132,9 @@ class LoginScreen extends StatelessWidget {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const JapamalaScreen()),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              _buildResourceItem(
-                context: context,
-                title: 'CATECHISM MATERIALS',
-                subtitle: 'Study resources and guides',
-                icon: Icons.school_rounded,
-                iconColor: Colors.white,
-                iconBackgroundColor: Colors.teal.shade500,
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const CatechismScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const JapamalaScreen(),
+                    ),
                   );
                 },
               ),
@@ -162,12 +171,8 @@ class LoginScreen extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     // Determine the icon widget based on whether a FontAwesome/Material icon or a custom asset is provided
-    final Widget leadingIcon = customIcon ??
-        Icon(
-          icon,
-          color: iconColor,
-          size: 24,
-        );
+    final Widget leadingIcon =
+        customIcon ?? Icon(icon, color: iconColor, size: 24);
 
     return InkWell(
       onTap: onTap,
@@ -269,6 +274,15 @@ class LoginScreen extends StatelessWidget {
           backgroundColor: Colors.white,
           elevation: 0,
           toolbarHeight: 60, // Retained large height
+          leading: Container(
+            padding: const EdgeInsets.all(4.0),
+            child: Image.asset(
+              'assets/images/diocese-logo-new1.png',
+              height: 55,
+              fit: BoxFit.contain,
+            ),
+          ),
+          leadingWidth: 80,
           title: Container(
             width: 140, // Give it a generous, fixed width
             height: 70,
@@ -306,7 +320,10 @@ class LoginScreen extends StatelessWidget {
                   ),
                   child: Text(
                     'Log In',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14),
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ),
@@ -316,10 +333,13 @@ class LoginScreen extends StatelessWidget {
         body: Stack(
           children: [
             SingleChildScrollView(
-              physics: const ClampingScrollPhysics(), // Allow scrolling only when needed
+              physics:
+                  const ClampingScrollPhysics(), // Allow scrolling only when needed
               child: Column(
                 children: [
-                  const SizedBox(height: 8), // Space between AppBar and carousel
+                  const SizedBox(
+                    height: 8,
+                  ), // Space between AppBar and carousel
                   SizedBox(height: 260, child: _buildEventsCarousel()),
                   const SizedBox(height: 6),
                   TextButton(
@@ -381,16 +401,14 @@ class LoginScreen extends StatelessWidget {
                                 color: Colors.blue[900]!,
                                 width: 2,
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 14,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(30),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 10),
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton.icon(
@@ -399,7 +417,7 @@ class LoginScreen extends StatelessWidget {
                             },
                             icon: const Icon(Icons.menu_book_outlined),
                             label: Text(
-                              'Menu',
+                              'Resources',
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 16,
@@ -412,9 +430,35 @@ class LoginScreen extends StatelessWidget {
                                 color: Colors.blue[900]!,
                                 width: 2,
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 14,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
                               ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                            },
+                            icon: const Icon(Icons.new_releases_outlined),
+                            label: Text(
+                              'Our Programs',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.blue.shade900,
+                              backgroundColor: Colors.white,
+                              side: BorderSide(
+                                color: Colors.blue[900]!,
+                                width: 2,
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(30),
                               ),
@@ -430,11 +474,6 @@ class LoginScreen extends StatelessWidget {
                             Image.asset(
                               'assets/images/suvara logo wbg5.jpg',
                               height: 90,
-                              fit: BoxFit.contain,
-                            ),
-                            Image.asset(
-                              'assets/images/diocese-logo-new1.png',
-                              height: 55,
                               fit: BoxFit.contain,
                             ),
                           ],
@@ -471,10 +510,10 @@ class LoginScreen extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('events')
-      // CORE CHANGE: Filter by isPublic == true to only show admin-approved events
+          // CORE CHANGE: Filter by isPublic == true to only show admin-approved events
           .where('isPublic', isEqualTo: true)
           .orderBy('timestamp', descending: true)
-          .limit(5)
+          .limit(2)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -509,11 +548,7 @@ class LoginScreen extends StatelessWidget {
           return CarouselSlider.builder(
             itemCount: fixedAssets.length,
             itemBuilder: (context, index, realIndex) {
-              return _buildCarouselItem(
-                fixedAssets[index],
-                '',
-                isAsset: true,
-              );
+              return _buildCarouselItem(fixedAssets[index], '', isAsset: true);
             },
             options: CarouselOptions(
               height: 260,
@@ -525,7 +560,8 @@ class LoginScreen extends StatelessWidget {
         }
         final eventDocs = snapshot.data!.docs;
         final int dynamicCount = eventDocs.length;
-        final int totalCount = dynamicCount + 2; // +2 for the fixed asset slides
+        final int totalCount =
+            dynamicCount + 2; // +2 for the fixed asset slides
         return CarouselSlider.builder(
           itemCount: totalCount,
           itemBuilder: (context, index, realIndex) {
@@ -538,26 +574,12 @@ class LoginScreen extends StatelessWidget {
               return _buildCarouselItem(fixed, fixedTitle, isAsset: true);
             } else {
               final event = eventDocs[index - 2];
-              String imageUrl = event['imageUrl'] ?? 'https://via.placeholder.com/1000';
+              String imageUrl =
+                  event['imageUrl'] ?? 'https://via.placeholder.com/1000';
               String title = event['title'] ?? 'Event Title';
               String place = event['place']?.toString() ?? '';
-              String eventId = event.id;
 
-              return GestureDetector(
-                onTap: () {
-                  // Navigate to the event detail screen
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EventDetailScreenFromHome(
-                        eventId: eventId,
-                        // You may need to pass other event data if EventDetailScreenFromHome requires it
-                      ),
-                    ),
-                  );
-                },
-                child: _buildCarouselItem(imageUrl, title, subtitle: place),
-              );
+              return _buildCarouselItem(imageUrl, title, subtitle: place);
             }
           },
           options: CarouselOptions(
@@ -572,7 +594,12 @@ class LoginScreen extends StatelessWidget {
   }
 
   // Updated _buildCarouselItem to use a darker overlay
-  Widget _buildCarouselItem(String imageUrl, String title, {bool isAsset = false, String? subtitle}) {
+  Widget _buildCarouselItem(
+    String imageUrl,
+    String title, {
+    bool isAsset = false,
+    String? subtitle,
+  }) {
     return Container(
       margin: const EdgeInsets.all(5.0),
       child: ClipRRect(
@@ -595,7 +622,8 @@ class LoginScreen extends StatelessWidget {
                   child: Icon(Icons.broken_image, color: Colors.grey[400]),
                 ),
               ),
-            if ((title.trim().isNotEmpty) || (subtitle != null && subtitle.trim().isNotEmpty))
+            if ((title.trim().isNotEmpty) ||
+                (subtitle != null && subtitle.trim().isNotEmpty))
               Positioned(
                 bottom: 0.0,
                 left: 0.0,
@@ -604,7 +632,12 @@ class LoginScreen extends StatelessWidget {
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Color.fromARGB(255, 0, 0, 0), // Solid black at the bottom
+                        Color.fromARGB(
+                          255,
+                          0,
+                          0,
+                          0,
+                        ), // Solid black at the bottom
                         Color.fromARGB(0, 0, 0, 0),
                       ],
                       begin: Alignment.bottomCenter,

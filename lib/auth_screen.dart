@@ -387,7 +387,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                               ),
                             ),
                     ),
-                    const SizedBox(height: 60), // Reduced spacing
+                    const SizedBox(height: 120), // Reduced spacing
                     FadeTransition(
                       opacity:
                           _exitController.status == AnimationStatus.forward ||
@@ -404,12 +404,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                           ),
                           Padding(
                             padding: const EdgeInsets.only(
-                              top: 16.0, // Reduced padding
-                            ),
-                            child: Image.asset(
-                              'assets/images/diocese-logo-new1.png',
-                              height: 55, // Reduced height
-                              fit: BoxFit.contain,
+                              top: 25.0, // Reduced padding
                             ),
                           ),
                           // Add padding at the bottom to ensure watermark doesn't overlap logos

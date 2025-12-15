@@ -22,8 +22,11 @@ class StudentRegistrationForm extends StatefulWidget {
 
 class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
+  // Replaced single controllers with a list of entries
+  final List<Map<String, TextEditingController>> _studentEntries = [];
+
+  // final _nameController = TextEditingController(); // Removed
+  // final _phoneController = TextEditingController(); // Removed
   bool _isSubmitting = false;
   bool _isLoading = true;
   String? _parishUserId;
@@ -31,10 +34,55 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
   String? _schoolName;
   String? _schoolDisplayName;
 
+  bool _isLocked = false;
+
   @override
   void initState() {
     super.initState();
+    _addStudentEntry(); // Add initial entry
     _loadContext();
+    _checkLockStatus();
+  }
+
+  void _addStudentEntry() {
+    setState(() {
+      _studentEntries.add({
+        'name': TextEditingController(),
+        'phone': TextEditingController(),
+      });
+    });
+  }
+
+  void _removeStudentEntry(int index) {
+    if (_studentEntries.length <= 1) return;
+    final entry = _studentEntries[index];
+    entry['name']?.dispose();
+    entry['phone']?.dispose();
+    setState(() {
+      _studentEntries.removeAt(index);
+    });
+  }
+
+  Future<void> _checkLockStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('program_registrations')
+          .where('schoolUserId', isEqualTo: user.uid)
+          .where('programName', isEqualTo: widget.programName)
+          // If *any* registration for this program is marked locked, we consider the program locked.
+          .where('status', isEqualTo: 'locked')
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        if (mounted) setState(() => _isLocked = true);
+      }
+    } catch (e) {
+      debugPrint("Error checking lock status: $e");
+    }
   }
 
   Future<void> _loadContext() async {
@@ -104,23 +152,38 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
     setState(() => _isSubmitting = true);
 
     try {
-      await FirebaseFirestore.instance.collection('program_registrations').add({
-        'programId': widget.programId,
-        'programName': widget.programName,
-        'schoolUserId': user.uid,
-        'parishUserId': _parishUserId,
-        'parishName': _schoolDisplayName ?? _schoolName,
-        'studentName': _nameController.text.trim(),
-        'studentPhone': _phoneController.text.trim(),
-        'submittedAt': FieldValue.serverTimestamp(),
-        'status': 'pending_parish',
-        if (_schoolName != null) 'schoolName': _schoolName,
-      });
+      final batch = FirebaseFirestore.instance.batch();
+      final collection = FirebaseFirestore.instance.collection(
+        'program_registrations',
+      );
+
+      for (final entry in _studentEntries) {
+        final name = entry['name']!.text.trim();
+        final phone = entry['phone']!.text.trim();
+
+        final docRef = collection.doc();
+        batch.set(docRef, {
+          'programId': widget.programId,
+          'programName': widget.programName,
+          'schoolUserId': user.uid,
+          'parishUserId': _parishUserId,
+          'parishName': _schoolDisplayName ?? _schoolName,
+          'studentName': name,
+          'studentPhone': phone,
+          'submittedAt': FieldValue.serverTimestamp(),
+          'status': 'pending_parish',
+          if (_schoolName != null) 'schoolName': _schoolName,
+        });
+      }
+
+      await batch.commit();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration Submitted Successfully!'),
+          SnackBar(
+            content: Text(
+              'Successfully registered ${_studentEntries.length} students!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -144,8 +207,10 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
+    for (var entry in _studentEntries) {
+      entry['name']?.dispose();
+      entry['phone']?.dispose();
+    }
     super.dispose();
   }
 
@@ -163,6 +228,61 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _isLocked
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.lock_person_rounded,
+                      size: 80,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Registration Locked',
+                      style: GoogleFonts.poppins(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'The registration for ${widget.programName} has been finalized and locked by the parish.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade900,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Go Back',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Form(
@@ -201,103 +321,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                                     color: Colors.orange.shade700,
                                   ),
                                   const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      "No linked parish found. Ask an admin to set a parish for this school before submitting.",
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 13,
-                                        color: Colors.orange.shade900,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color:
-                                    (_parishUserId != null &&
-                                        _parishUserId!.length > 20)
-                                    ? Colors.blue.shade50
-                                    : Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color:
-                                      (_parishUserId != null &&
-                                          _parishUserId!.length > 20)
-                                      ? Colors.blue.shade200
-                                      : Colors.red.shade200,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.church,
-                                    color:
-                                        (_parishUserId != null &&
-                                            _parishUserId!.length > 20)
-                                        ? Colors.blue.shade800
-                                        : Colors.red.shade800,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          "Linked Parish User",
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 12,
-                                            color:
-                                                (_parishUserId != null &&
-                                                    _parishUserId!.length > 20)
-                                                ? Colors.blue.shade800
-                                                : Colors.red.shade900,
-                                          ),
-                                        ),
-                                        Text(
-                                          _parishUserId!,
-                                          style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color:
-                                                (_parishUserId != null &&
-                                                    _parishUserId!.length > 20)
-                                                ? Colors.blue.shade900
-                                                : Colors.red.shade900,
-                                          ),
-                                        ),
-                                        // DEBUG INFO FOR USER
-                                        if (_parishUserId != null &&
-                                            _parishUserId!.length < 20)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 4.0,
-                                            ),
-                                            child: Text(
-                                              "WARNING: This looks like a Name, not an ID! Linkage is broken. Ask Admin to update your 'parishId' field with the Parish User UID.",
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 11,
-                                                color: Colors.red.shade700,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        if (_schoolName != null) ...[
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            "School: $_schoolName",
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 12,
-                                              color: Colors.grey.shade700,
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
+
                                   Icon(
                                     (_parishUserId != null &&
                                             _parishUserId!.length > 20)
@@ -311,38 +335,121 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                                   ),
                                 ],
                               ),
-                            ),
+                            )
+                          : const SizedBox.shrink(),
                     ),
 
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Student Name',
-                        prefixIcon: const Icon(Icons.person),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    ..._studentEntries.asMap().entries.map((element) {
+                      final index = element.key;
+                      final entry = element.value;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 24),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade200),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Student ${index + 1}',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.blue.shade900,
+                                  ),
+                                ),
+                                if (_studentEntries.length > 1)
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: Colors.red,
+                                    ),
+                                    onPressed: () => _removeStudentEntry(index),
+                                    tooltip: 'Remove Student',
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: entry['name'],
+                              decoration: InputDecoration(
+                                labelText: 'Student Name',
+                                prefixIcon: const Icon(Icons.person_outline),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                fillColor: Colors.grey.shade50,
+                                filled: true,
+                              ),
+                              validator: (val) =>
+                                  val == null || val.trim().isEmpty
+                                  ? 'Name Required'
+                                  : null,
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: entry['phone'],
+                              keyboardType: TextInputType.phone,
+                              decoration: InputDecoration(
+                                labelText: 'Phone Number',
+                                prefixIcon: const Icon(
+                                  Icons.phone_android_rounded,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                fillColor: Colors.grey.shade50,
+                                filled: true,
+                              ),
+                              validator: (val) =>
+                                  val == null || val.trim().isEmpty
+                                  ? 'Phone Required'
+                                  : null,
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+
+                    // Add Button
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: _addStudentEntry,
+                        icon: const Icon(
+                          Icons.add_circle_outline_rounded,
+                          size: 24,
+                        ),
+                        label: Text(
+                          'Add Another Student',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          foregroundColor: Colors.blue.shade900,
                         ),
                       ),
-                      validator: (val) => val == null || val.trim().isEmpty
-                          ? 'Name is required'
-                          : null,
                     ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
-                        labelText: 'Parent Phone Number',
-                        prefixIcon: const Icon(Icons.phone),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      validator: (val) => val == null || val.trim().isEmpty
-                          ? 'Phone is required'
-                          : null,
-                    ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 24),
+
                     ElevatedButton(
                       onPressed:
                           (_isSubmitting || _parishUserId == null || _isLoading)
@@ -366,7 +473,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                               ),
                             )
                           : Text(
-                              'Submit Registration',
+                              'Submit Registrations (${_studentEntries.length})',
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
