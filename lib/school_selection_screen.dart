@@ -5,7 +5,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class SchoolSelectionScreen extends StatefulWidget {
-  const SchoolSelectionScreen({super.key});
+  final bool enableBroadcast; // Controls visibility of "Broadcast to All"
+  final bool
+  excludeAssignedSchools; // Filters out schools with existing parish users
+
+  const SchoolSelectionScreen({
+    super.key,
+    this.enableBroadcast = true, // Default to true for backward compatibility
+    this.excludeAssignedSchools = false,
+  });
 
   @override
   State<SchoolSelectionScreen> createState() => _SchoolSelectionScreenState();
@@ -50,7 +58,9 @@ class _SchoolSelectionScreenState extends State<SchoolSelectionScreen> {
           filled: true,
           fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(
-              vertical: 14, horizontal: 16),
+            vertical: 14,
+            horizontal: 16,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
@@ -89,8 +99,9 @@ class _SchoolSelectionScreenState extends State<SchoolSelectionScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: isBroadcast ? Colors.blue.shade50 : Colors.grey
-                      .shade100,
+                  color: isBroadcast
+                      ? Colors.blue.shade50
+                      : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -106,8 +117,9 @@ class _SchoolSelectionScreenState extends State<SchoolSelectionScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: isBroadcast ? FontWeight.w700 : FontWeight.w500,
-                    color: isBroadcast ? const Color(0xFF1E3A8A) : const Color(
-                        0xFF343A40),
+                    color: isBroadcast
+                        ? const Color(0xFF1E3A8A)
+                        : const Color(0xFF343A40),
                   ),
                 ),
               ),
@@ -128,12 +140,16 @@ class _SchoolSelectionScreenState extends State<SchoolSelectionScreen> {
         .where('role', isEqualTo: 'school')
         .orderBy('schoolname'); // Still sorting for initial display
 
-
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: Text('Select Recipient', style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w700, color: const Color(0xFF1E3A8A))),
+        title: Text(
+          'Select Recipient',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1E3A8A),
+          ),
+        ),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         elevation: 1,
@@ -149,87 +165,137 @@ class _SchoolSelectionScreenState extends State<SchoolSelectionScreen> {
 
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: baseQuery.snapshots(), // Stream returns ALL documents
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+              stream: widget.excludeAssignedSchools
+                  ? FirebaseFirestore.instance
+                        .collection('users')
+                        .where('role', isEqualTo: 'parish')
+                        .snapshots()
+                  : const Stream.empty(),
+              builder: (context, parishSnapshot) {
+                // If we are excluding assigned schools and the parish data is loading, show loading
+                if (widget.excludeAssignedSchools &&
+                    parishSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (!snapshot.hasData) {
-                  return Center(
-                      child: Text(
-                          'No schools found.', style: GoogleFonts.poppins()));
+
+                final assignedSchoolIds = <String>{};
+                if (widget.excludeAssignedSchools && parishSnapshot.hasData) {
+                  for (var doc in parishSnapshot.data!.docs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    if (data['schoolId'] != null) {
+                      assignedSchoolIds.add(data['schoolId'] as String);
+                    }
+                  }
                 }
 
-                // ➡️ CLIENT-SIDE FILTERING LOGIC (The core of the video's technique) ⬅️
-                final allSchoolDocs = snapshot.data!.docs;
-
-                final filteredSchoolDocs = allSchoolDocs.where((school) {
-                  final data = school.data() as Map<String, dynamic>;
-                  final schoolName = data['schoolname']
-                      ?.toString()
-                      .toLowerCase() ?? '';
-
-                  // If search is empty, show all. Otherwise, check if name starts with query.
-                  return _searchQuery.isEmpty ||
-                      schoolName.startsWith(_searchQuery);
-                }).toList();
-
-                if (filteredSchoolDocs.isEmpty) {
-                  String message = _searchQuery.isEmpty
-                      ? 'No schools found.'
-                      : 'No schools matching "$_searchQuery".';
-                  return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
+                return StreamBuilder<QuerySnapshot>(
+                  stream: baseQuery.snapshots(), // Stream returns ALL documents
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (!snapshot.hasData) {
+                      return Center(
                         child: Text(
-                            message, style: GoogleFonts.poppins(color: Colors
-                            .grey.shade600)),
-                      ));
-                }
-
-                // End client-side filtering logic
-
-                return ListView.separated(
-                  itemCount: filteredSchoolDocs.length + 1,
-                  // Use filtered list count
-                  separatorBuilder: (context, index) =>
-                  const Divider(height: 1,
-                      indent: 16,
-                      endIndent: 16,
-                      color: Color(0xFFE5E7EB)),
-                  itemBuilder: (context, index) {
-                    // --- 1. Add "Broadcast to All" as the first item ---
-                    if (index == 0) {
-                      return _buildSelectionTile(
-                        icon: Icons.campaign_rounded,
-                        title: 'Broadcast to All Schools',
-                        isBroadcast: true,
-                        onTap: () {
-                          Navigator.of(context).pop({
-                            'id': 'all',
-                            'name': 'Broadcast to All Schools',
-                          });
-                        },
+                          'No schools found.',
+                          style: GoogleFonts.poppins(),
+                        ),
                       );
                     }
 
-                    // --- 2. School List Item ---
-                    final school = filteredSchoolDocs[index -
-                        1]; // Use filtered list
-                    final data = school.data() as Map<String, dynamic>;
+                    // ➡️ CLIENT-SIDE FILTERING LOGIC ⬅️
+                    final allSchoolDocs = snapshot.data!.docs;
 
-                    // NOTE: Display name will be lowercase unless you apply TitleCase formatting
-                    final displayName = data['schoolname']?.toString() ??
-                        'Unnamed School';
+                    final filteredSchoolDocs = allSchoolDocs.where((school) {
+                      // Filter out if already assigned to a parish user (if flag is true)
+                      if (widget.excludeAssignedSchools &&
+                          assignedSchoolIds.contains(school.id)) {
+                        return false;
+                      }
 
-                    return _buildSelectionTile(
-                      icon: Icons.school_outlined,
-                      title: displayName,
-                      onTap: () {
-                        Navigator.of(context).pop({
-                          'id': school.id,
-                          'name': displayName,
-                        });
+                      final data = school.data() as Map<String, dynamic>;
+                      final schoolName =
+                          data['schoolname']?.toString().toLowerCase() ?? '';
+
+                      // Search filter
+                      return _searchQuery.isEmpty ||
+                          schoolName.startsWith(_searchQuery);
+                    }).toList();
+
+                    if (filteredSchoolDocs.isEmpty) {
+                      String message;
+                      if (widget.excludeAssignedSchools &&
+                          _searchQuery.isEmpty) {
+                        message = 'All schools already have Parish Users.';
+                      } else {
+                        message = _searchQuery.isEmpty
+                            ? 'No schools found.'
+                            : 'No schools matching "$_searchQuery".';
+                      }
+
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Text(
+                            message,
+                            style: GoogleFonts.poppins(
+                              color: Colors.grey.shade600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    }
+
+                    // Logic to adjust item count and index based on enableBroadcast
+                    final int itemCount = widget.enableBroadcast
+                        ? filteredSchoolDocs.length + 1
+                        : filteredSchoolDocs.length;
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      itemCount: itemCount,
+                      separatorBuilder: (context, index) => const Divider(
+                        height: 1,
+                        indent: 16,
+                        endIndent: 16,
+                        color: Color(0xFFE5E7EB),
+                      ),
+                      itemBuilder: (context, index) {
+                        // --- 1. Add "Broadcast to All" as the first item if enabled ---
+                        if (widget.enableBroadcast && index == 0) {
+                          return _buildSelectionTile(
+                            icon: Icons.campaign_rounded,
+                            title: 'Broadcast to All Schools',
+                            isBroadcast: true,
+                            onTap: () {
+                              Navigator.of(context).pop({
+                                'id': 'all',
+                                'name': 'Broadcast to All Schools',
+                              });
+                            },
+                          );
+                        }
+
+                        // --- 2. School List Item ---
+                        final int listIndex = widget.enableBroadcast
+                            ? index - 1
+                            : index;
+
+                        final school = filteredSchoolDocs[listIndex];
+                        final data = school.data() as Map<String, dynamic>;
+                        final displayName =
+                            data['schoolname']?.toString() ?? 'Unnamed School';
+
+                        return _buildSelectionTile(
+                          icon: Icons.school_outlined,
+                          title: displayName,
+                          onTap: () {
+                            Navigator.of(
+                              context,
+                            ).pop({'id': school.id, 'name': displayName});
+                          },
+                        );
                       },
                     );
                   },

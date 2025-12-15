@@ -123,6 +123,10 @@ class _AdminQuestionManagerState extends State<AdminQuestionManager> {
             color: Colors.white,
           ),
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),

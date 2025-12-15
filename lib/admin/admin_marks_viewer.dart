@@ -70,7 +70,15 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
         ),
         title: Text(
           'View Marks',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.white,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -213,6 +221,7 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
                             unitId,
                             animatorName,
                             marks,
+                            data['remarks'] as String? ?? '',
                             pdfUrl,
                           );
                         },
@@ -350,6 +359,7 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
     String unitId,
     String animatorName,
     Map<String, dynamic> marks,
+    String remarks,
     String? pdfUrl,
   ) {
     showDialog(
@@ -424,6 +434,38 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
                 );
               }),
 
+              if (remarks.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 12),
+                Text(
+                  'Remarks:',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: Text(
+                    remarks,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: Colors.grey.shade800,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ],
+
               if (pdfUrl != null) ...[
                 const SizedBox(height: 20),
                 const Divider(),
@@ -491,6 +533,11 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
               ),
             ),
             onPressed: () {
+              // The 'remarks' variable is already available as a parameter to _showMarksDialog.
+              // The instruction implies extracting it from a 'data' map, which is not present here.
+              // To maintain syntactical correctness and fulfill the instruction's intent
+              // of ensuring 'remarks' is passed, we will use the existing 'remarks' parameter.
+              // If 'data' was intended to be defined, it would need to be added elsewhere.
               Navigator.pop(context);
               AdminMarksPdfGenerator.generateAndOpen(
                 parish: parish,
@@ -498,6 +545,7 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
                 animatorName: animatorName,
                 year: _selectedYear,
                 marks: marks,
+                remarks: remarks,
                 questionMap: _questionMap,
                 maxMarkMap: _maxMarkMap,
                 sortedQuestionIds: _questionMap.keys.toList(),

@@ -7,13 +7,23 @@ class UserData {
   final String schoolDisplayName;
   final String? profileImageUrl;
   final bool isAdmin;
-  final bool isAnimator; // New field
+  final bool isAnimator;
+  final bool isSchool;
+  final bool isParish;
+  final String? parishId;
+  final String? schoolId;
+  final String? schoolName;
 
   UserData({
     this.schoolDisplayName = 'Guest',
     this.profileImageUrl,
     this.isAdmin = false,
-    this.isAnimator = false, // Default to false
+    this.isAnimator = false,
+    this.isSchool = false,
+    this.isParish = false,
+    this.parishId,
+    this.schoolId,
+    this.schoolName,
   });
 }
 
@@ -21,7 +31,7 @@ class UserData {
 class UserDataProvider with ChangeNotifier {
   UserData _userData = UserData(); // Internal private state
   UserData get userData => _userData; // Public getter for the data
-  
+
   bool _isLoading = true;
   bool get isLoading => _isLoading;
 
@@ -42,35 +52,45 @@ class UserDataProvider with ChangeNotifier {
   Future<void> fetchUserData([User? user]) async {
     final currentUser = user ?? FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-       _isLoading = false;
-       notifyListeners();
-       return;
+      _isLoading = false;
+      notifyListeners();
+      return;
     }
-    
-    // Set loading to true only if we don't have data yet to avoid flickering if called multiple times
-    // or you can force it if you want to show loading on every fetch
-    // _isLoading = true; 
-    // notifyListeners();
 
     try {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
 
       String finalDisplayName = currentUser.email?.split('@').first ?? 'User';
       String? imageUrl;
       bool isAdmin = false;
       bool isAnimator = false;
+      bool isSchool = false;
+      bool isParish = false;
+      String? parishId;
+      String? schoolId;
+      String? schoolNameStr;
 
       if (userDoc.exists) {
         final data = userDoc.data();
-        final schoolName = data?['schoolName'] ?? data?['schoolname'] ?? data?['name']; // Added 'name' check
+        final name =
+            data?['schoolName'] ?? data?['schoolname'] ?? data?['name'];
 
-        if (schoolName != null && schoolName.toString().isNotEmpty) {
-          finalDisplayName = schoolName.toString();
+        if (name != null && name.toString().isNotEmpty) {
+          finalDisplayName = name.toString();
+          schoolNameStr = name.toString();
         }
         imageUrl = data?['profileImageUrl']?.toString();
         final role = data?['role'];
         isAdmin = role == 'admin';
         isAnimator = role == 'animator';
+        isSchool = role == 'school';
+        isParish = role == 'parish';
+        // Improved parishId fetching: check both 'parishId' and 'parish' fields
+        parishId = data?['parishId'] ?? data?['parish'];
+        schoolId = data?['schoolId'];
       }
 
       // Update the internal state
@@ -79,10 +99,14 @@ class UserDataProvider with ChangeNotifier {
         profileImageUrl: imageUrl,
         isAdmin: isAdmin,
         isAnimator: isAnimator,
+        isSchool: isSchool,
+        isParish: isParish,
+        parishId: parishId,
+        schoolId: schoolId,
+        schoolName: schoolNameStr,
       );
-      
     } catch (e) {
-      print("Error fetching user data for provider: $e");
+      debugPrint("Error fetching user data for provider: $e");
     } finally {
       _isLoading = false;
       notifyListeners();

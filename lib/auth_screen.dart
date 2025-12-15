@@ -8,6 +8,7 @@ import 'package:sundayschool_app/admin_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sundayschool_app/login_screen.dart';
 import 'package:sundayschool_app/animator/animator_dashboard_screen.dart';
+import 'package:sundayschool_app/parish/parish_dashboard_screen.dart'; // Added import for routing
 
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 
@@ -219,11 +220,15 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
         final isUserAdmin = role == 'admin';
         final isAnimator = role == 'animator';
+        final isParish = role == 'parish';
 
         if (mounted) {
           Widget destination;
           if (isUserAdmin) {
             destination = const AdminDashboardScreen();
+          } else if (isParish) {
+            destination =
+                const ParishDashboardScreen(); // Added routing for Parish
           } else if (isAnimator) {
             destination = const AnimatorDashboardScreen();
           } else {
@@ -382,7 +387,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                               ),
                             ),
                     ),
-                    const SizedBox(height: 60), // Reduced spacing
+                    const SizedBox(height: 120), // Reduced spacing
                     FadeTransition(
                       opacity:
                           _exitController.status == AnimationStatus.forward ||
@@ -399,12 +404,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                           ),
                           Padding(
                             padding: const EdgeInsets.only(
-                              top: 16.0, // Reduced padding
-                            ),
-                            child: Image.asset(
-                              'assets/images/diocese-logo-new1.png',
-                              height: 55, // Reduced height
-                              fit: BoxFit.contain,
+                              top: 25.0, // Reduced padding
                             ),
                           ),
                           // Add padding at the bottom to ensure watermark doesn't overlap logos
