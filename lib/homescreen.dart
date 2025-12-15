@@ -14,6 +14,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:async/async.dart';
 import 'dart:math' as math;
+import 'package:sundayschool_app/animator/registration_dashboard.dart';
 
 enum SortOption { newestFirst, alphabetical }
 
@@ -198,9 +199,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? Colors.blue.shade900
-                    : Colors.grey.shade200,
+                color: isSelected ? Colors.blue.shade900 : Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -216,7 +215,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected ? Colors.blue.shade900 : Colors.grey.shade700,
+                  color: isSelected
+                      ? Colors.blue.shade900
+                      : Colors.grey.shade700,
                 ),
               ),
             ),
@@ -287,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const AuthScreen()),
-              (Route<dynamic> route) => false,
+          (Route<dynamic> route) => false,
         );
       }
     }
@@ -308,6 +309,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                  _buildRegistrationCard(),
+                  const SizedBox(height: 16),
                   _buildHighlightSection(),
                   const SizedBox(height: 32),
                   _buildRecentEventsSection(),
@@ -325,10 +329,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Colors.blue.shade700,
-                Colors.blue.shade900,
-              ],
+              colors: [Colors.blue.shade700, Colors.blue.shade900],
             ),
             boxShadow: [
               BoxShadow(
@@ -376,10 +377,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Colors.blue.shade900,
-                Colors.blue.shade700,
-              ],
+              colors: [Colors.blue.shade900, Colors.blue.shade700],
             ),
           ),
           child: SafeArea(
@@ -408,10 +406,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               gradient: LinearGradient(
-                                colors: [
-                                  Colors.white,
-                                  Colors.blue.shade100,
-                                ],
+                                colors: [Colors.white, Colors.blue.shade100],
                               ),
                               boxShadow: [
                                 BoxShadow(
@@ -428,8 +423,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   ? NetworkImage(_profileImageUrl!)
                                   : null,
                               child: _profileImageUrl == null
-                                  ? Icon(Icons.person,
-                                  color: Colors.blue.shade900, size: 28)
+                                  ? Icon(
+                                      Icons.person,
+                                      color: Colors.blue.shade900,
+                                      size: 28,
+                                    )
                                   : null,
                             ),
                           ),
@@ -457,11 +455,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           stream: StreamZip([
                             FirebaseFirestore.instance
                                 .collection('notifications')
-                                .where('recipientId', whereIn: [
-                              FirebaseAuth.instance.currentUser?.uid ??
-                                  'INVALID_USER',
-                              'all'
-                            ]).snapshots(),
+                                .where(
+                                  'recipientId',
+                                  whereIn: [
+                                    FirebaseAuth.instance.currentUser?.uid ??
+                                        'INVALID_USER',
+                                    'all',
+                                  ],
+                                )
+                                .snapshots(),
                             FirebaseFirestore.instance
                                 .collection('broadcasts')
                                 .snapshots(),
@@ -473,11 +475,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               if (user != null) {
                                 final allDocs = [
                                   ...snapshot.data![0].docs,
-                                  ...snapshot.data![1].docs
+                                  ...snapshot.data![1].docs,
                                 ];
                                 unreadCount = allDocs.where((doc) {
                                   final data =
-                                  doc.data() as Map<String, dynamic>?;
+                                      doc.data() as Map<String, dynamic>?;
                                   final readBy =
                                       data?['readBy'] as List<dynamic>? ?? [];
                                   return !readBy.contains(user.uid);
@@ -487,8 +489,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             return Stack(
                               clipBehavior: Clip.none,
                               children: [
-                                Icon(Icons.notifications_rounded,
-                                    color: Colors.white, size: 24),
+                                Icon(
+                                  Icons.notifications_rounded,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
                                 if (unreadCount > 0)
                                   Positioned(
                                     top: -4,
@@ -518,7 +523,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             );
                           },
                         ),
-                            () {
+                        () {
                           HapticFeedback.lightImpact();
                           Navigator.push(
                             context,
@@ -531,23 +536,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       if (_isAdmin) const SizedBox(width: 8),
                       if (_isAdmin)
                         _buildHeaderIconButton(
-                          const Icon(Icons.admin_panel_settings_rounded,
-                              color: Colors.white, size: 24),
-                              () {
+                          const Icon(
+                            Icons.admin_panel_settings_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                          () {
                             HapticFeedback.lightImpact();
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) =>
-                                const AdminDashboardScreen(),
+                                    const AdminDashboardScreen(),
                               ),
                             );
                           },
                         ),
                       const SizedBox(width: 8),
                       _buildHeaderIconButton(
-                        const Icon(Icons.logout_rounded,
-                            color: Colors.white, size: 24),
+                        const Icon(
+                          Icons.logout_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                         _logout,
                       ),
                     ],
@@ -599,8 +610,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.star_rounded,
-                    color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.star_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Text(
@@ -635,10 +649,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [
-                          Colors.blue.shade700,
-                          Colors.blue.shade900,
-                        ],
+                        colors: [Colors.blue.shade700, Colors.blue.shade900],
                       ),
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
@@ -649,8 +660,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.event_rounded,
-                        color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.event_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Text(
@@ -671,7 +685,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: Colors.blue.shade900.withAlpha(51), width: 1.5),
+                      color: Colors.blue.shade900.withAlpha(51),
+                      width: 1.5,
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withAlpha(13),
@@ -680,8 +696,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                     ],
                   ),
-                  child: Icon(Icons.tune_rounded,
-                      color: Colors.blue.shade900, size: 20),
+                  child: Icon(
+                    Icons.tune_rounded,
+                    color: Colors.blue.shade900,
+                    size: 20,
+                  ),
                 ),
               ),
             ],
@@ -710,6 +729,85 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildRegistrationCard() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Card(
+        elevation: 4,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const RegistrationDashboard(),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                colors: [Colors.orange.shade50, Colors.white],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade700,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.app_registration_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Program Registration',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange.shade900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Register students for active programs',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: Colors.orange.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 20,
+                  color: Colors.orange.shade700,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildModernCategoryFilter() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -719,7 +817,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-              color: Colors.blue.shade900.withAlpha(26), width: 1.5),
+            color: Colors.blue.shade900.withAlpha(26),
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withAlpha(13),
@@ -798,7 +898,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: Colors.blue.shade900.withAlpha(26), width: 1.5),
+            color: Colors.blue.shade900.withAlpha(26),
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withAlpha(13),
@@ -816,21 +918,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               color: Colors.grey.shade400,
               fontSize: 14,
             ),
-            prefixIcon: Icon(Icons.search_rounded,
-                color: Colors.blue.shade900, size: 22),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: Colors.blue.shade900,
+              size: 22,
+            ),
             suffixIcon: _searchQuery.isNotEmpty
                 ? IconButton(
-              icon: Icon(Icons.clear_rounded,
-                  color: Colors.grey.shade400, size: 20),
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                _searchController.clear();
-              },
-            )
+                    icon: Icon(
+                      Icons.clear_rounded,
+                      color: Colors.grey.shade400,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      _searchController.clear();
+                    },
+                  )
                 : null,
             border: InputBorder.none,
-            contentPadding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 16,
+            ),
           ),
         ),
       ),
@@ -857,8 +967,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               padding: const EdgeInsets.all(32.0),
               child: Column(
                 children: [
-                  Icon(Icons.error_outline,
-                      size: 64, color: Colors.red.shade300),
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red.shade300,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Something went wrong',
@@ -907,13 +1020,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
         if (_currentSortOption == SortOption.alphabetical) {
           filteredDocs.sort((a, b) {
-            String aTitle = (a.data() as Map<String, dynamic>)['title']
-                ?.toString()
-                .toLowerCase() ??
+            String aTitle =
+                (a.data() as Map<String, dynamic>)['title']
+                    ?.toString()
+                    .toLowerCase() ??
                 '';
-            String bTitle = (b.data() as Map<String, dynamic>)['title']
-                ?.toString()
-                .toLowerCase() ??
+            String bTitle =
+                (b.data() as Map<String, dynamic>)['title']
+                    ?.toString()
+                    .toLowerCase() ??
                 '';
             return aTitle.compareTo(bTitle);
           });
@@ -959,7 +1074,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: Colors.blue.shade900.withAlpha(26), width: 1.5),
+            color: Colors.blue.shade900.withAlpha(26),
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withAlpha(13),
@@ -994,10 +1111,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
-                            Colors.blue.shade100,
-                            Colors.blue.shade200,
-                          ],
+                          colors: [Colors.blue.shade100, Colors.blue.shade200],
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -1011,21 +1125,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(16),
                         child: data['imageUrl'] != null
                             ? Image.network(
-                          data['imageUrl'],
-                          fit: BoxFit.cover,
-                          cacheWidth: 160,
-                          cacheHeight: 160,
-                          errorBuilder: (ctx, err, st) => Icon(
-                            Icons.image_rounded,
-                            color: Colors.blue.shade900,
-                            size: 32,
-                          ),
-                        )
+                                data['imageUrl'],
+                                fit: BoxFit.cover,
+                                cacheWidth: 160,
+                                cacheHeight: 160,
+                                errorBuilder: (ctx, err, st) => Icon(
+                                  Icons.image_rounded,
+                                  color: Colors.blue.shade900,
+                                  size: 32,
+                                ),
+                              )
                             : Icon(
-                          Icons.image_rounded,
-                          color: Colors.blue.shade900,
-                          size: 32,
-                        ),
+                                Icons.image_rounded,
+                                color: Colors.blue.shade900,
+                                size: 32,
+                              ),
                       ),
                     ),
                   ),
@@ -1051,20 +1165,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             if (data['category'] != null)
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: data['category']
-                                      ?.toString()
-                                      .toUpperCase() ==
-                                      'CML'
+                                  color:
+                                      data['category']
+                                              ?.toString()
+                                              .toUpperCase() ==
+                                          'CML'
                                       ? Colors.purple.shade50
                                       : Colors.orange.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: data['category']
-                                        ?.toString()
-                                        .toUpperCase() ==
-                                        'CML'
+                                    color:
+                                        data['category']
+                                                ?.toString()
+                                                .toUpperCase() ==
+                                            'CML'
                                         ? Colors.purple.shade200
                                         : Colors.orange.shade200,
                                     width: 1,
@@ -1076,10 +1194,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   style: GoogleFonts.poppins(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
-                                    color: data['category']
-                                        ?.toString()
-                                        .toUpperCase() ==
-                                        'CML'
+                                    color:
+                                        data['category']
+                                                ?.toString()
+                                                .toUpperCase() ==
+                                            'CML'
                                         ? Colors.purple.shade700
                                         : Colors.orange.shade700,
                                   ),
@@ -1227,7 +1346,10 @@ class _HighlightEventCardState extends State<HighlightEventCard> {
       baseQuery = baseQuery.where('creatorId', isEqualTo: user.uid);
     }
 
-    return baseQuery.orderBy('timestamp', descending: true).limit(1).snapshots();
+    return baseQuery
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .snapshots();
   }
 
   @override
@@ -1256,10 +1378,7 @@ class _HighlightEventCardState extends State<HighlightEventCard> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Colors.blue.shade100,
-                  Colors.blue.shade200,
-                ],
+                colors: [Colors.blue.shade100, Colors.blue.shade200],
               ),
               boxShadow: [
                 BoxShadow(
@@ -1273,8 +1392,11 @@ class _HighlightEventCardState extends State<HighlightEventCard> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.event_note_rounded,
-                      size: 48, color: Colors.blue.shade900),
+                  Icon(
+                    Icons.event_note_rounded,
+                    size: 48,
+                    color: Colors.blue.shade900,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     "No highlight event",
@@ -1336,8 +1458,11 @@ class _HighlightEventCardState extends State<HighlightEventCard> {
                             ),
                           ),
                           child: const Center(
-                            child: Icon(Icons.image_rounded,
-                                size: 64, color: Colors.white),
+                            child: Icon(
+                              Icons.image_rounded,
+                              size: 64,
+                              color: Colors.white,
+                            ),
                           ),
                         );
                       },
@@ -1364,15 +1489,20 @@ class _HighlightEventCardState extends State<HighlightEventCard> {
                           if (data['category'] != null)
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withAlpha(51),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                    color: Colors.white.withAlpha(77), width: 1),
+                                  color: Colors.white.withAlpha(77),
+                                  width: 1,
+                                ),
                               ),
                               child: Text(
-                                data['category']?.toString().toUpperCase() ?? '',
+                                data['category']?.toString().toUpperCase() ??
+                                    '',
                                 style: GoogleFonts.poppins(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,

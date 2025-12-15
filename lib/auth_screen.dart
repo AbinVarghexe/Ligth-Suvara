@@ -8,6 +8,7 @@ import 'package:sundayschool_app/admin_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sundayschool_app/login_screen.dart';
 import 'package:sundayschool_app/animator/animator_dashboard_screen.dart';
+import 'package:sundayschool_app/parish/parish_dashboard_screen.dart'; // Added import for routing
 
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 
@@ -219,11 +220,15 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
         final isUserAdmin = role == 'admin';
         final isAnimator = role == 'animator';
+        final isParish = role == 'parish';
 
         if (mounted) {
           Widget destination;
           if (isUserAdmin) {
             destination = const AdminDashboardScreen();
+          } else if (isParish) {
+            destination =
+                const ParishDashboardScreen(); // Added routing for Parish
           } else if (isAnimator) {
             destination = const AnimatorDashboardScreen();
           } else {

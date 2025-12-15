@@ -13,6 +13,11 @@ import 'package:sundayschool_app/admin/admin_assignment_manager.dart';
 import 'package:sundayschool_app/admin/admin_marks_viewer.dart';
 import 'package:sundayschool_app/admin/admin_manage_animators.dart';
 import 'package:sundayschool_app/admin/admin_create_animator.dart';
+import 'package:sundayschool_app/admin/admin_program_manager.dart';
+import 'package:sundayschool_app/admin/admin_registration_manager.dart';
+import 'package:sundayschool_app/admin/admin_school_registrations.dart';
+import 'package:sundayschool_app/admin/admin_create_parish_user.dart'; // Added import
+import 'package:sundayschool_app/school_selection_screen.dart'; // Added import
 
 enum SortOption { newestFirst, alphabetical }
 
@@ -1509,12 +1514,104 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Spacer(), // Keeps layout balanced
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildAdminActionCard(
+                          context,
+                          'Create Parish User',
+                          Icons.church_rounded,
+                          Colors.brown,
+                          () async {
+                            final selectedSchool = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const SchoolSelectionScreen(
+                                      enableBroadcast: false,
+                                    ),
+                              ),
+                            );
+
+                            if (selectedSchool != null && mounted) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AdminCreateParishUser(
+                                    schoolId: selectedSchool['id'],
+                                    schoolName: selectedSchool['name'],
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ),
                     ],
                   ),
                 ],
               ),
+              const SizedBox(height: 24),
+              // Program Management Section
+              Text(
+                'Program Management',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade800,
+                ),
+              ),
               const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildAdminActionCard(
+                      context,
+                      'Manage Programs', // New Feature
+                      Icons.event_available_outlined,
+                      Colors.purpleAccent,
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AdminProgramManager(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildAdminActionCard(
+                      context,
+                      'Review Registrations',
+                      Icons.checklist_rtl_rounded,
+                      Colors.teal,
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const AdminRegistrationManager(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildAdminActionCard(
+                      context,
+                      'See Registrations',
+                      Icons.school_rounded,
+                      Colors.indigo,
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const AdminSchoolRegistrations(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
               _buildModernCategoryFilter(),
               const SizedBox(height: 16),
               _buildSearchBox(),
