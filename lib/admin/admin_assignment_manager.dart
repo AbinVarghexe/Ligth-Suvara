@@ -696,8 +696,18 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
                             .doc(animatorDoc.id)
                             .get(),
                         builder: (context, userSnap) {
-                          final userName =
-                              userSnap.data?.get('name') ?? 'Loading...';
+                          String userName = 'Loading...';
+                          if (userSnap.hasData) {
+                            if (userSnap.data!.exists) {
+                              try {
+                                userName = userSnap.data!.get('name');
+                              } catch (e) {
+                                userName = 'Unknown';
+                              }
+                            } else {
+                              userName = 'User Deleted';
+                            }
+                          }
 
                           return TweenAnimationBuilder<double>(
                             duration: const Duration(milliseconds: 500),

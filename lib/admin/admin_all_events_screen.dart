@@ -21,6 +21,7 @@ class _AdminAllEventsScreenState extends State<AdminAllEventsScreen> {
 
   String? _selectedSchoolId;
   String? _selectedSchoolName;
+  String _selectedCategory = 'All'; // New state for category filter
 
   @override
   void initState() {
@@ -181,6 +182,61 @@ class _AdminAllEventsScreenState extends State<AdminAllEventsScreen> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  // --- NEW: Segmented Filter Widget ---
+  Widget _buildSegmentedFilter() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          _buildFilterSegment('All'),
+          _buildFilterSegment('CML'),
+          _buildFilterSegment('Suvara'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterSegment(String category) {
+    final isSelected = _selectedCategory == category;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedCategory = category),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blue.shade800 : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.blue.shade200.withOpacity(0.5),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Text(
+            category.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(
+              // Using Outfit for a modern look as requested
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: isSelected ? Colors.white : Colors.grey.shade600,
+              letterSpacing: 1.0,
+            ),
+          ),
         ),
       ),
     );
@@ -413,6 +469,9 @@ class _AdminAllEventsScreenState extends State<AdminAllEventsScreen> {
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 16),
+                  _buildSegmentedFilter(),
                 ],
               ),
             ),
@@ -439,6 +498,17 @@ class _AdminAllEventsScreenState extends State<AdminAllEventsScreen> {
                     filteredDocs = filteredDocs.where((doc) {
                       final data = doc.data() as Map<String, dynamic>;
                       return data['creatorId'] == _selectedSchoolId;
+                    }).toList();
+                  }
+
+                  // 2. Category Filter (NEW)
+                  if (_selectedCategory != 'All') {
+                    filteredDocs = filteredDocs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final category = (data['category'] ?? '')
+                          .toString()
+                          .toLowerCase();
+                      return category == _selectedCategory.toLowerCase();
                     }).toList();
                   }
 
@@ -779,7 +849,7 @@ class _SearchableSchoolDialogState extends State<_SearchableSchoolDialog> {
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('users')
-                    .where('role', whereIn: ['school', 'parish'])
+                    .where('role', isEqualTo: 'school')
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
@@ -857,7 +927,7 @@ class _SearchableSchoolDialogState extends State<_SearchableSchoolDialog> {
                       final data = doc.data() as Map<String, dynamic>;
                       final name =
                           data['name']?.toString() ??
-                          data['schoolName']?.toString() ??
+                          data['schoolname']?.toString() ??
                           'Unknown';
 
                       // Filter out "Unknown" or basically empty names if better UI desired,
