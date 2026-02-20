@@ -458,7 +458,9 @@ class _AdminProgramAnalyticsState extends State<AdminProgramAnalytics> {
       itemBuilder: (context, index) {
         final school = _topSchools[index];
         final rank = index + 1;
-
+        Color badgeColor = Colors.blue.shade100;
+        if (rank == 1) {
+          badgeColor = const Color(0xFFFFD700);
         } else if (rank == 2) {
           badgeColor = const Color(0xFFC0C0C0);
         } else if (rank == 3) {

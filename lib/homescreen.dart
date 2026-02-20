@@ -176,8 +176,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late Animation<double> _fabAnimation;
   late Animation<double> _fabMenuAnimation; // New animation
 
-  late Animation<double> _fabMenuAnimation; // New animation
-
   Stream<QuerySnapshot>? _eventsStream;
 
   void _setupEventsStream() {
@@ -555,7 +553,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 32),
                 _buildRecentEventsSection(),
               ],
-            ),
             ),
           ),
         ],
