@@ -632,7 +632,14 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
         for (var doc in docs) {
           final data = doc.data() as Map<String, dynamic>;
           final programName = data['programName'] ?? 'Unknown Program';
-          programCounts[programName] = (programCounts[programName] ?? 0) + 1;
+
+          final isCountOnly = data['isCountOnly'] == true;
+          final studentCount = isCountOnly
+              ? (data['studentCount'] as int? ?? 1)
+              : 1;
+
+          programCounts[programName] =
+              (programCounts[programName] ?? 0) + studentCount;
         }
 
         final programs = programCounts.keys.toList();

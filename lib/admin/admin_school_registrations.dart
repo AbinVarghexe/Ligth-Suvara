@@ -140,13 +140,20 @@ class _AdminSchoolRegistrationsState extends State<AdminSchoolRegistrations> {
                     final status =
                         data['status']?.toString() ?? 'pending_parish';
 
-                    if (status != 'approved_parish' && status != 'locked')
+                    if (status != 'approved_parish' && status != 'locked') {
                       continue;
+                    }
 
                     final programName =
                         data['programName']?.toString() ?? 'Unknown Program';
+
+                    final isCountOnly = data['isCountOnly'] == true;
+                    final studentCount = isCountOnly
+                        ? (data['studentCount'] as int? ?? 1)
+                        : 1;
+
                     programCounts[programName] =
-                        (programCounts[programName] ?? 0) + 1;
+                        (programCounts[programName] ?? 0) + studentCount;
                   }
 
                   if (programCounts.isEmpty) {
@@ -410,7 +417,13 @@ class _ProgramParishList extends StatelessWidget {
               if (status != 'approved_parish' && status != 'locked') continue;
 
               final schoolId = data['schoolUserId']?.toString() ?? 'unknown';
-              schoolCounts[schoolId] = (schoolCounts[schoolId] ?? 0) + 1;
+              final isCountOnly = data['isCountOnly'] == true;
+              final studentCount = isCountOnly
+                  ? (data['studentCount'] as int? ?? 1)
+                  : 1;
+
+              schoolCounts[schoolId] =
+                  (schoolCounts[schoolId] ?? 0) + studentCount;
 
               // Capture schoolName if available for fallback
               if (!schoolNames.containsKey(schoolId)) {
@@ -574,6 +587,142 @@ class _StudentList extends StatelessWidget {
     required this.schoolName,
   });
 
+  void _showSchoolProfileDialog(BuildContext context, String schoolId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return FutureBuilder<DocumentSnapshot>(
+          future: FirebaseFirestore.instance
+              .collection('users')
+              .doc(schoolId)
+              .get(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final data = snapshot.data?.data() as Map<String, dynamic>?;
+            if (data == null) {
+              return const AlertDialog(title: Text("School Profile Not Found"));
+            }
+
+            final contactPerson = data['fullName'] ?? 'Not Set';
+            final phone = data['phoneNumber'] ?? 'Not Set';
+            final forane = data['forane'] ?? 'Not Set';
+            final parish = data['parish'] ?? 'Not Set';
+            final email = data['email'] ?? 'Not Set';
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.school_rounded,
+                      color: Colors.blue.shade900,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'School Profile',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        color: Colors.blue.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildProfileItem(
+                      Icons.business_rounded,
+                      'School',
+                      schoolName,
+                    ),
+                    _buildProfileItem(
+                      Icons.person_rounded,
+                      'Contact Person',
+                      contactPerson,
+                    ),
+                    _buildProfileItem(Icons.phone_rounded, 'Phone', phone),
+                    _buildProfileItem(Icons.email_rounded, 'Email', email),
+                    _buildProfileItem(
+                      Icons.location_city_rounded,
+                      'Forane',
+                      forane,
+                    ),
+                    _buildProfileItem(Icons.church_rounded, 'Parish', parish),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Close',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blue.shade900,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildProfileItem(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: Colors.blue.shade700),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    color: Colors.blue.shade900,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -651,6 +800,203 @@ class _StudentList extends StatelessWidget {
                 ),
               );
             }
+
+            return FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(schoolId)
+                  .get(),
+              builder: (context, schoolSnapshot) {
+                final schoolData =
+                    schoolSnapshot.data?.data() as Map<String, dynamic>?;
+                final contactPerson =
+                    schoolData?['fullName'] ?? 'Contact Person';
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 100,
+                  ),
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data();
+                    final bool isCountOnly = data['isCountOnly'] == true;
+                    final studentName =
+                        data['studentName']?.toString() ?? 'Unknown Name';
+                    final studentPhone =
+                        data['studentPhone']?.toString() ?? 'N/A';
+                    final int studentCount = data['studentCount'] ?? 1;
+                    final submittedAt =
+                        (data['submittedAt'] as Timestamp?)?.toDate() ??
+                        DateTime.now();
+
+                    return TweenAnimationBuilder<double>(
+                      duration: const Duration(milliseconds: 500),
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      curve: Interval(
+                        (index * 0.1).clamp(0.0, 1.0),
+                        1.0,
+                        curve: Curves.easeOut,
+                      ),
+                      builder: (context, value, child) {
+                        return Transform.translate(
+                          offset: Offset(0, 30 * (1 - value)),
+                          child: Opacity(opacity: value, child: child),
+                        );
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.blue.shade900.withOpacity(0.06),
+                              blurRadius: 15,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.blue.shade100,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: isCountOnly
+                                      ? Text(
+                                          '+$studentCount',
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: Colors.blue.shade800,
+                                          ),
+                                        )
+                                      : Text(
+                                          studentName.isNotEmpty
+                                              ? studentName[0].toUpperCase()
+                                              : '?',
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 20,
+                                            color: Colors.blue.shade800,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(width: 20),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isCountOnly
+                                          ? '$studentCount Students (Count Only)'
+                                          : studentName,
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          isCountOnly
+                                              ? Icons.person_rounded
+                                              : Icons.phone_rounded,
+                                          size: 14,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          isCountOnly
+                                              ? contactPerson
+                                              : studentPhone,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            color: Colors.grey.shade600,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.calendar_today_rounded,
+                                          size: 12,
+                                          color: Colors.grey.shade400,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Submitted: ${DateFormat('MMM dd').format(submittedAt)}',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                children: [
+                                  if (isCountOnly)
+                                    IconButton(
+                                      onPressed: () => _showSchoolProfileDialog(
+                                        context,
+                                        schoolId,
+                                      ),
+                                      icon: Icon(
+                                        Icons.info_outline_rounded,
+                                        color: Colors.blue.shade700,
+                                      ),
+                                      tooltip: 'View School Profile',
+                                    )
+                                  else
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.shade50,
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: Colors.green.shade100,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        "Verified",
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.green.shade700,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
 
             return ListView.builder(
               padding: const EdgeInsets.symmetric(
@@ -804,6 +1150,7 @@ class _StudentList extends StatelessWidget {
                       ),
                     ),
                   ),
+
                 );
               },
             );

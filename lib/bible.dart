@@ -15,7 +15,8 @@ class PocBibleScreen extends StatefulWidget {
 class _PocBibleScreenState extends State<PocBibleScreen> {
   late final WebViewController _controller;
 
-  static const String webUrl = 'https://www.pocbible.com/m/';
+  static const String webUrl =
+      'https://thiruvachanam.in/ShowChaptersOfBook.do?b=12&t=1';
   bool _isLoading = true;
 
   @override
@@ -27,34 +28,41 @@ class _PocBibleScreenState extends State<PocBibleScreen> {
     // Access platform methods directly, only call those supported by your plugin version
     if (controller.platform is AndroidWebViewController) {
       (controller.platform as AndroidWebViewController)
-        ..setMediaPlaybackRequiresUserGesture(false);
+        ..setMediaPlaybackRequiresUserGesture(false)
+        ..setUseWideViewPort(
+          true,
+        ); // Force wide viewport for desktop-like rendering
     }
 
     _controller = controller
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setUserAgent(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      ) // Spoof Desktop UA
       ..setBackgroundColor(const Color(0x00000000))
-
-    // Configure navigation and error handling
+      // Configure navigation and error handling
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
             debugPrint('Page started loading: $url');
             setState(() => _isLoading = true);
           },
-          onPageFinished: (String url) {
+          onPageFinished: (String url) async {
             debugPrint('Page finished loading: $url');
             setState(() => _isLoading = false);
 
-            // Inject JavaScript to force viewport meta tag for proper scaling.
-            _controller.runJavaScript("""
-              var viewport = document.querySelector("meta[name=viewport]");
-              if (!viewport) {
-                viewport = document.createElement('meta');
-                viewport.name = 'viewport';
-                document.getElementsByTagName('head')[0].appendChild(viewport);
-              }
-              viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-            """);
+            // Inject viewport meta tag to force desktop width (zoomed out view)
+            // This prevents the page from loading in "enlarged form" on mobile
+            await _controller.runJavaScript('''
+              var meta = document.createElement('meta');
+              meta.name = "viewport";
+              meta.content = "width=1024, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes";
+              var head = document.getElementsByTagName('head')[0];
+              // Remove existing viewport tag if any
+              var existing = head.querySelector('meta[name="viewport"]');
+              if (existing) { existing.remove(); }
+              head.appendChild(meta);
+            ''');
           },
           onWebResourceError: (WebResourceError error) {
             debugPrint('Error loading page: ${error.description}');
@@ -62,7 +70,7 @@ class _PocBibleScreenState extends State<PocBibleScreen> {
           },
         ),
       )
-    // Load the URL
+      // Load the URL
       ..loadRequest(Uri.parse(webUrl));
   }
 

@@ -36,6 +36,15 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
               : 'Registration rejected',
           isSuccess: newStatus == 'approved_parish',
         );
+        await _showStatusDialog(
+          context: context,
+          isSuccess: newStatus == 'approved_parish',
+          title: newStatus == 'approved_parish' ? 'Approved!' : 'Rejected',
+          message: newStatus == 'approved_parish'
+              ? 'Registration has been approved successfully.'
+              : 'Registration has been rejected.',
+        );
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -101,6 +110,13 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
           message: 'Program Locked Successfully',
           isSuccess: true,
           icon: Icons.lock_outline_rounded,
+        );
+        await _showStatusDialog(
+          context: context,
+          isSuccess: true,
+          title: 'Program Locked',
+          message: 'The program has been locked successfully for this school.',
+        );
         );
       }
     } catch (e) {
@@ -169,6 +185,13 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
           isSuccess: true,
           icon: Icons.lock_open_rounded,
         );
+        await _showStatusDialog(
+          context: context,
+          isSuccess: true,
+          title: 'Program Unlocked',
+          message: 'The program registrations are now unlocked and editable.',
+        );
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -181,11 +204,15 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
 
   void _showEditBottomSheet(String docId, Map<String, dynamic> data) {
     if (_isSaving) return;
+    final bool isCountOnly = data['isCountOnly'] == true;
     final nameController = TextEditingController(
       text: data['studentName']?.toString() ?? '',
     );
     final phoneController = TextEditingController(
       text: data['studentPhone']?.toString() ?? '',
+    );
+    final countController = TextEditingController(
+      text: (data['studentCount'] ?? 1).toString(),
     );
 
     showModalBottomSheet(
@@ -221,7 +248,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Edit Registration',
+                  isCountOnly ? 'Edit Student Count' : 'Edit Registration',
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -229,18 +256,27 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                _buildTextField(
-                  controller: nameController,
-                  label: 'Student Name',
-                  icon: Icons.person_outline_rounded,
-                ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  controller: phoneController,
-                  label: 'Phone Number',
-                  icon: Icons.phone_android_rounded,
-                  keyboardType: TextInputType.phone,
-                ),
+                if (isCountOnly)
+                  _buildTextField(
+                    controller: countController,
+                    label: 'Number of Students',
+                    icon: Icons.groups_rounded,
+                    keyboardType: TextInputType.number,
+                  )
+                else ...[
+                  _buildTextField(
+                    controller: nameController,
+                    label: 'Student Name',
+                    icon: Icons.person_outline_rounded,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: phoneController,
+                    label: 'Phone Number',
+                    icon: Icons.phone_android_rounded,
+                    keyboardType: TextInputType.phone,
+                  ),
+                ],
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
@@ -251,54 +287,56 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                         : () async {
                             final updatedName = nameController.text.trim();
                             final updatedPhone = phoneController.text.trim();
-                            if (updatedName.isEmpty || updatedPhone.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.error_outline_rounded,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        'Name and phone are required',
-                                        style: GoogleFonts.poppins(
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  backgroundColor: Colors.red.shade600,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  margin: const EdgeInsets.all(16),
-                                ),
-                              );
+                            final updatedCount = countController.text.trim();
+
+                            if (!isCountOnly &&
+                                (updatedName.isEmpty || updatedPhone.isEmpty)) {
+                              _showErrorSnackBar('Name and phone are required');
+                              return;
+                            }
+                            if (isCountOnly && updatedCount.isEmpty) {
+                              _showErrorSnackBar('Count is required');
+                              return;
+                            }
                               return;
                             }
 
                             setModalState(() => _isSaving = true);
                             try {
+                              final Map<String, dynamic> updateData = {};
+                              if (isCountOnly) {
+                                updateData['studentCount'] =
+                                    int.tryParse(updatedCount) ?? 1;
+                              } else {
+                                updateData['studentName'] = updatedName;
+                                updateData['studentPhone'] = updatedPhone;
+                              }
+
                               await FirebaseFirestore.instance
                                   .collection('program_registrations')
                                   .doc(docId)
-                                  .update({
-                                    'studentName': updatedName,
-                                    'studentPhone': updatedPhone,
-                                  });
+                                  .update(updateData);
                               if (mounted) {
+                                if (ctx.mounted) Navigator.pop(ctx);
                                 _showModernSnackBar(
                                   message: 'Registration updated successfully',
                                   isSuccess: true,
                                 );
+                                await _showStatusDialog(
+                                  context: context,
+                                  isSuccess: true,
+                                  title: 'Updated!',
+                                  message:
+                                      'Registration details updated successfully.',
+                                );
                               }
-                              if (ctx.mounted) Navigator.pop(ctx);
                             } catch (e) {
-                              // Error handling
+                              if (mounted) {
+                                _showModernSnackBar(
+                                  message: 'Error: $e',
+                                  isSuccess: false,
+                                );
+                              }
                             } finally {
                               if (mounted) {
                                 setModalState(() => _isSaving = false);
@@ -371,6 +409,86 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
     );
   }
 
+  Future<void> _showStatusDialog({
+    required BuildContext context,
+    required bool isSuccess,
+    required String title,
+    required String message,
+  }) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        final color = isSuccess ? const Color(0xFF22C55E) : Colors.red;
+        final icon = isSuccess
+            ? Icons.check_circle_rounded
+            : Icons.error_rounded;
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 48),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                  color: Colors.blueGrey.shade800,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  color: Colors.blueGrey.shade600,
+                ),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    "Great!",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
   void _showModernSnackBar({
     required String message,
     required bool isSuccess,
@@ -423,6 +541,9 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
     );
   }
 
+  void _showErrorSnackBar(String message) {
+    _showModernSnackBar(message: message, isSuccess: false);
+  }
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
@@ -548,6 +669,8 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                     final doc = docs[index];
                     final data = doc.data() as Map<String, dynamic>;
                     final bool isItemLocked = data['status'] == 'locked';
+                    final bool isCountOnly = data['isCountOnly'] == true;
+                    final int studentCount = data['studentCount'] ?? 1;
 
                     final studentName = data['studentName']?.toString() ?? 'U';
                     final initial = studentName.isNotEmpty
@@ -574,15 +697,22 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                               children: [
                                 CircleAvatar(
                                   radius: 24,
-                                  backgroundColor: Colors.blue.shade50,
-                                  child: Text(
-                                    initial,
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 20,
-                                      color: Colors.blue.shade900,
-                                    ),
-                                  ),
+                                  backgroundColor: isCountOnly
+                                      ? Colors.green.shade50
+                                      : Colors.blue.shade50,
+                                  child: isCountOnly
+                                      ? Icon(
+                                          Icons.groups_rounded,
+                                          color: Colors.green.shade700,
+                                        )
+                                      : Text(
+                                          initial,
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 20,
+                                            color: Colors.blue.shade900,
+                                          ),
+                                        ),
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
@@ -591,7 +721,9 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        studentName,
+                                        isCountOnly
+                                            ? '$studentCount Students (Count Only)'
+                                            : studentName,
                                         style: GoogleFonts.poppins(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
@@ -608,7 +740,9 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            '${data['studentPhone'] ?? 'N/A'}',
+                                            isCountOnly
+                                                ? 'No details provided'
+                                                : '${data['studentPhone'] ?? 'N/A'}',
                                             style: GoogleFonts.poppins(
                                               fontSize: 13,
                                               color: Colors.grey[600],

@@ -57,3 +57,6 @@
     java.lang.Object writeReplace();
     java.lang.Object readResolve();
 }
+
+# Don't warn about missing Play Core classes (used for deferred components)
+-dontwarn com.google.android.play.core.**

@@ -157,11 +157,12 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
                   .where('year', isEqualTo: _selectedYear)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData)
+                if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
+                }
 
                 final docs = snapshot.data!.docs;
-                if (docs.isEmpty)
+                if (docs.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -182,6 +183,7 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
                       ],
                     ),
                   );
+                }
 
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),

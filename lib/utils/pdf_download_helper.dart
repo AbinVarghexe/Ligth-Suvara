@@ -37,10 +37,6 @@ class PDFDownloadHelper {
         directory = await getApplicationDocumentsDirectory();
       }
 
-      if (directory == null) {
-        throw Exception('Could not access storage directory');
-      }
-
       // Ensure directory exists
       if (!await directory.exists()) {
         await directory.create(recursive: true);

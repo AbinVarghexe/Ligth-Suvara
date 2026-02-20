@@ -10,11 +10,320 @@ class BroadcastMessage {
   final String title;
   final String body;
   final DateTime timestamp;
+  final String? imageUrl; // NEW: Added imageUrl
 
   BroadcastMessage.fromDoc(DocumentSnapshot doc)
-      : title = (doc.data() as Map<String, dynamic>?)?['title'] ?? 'No Title',
-        body = (doc.data() as Map<String, dynamic>?)?['body'] ?? 'No Body',
-        timestamp = ((doc.data() as Map<String, dynamic>?)?['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
+    : title = (doc.data() as Map<String, dynamic>?)?['title'] ?? 'No Title',
+      body = (doc.data() as Map<String, dynamic>?)?['body'] ?? 'No Body',
+      timestamp =
+          ((doc.data() as Map<String, dynamic>?)?['timestamp'] as Timestamp?)
+              ?.toDate() ??
+          DateTime.now(),
+      imageUrl = (doc.data() as Map<String, dynamic>?)?['imageUrl'];
+
+  // Constructor for manual creation (e.g. from LoginScreen)
+  BroadcastMessage({
+    required this.title,
+    required this.body,
+    required this.timestamp,
+    this.imageUrl,
+  });
+}
+
+// Helper method to determine icon/color - Made public for reuse consistency if needed,
+// strictly speaking we have a localized version in LoginScreen too.
+// We'll keep the logic inside the dialog/tile for now.
+
+// --- PUBLIC DIALOG FUNCTION ---
+void showBroadcastDetailDialog(BuildContext context, BroadcastMessage message) {
+  // We need to re-derive icon data here since we are just passing the message
+  final iconData = _getIconDataGlobal(message.title);
+
+  showGeneralDialog(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: 'Dismiss',
+    barrierColor: Colors.black.withOpacity(0.6),
+    transitionDuration: const Duration(milliseconds: 300),
+    pageBuilder: (context, animation, secondaryAnimation) {
+      return ScaleTransition(
+        scale: Tween<double>(begin: 0.8, end: 1.0).animate(
+          CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+        ),
+        child: FadeTransition(
+          opacity: animation,
+          child: Dialog(
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 60.0,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28.0),
+            ),
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight:
+                    MediaQuery.of(context).size.height *
+                    0.85, // Increased height for image
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header (Image or Gradient)
+                  if (message.imageUrl != null)
+                    Stack(
+                      children: [
+                        Container(
+                          height: 200,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(28),
+                              topRight: Radius.circular(28),
+                            ),
+                            image: DecorationImage(
+                              image: NetworkImage(message.imageUrl!),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        // Gradient overlay for text readability if we put text on top,
+                        // but here we have text below. Let's add a neat close button or drag handle on top.
+                        Positioned(
+                          top: 12,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.8),
+                                borderRadius: BorderRadius.circular(2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        gradient: iconData['gradient'],
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(28),
+                          topRight: Radius.circular(28),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Icon(
+                              iconData['icon'],
+                              color: Colors.white,
+                              size: 40,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Title & Meta Section
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                    child: Column(
+                      children: [
+                        Text(
+                          message.title,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.blue.shade100),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.access_time_rounded,
+                                size: 14,
+                                color: Colors.blue.shade800,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                DateFormat(
+                                  'MMM d, yyyy • h:mm a',
+                                ).format(message.timestamp),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: Colors.blue.shade800,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Content Area
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            message.body,
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              color: Colors.grey[700],
+                              height: 1.7,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Close Button
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: iconData['color'], // Theme color
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          'Close',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+// Internal Helper for Icon Data (Duplicated logic for standalone function usage)
+Map<String, dynamic> _getIconDataGlobal(String title) {
+  final lowerTitle = title.toLowerCase();
+
+  if (lowerTitle.contains('lifeline')) {
+    return {
+      'icon': Icons.favorite_rounded,
+      'color': Colors.red.shade400,
+      'gradient': LinearGradient(
+        colors: [Colors.red.shade400, Colors.red.shade600],
+      ),
+    };
+  } else if (lowerTitle.contains('kalolsavam')) {
+    return {
+      'icon': Icons.celebration_rounded,
+      'color': Colors.purple.shade400,
+      'gradient': LinearGradient(
+        colors: [Colors.purple.shade400, Colors.purple.shade600],
+      ),
+    };
+  } else if (lowerTitle.contains('rally')) {
+    return {
+      'icon': Icons.groups_rounded,
+      'color': Colors.orange.shade400,
+      'gradient': LinearGradient(
+        colors: [Colors.orange.shade400, Colors.orange.shade600],
+      ),
+    };
+  } else if (lowerTitle.contains('meeting')) {
+    return {
+      'icon': Icons.event_rounded,
+      'color': Colors.teal.shade400,
+      'gradient': LinearGradient(
+        colors: [Colors.teal.shade400, Colors.teal.shade600],
+      ),
+    };
+  } else if (lowerTitle.contains('important') ||
+      lowerTitle.contains('urgent')) {
+    return {
+      'icon': Icons.priority_high_rounded,
+      'color': Colors.red.shade400,
+      'gradient': LinearGradient(
+        colors: [Colors.red.shade400, Colors.red.shade600],
+      ),
+    };
+  }
+
+  return {
+    'icon': Icons.campaign_rounded,
+    'color': Colors.blue.shade400,
+    'gradient': LinearGradient(
+      colors: [Colors.blue.shade400, Colors.blue.shade600],
+    ),
+  };
 }
 
 class BroadcastScreen extends StatefulWidget {
@@ -24,7 +333,8 @@ class BroadcastScreen extends StatefulWidget {
   State<BroadcastScreen> createState() => _BroadcastScreenState();
 }
 
-class _BroadcastScreenState extends State<BroadcastScreen> with SingleTickerProviderStateMixin {
+class _BroadcastScreenState extends State<BroadcastScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -66,7 +376,12 @@ class _BroadcastScreenState extends State<BroadcastScreen> with SingleTickerProv
   // Helper widget for the styled date headers
   Widget _buildTimelineHeaderWidget(String text) {
     return Padding(
-      padding: const EdgeInsets.only(left: 20.0, top: 28.0, bottom: 12.0, right: 20.0),
+      padding: const EdgeInsets.only(
+        left: 20.0,
+        top: 28.0,
+        bottom: 12.0,
+        right: 20.0,
+      ),
       child: Row(
         children: [
           Container(
@@ -87,7 +402,7 @@ class _BroadcastScreenState extends State<BroadcastScreen> with SingleTickerProv
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
+                const Icon(
                   Icons.calendar_today_rounded,
                   color: Colors.white,
                   size: 16,
@@ -126,8 +441,8 @@ class _BroadcastScreenState extends State<BroadcastScreen> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      extendBodyBehindAppBar: false,
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
           'Recent Updates',
@@ -137,7 +452,7 @@ class _BroadcastScreenState extends State<BroadcastScreen> with SingleTickerProv
             fontSize: 20,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         leading: Container(
@@ -147,7 +462,11 @@ class _BroadcastScreenState extends State<BroadcastScreen> with SingleTickerProv
             borderRadius: BorderRadius.circular(12),
           ),
           child: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded, color: Colors.blue[900], size: 20),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.blue[900],
+              size: 20,
+            ),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
@@ -157,115 +476,141 @@ class _BroadcastScreenState extends State<BroadcastScreen> with SingleTickerProv
             height: 1,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Colors.grey.shade200,
-                  Colors.grey.shade100,
-                ],
+                colors: [Colors.grey.shade200, Colors.grey.shade100],
               ),
             ),
           ),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('broadcasts')
-            .orderBy('timestamp', descending: true)
-            .limit(30)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade900),
-                    strokeWidth: 3,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Loading updates...',
-                    style: GoogleFonts.poppins(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
+      body: Stack(
+        children: [
+          // Gradient Background Layer
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: [0.0, 1.0],
+                colors: [
+                  Color(0xFFFFFAF0), // Very Soft Cream (Floral White)
+                  Color(0xFFFFF8E1), // Ultra Light Gold
                 ],
               ),
-            );
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      shape: BoxShape.circle,
+            ),
+          ),
+          SafeArea(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('broadcasts')
+                  .orderBy('timestamp', descending: true)
+                  .limit(30)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.blue.shade900,
+                          ),
+                          strokeWidth: 3,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Loading updates...',
+                          style: GoogleFonts.poppins(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
-                    child: Icon(
-                      Icons.notifications_off_outlined,
-                      size: 64,
-                      color: Colors.blue.shade300,
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.notifications_off_outlined,
+                            size: 64,
+                            color: Colors.blue.shade300,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          "No recent updates found",
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Check back later for new announcements",
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    "No recent updates found",
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[800],
+                  );
+                }
+
+                final messages = snapshot.data!.docs
+                    .map((doc) => BroadcastMessage.fromDoc(doc))
+                    .toList();
+
+                // Timeline Processing Logic
+                final List<Widget> timelineWidgets = [];
+                String? lastHeader = '';
+
+                for (int i = 0; i < messages.length; i++) {
+                  var message = messages[i];
+                  String currentHeader = _getTimelineHeader(message.timestamp);
+
+                  if (currentHeader != lastHeader) {
+                    timelineWidgets.add(
+                      _buildTimelineHeaderWidget(currentHeader),
+                    );
+                    lastHeader = currentHeader;
+                  }
+
+                  timelineWidgets.add(
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20.0,
+                          vertical: 6.0,
+                        ),
+                        child: CustomBroadcastTile(message: message, index: i),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Check back later for new announcements",
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
+                  );
+                }
 
-          final messages = snapshot.data!.docs.map((doc) => BroadcastMessage.fromDoc(doc)).toList();
-
-          // Timeline Processing Logic
-          final List<Widget> timelineWidgets = [];
-          String? lastHeader = '';
-
-          for (int i = 0; i < messages.length; i++) {
-            var message = messages[i];
-            String currentHeader = _getTimelineHeader(message.timestamp);
-
-            if (currentHeader != lastHeader) {
-              timelineWidgets.add(_buildTimelineHeaderWidget(currentHeader));
-              lastHeader = currentHeader;
-            }
-
-            timelineWidgets.add(
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 6.0),
-                  child: CustomBroadcastTile(message: message, index: i),
-                ),
-              ),
-            );
-          }
-
-          return ListView(
-            padding: const EdgeInsets.only(bottom: 24, top: 8),
-            physics: const BouncingScrollPhysics(),
-            children: timelineWidgets,
-          );
-        },
+                return ListView(
+                  padding: const EdgeInsets.only(bottom: 24, top: 8),
+                  physics: const BouncingScrollPhysics(),
+                  children: timelineWidgets,
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -282,49 +627,6 @@ class CustomBroadcastTile extends StatelessWidget {
     required this.index,
   });
 
-  // Helper to determine the icon and color based on the message title
-  Map<String, dynamic> _getIconData(String title) {
-    final lowerTitle = title.toLowerCase();
-
-    if (lowerTitle.contains('lifeline')) {
-      return {
-        'icon': Icons.favorite_rounded,
-        'color': Colors.red.shade400,
-        'gradient': LinearGradient(colors: [Colors.red.shade400, Colors.red.shade600]),
-      };
-    } else if (lowerTitle.contains('kalolsavam')) {
-      return {
-        'icon': Icons.celebration_rounded,
-        'color': Colors.purple.shade400,
-        'gradient': LinearGradient(colors: [Colors.purple.shade400, Colors.purple.shade600]),
-      };
-    } else if (lowerTitle.contains('rally')) {
-      return {
-        'icon': Icons.groups_rounded,
-        'color': Colors.orange.shade400,
-        'gradient': LinearGradient(colors: [Colors.orange.shade400, Colors.orange.shade600]),
-      };
-    } else if (lowerTitle.contains('meeting')) {
-      return {
-        'icon': Icons.event_rounded,
-        'color': Colors.teal.shade400,
-        'gradient': LinearGradient(colors: [Colors.teal.shade400, Colors.teal.shade600]),
-      };
-    } else if (lowerTitle.contains('important') || lowerTitle.contains('urgent')) {
-      return {
-        'icon': Icons.priority_high_rounded,
-        'color': Colors.red.shade400,
-        'gradient': LinearGradient(colors: [Colors.red.shade400, Colors.red.shade600]),
-      };
-    }
-
-    return {
-      'icon': Icons.campaign_rounded,
-      'color': Colors.blue.shade400,
-      'gradient': LinearGradient(colors: [Colors.blue.shade400, Colors.blue.shade600]),
-    };
-  }
-
   // Helper to format the timestamp
   String _getTimeAgo(DateTime timestamp) {
     final difference = DateTime.now().difference(timestamp);
@@ -340,22 +642,26 @@ class CustomBroadcastTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconData = _getIconData(message.title);
-    final bool isHighlighted = message.title.toLowerCase().contains('kalolsavam') ||
+    final iconData = _getIconDataGlobal(message.title); // Use global helper
+    final bool isHighlighted =
+        message.title.toLowerCase().contains('kalolsavam') ||
         message.title.toLowerCase().contains('important');
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withOpacity(0.8), // Cream background
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isHighlighted ? iconData['color'].withOpacity(0.3) : Colors.grey.shade200,
-          width: isHighlighted ? 2 : 1,
+          color: isHighlighted
+              ? iconData['color'].withOpacity(0.3)
+              : const Color(0xFFFFE4B5).withOpacity(0.4), // Soft gold border
+          width: isHighlighted ? 2 : 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
+            color: Colors.orange.withOpacity(0.08), // Warm shadow
+            spreadRadius: 1,
+            blurRadius: 8,
             offset: const Offset(0, 4),
           ),
         ],
@@ -364,19 +670,33 @@ class CustomBroadcastTile extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () => _showDetailDialog(context, iconData),
+          onTap: () => showBroadcastDetailDialog(
+            context,
+            message,
+          ), // Use public function
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Icon with gradient
+                // Icon / Image
                 Container(
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    gradient: iconData['gradient'],
+                    gradient: message.imageUrl == null
+                        ? iconData['gradient']
+                        : null,
+                    color: message.imageUrl != null
+                        ? Colors.grey.shade200
+                        : null,
                     borderRadius: BorderRadius.circular(16),
+                    image: message.imageUrl != null
+                        ? DecorationImage(
+                            image: NetworkImage(message.imageUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                     boxShadow: [
                       BoxShadow(
                         color: iconData['color'].withOpacity(0.3),
@@ -385,11 +705,9 @@ class CustomBroadcastTile extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Icon(
-                    iconData['icon'],
-                    color: Colors.white,
-                    size: 28,
-                  ),
+                  child: message.imageUrl == null
+                      ? Icon(iconData['icon'], color: Colors.white, size: 28)
+                      : null,
                 ),
                 const SizedBox(width: 16),
 
@@ -415,7 +733,10 @@ class CustomBroadcastTile extends StatelessWidget {
                           if (isHighlighted)
                             Container(
                               margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: iconData['color'].withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
@@ -472,199 +793,6 @@ class CustomBroadcastTile extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-
-  void _showDetailDialog(BuildContext context, Map<String, dynamic> iconData) {
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Dismiss',
-      barrierColor: Colors.black.withOpacity(0.6),
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.8, end: 1.0).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
-          ),
-          child: FadeTransition(
-            opacity: animation,
-            child: Dialog(
-              insetPadding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 60.0),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28.0),
-              ),
-              elevation: 0,
-              backgroundColor: Colors.transparent,
-              child: Container(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.75,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(28.0),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Gradient Header
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        gradient: iconData['gradient'],
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(28),
-                          topRight: Radius.circular(28),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          // Drag handle
-                          Container(
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.5),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          // Icon
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Icon(
-                              iconData['icon'],
-                              color: Colors.white,
-                              size: 40,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Title
-                          Text(
-                            message.title,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.poppins(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          // Timestamp
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.access_time_rounded,
-                                  size: 14,
-                                  color: Colors.white.withOpacity(0.9),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  DateFormat('MMM d, yyyy • h:mm a').format(message.timestamp),
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    color: Colors.white.withOpacity(0.9),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Content Area
-                    Flexible(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
-                        physics: const BouncingScrollPhysics(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Details',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              message.body,
-                              style: GoogleFonts.poppins(
-                                fontSize: 15,
-                                color: Colors.grey[800],
-                                height: 1.7,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Close Button
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: iconData['color'].withOpacity(0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: iconData['color'],
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            'Got it!',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

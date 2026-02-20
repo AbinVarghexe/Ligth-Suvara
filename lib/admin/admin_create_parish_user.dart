@@ -151,7 +151,10 @@ class _AdminCreateParishUserState extends State<AdminCreateParishUser> {
                 ),
                 child: Container(
                   constraints: const BoxConstraints(maxWidth: 500),
-                  padding: const EdgeInsets.all(40.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 40.0,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(30),
                     color: Colors.white,
@@ -430,8 +433,9 @@ class _AdminCreateParishUserState extends State<AdminCreateParishUser> {
         validator: (v) {
           if (v == null || v.isEmpty) return '$label is required';
           if (isEmail && !v.contains('@')) return 'Invalid email address';
-          if (isPassword && v.length < 6)
+          if (isPassword && v.length < 6) {
             return 'Minimum 6 characters required';
+          }
           return null;
         },
       ),

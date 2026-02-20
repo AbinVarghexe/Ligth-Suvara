@@ -9,11 +9,12 @@ class HomeEventsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB), // Soft off-white background
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back_ios_new_rounded,
@@ -32,34 +33,59 @@ class HomeEventsScreen extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('events')
-            .where('isPublic', isEqualTo: true)
-            .orderBy('timestamp', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: CircularProgressIndicator(color: Colors.blue.shade900),
-            );
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmptyState(context);
-          }
+      body: Stack(
+        children: [
+          // Gradient Background Layer
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: [0.0, 1.0],
+                colors: [
+                  Color(0xFFFFFAF0), // Very Soft Cream (Floral White)
+                  Color(0xFFFFF8E1), // Ultra Light Gold
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('events')
+                  .where('isPublic', isEqualTo: true)
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.blue.shade900,
+                    ),
+                  );
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return _buildEmptyState(context);
+                }
 
-          final docs = snapshot.data!.docs;
+                final docs = snapshot.data!.docs;
 
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 20),
-            itemBuilder: (context, index) {
-              final doc = docs[index];
-              return _buildEventCard(context, doc);
-            },
-          );
-        },
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 20,
+                  ),
+                  itemCount: docs.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 20),
+                  itemBuilder: (context, index) {
+                    final doc = docs[index];
+                    return _buildEventCard(context, doc);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -83,13 +109,18 @@ class HomeEventsScreen extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.white.withOpacity(0.8), // Cream background
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: const Color(0xFFFFE4B5).withOpacity(0.4), // Soft gold border
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
+              color: Colors.orange.withOpacity(0.08), // Warm shadow
+              spreadRadius: 1,
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -236,6 +267,7 @@ class HomeEventsScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

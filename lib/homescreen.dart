@@ -12,7 +12,9 @@ import 'package:sundayschool_app/event_detail_screen.dart';
 import 'package:sundayschool_app/profile_screen.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:async/async.dart';
+// import 'package:async/async.dart'; // Removed StreamZip dependency
+import 'package:sundayschool_app/services/notification_service.dart';
+import 'package:rxdart/rxdart.dart';
 
 import 'package:sundayschool_app/animator/registration_dashboard.dart';
 import 'package:sundayschool_app/animator/school_my_registrations_screen.dart';
@@ -174,9 +176,63 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late Animation<double> _fabAnimation;
   late Animation<double> _fabMenuAnimation; // New animation
 
+  late Animation<double> _fabMenuAnimation; // New animation
+
+  Stream<QuerySnapshot>? _eventsStream;
+
+  void _setupEventsStream() {
+    final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
+    Query baseQuery = FirebaseFirestore.instance
+        .collection('events')
+        .orderBy('timestamp', descending: true);
+
+    if (!_isAdmin && currentUserUid != null) {
+      baseQuery = baseQuery.where('creatorId', isEqualTo: currentUserUid);
+    }
+    _eventsStream = baseQuery.snapshots();
+  }
+
+  // --- NEW: Dynamic Notification Stream ---
+  Stream<List<QuerySnapshot>>? _notificationStream;
+
+  void _updateNotificationStream(String uid, String? role) {
+    // 1. Determine which recipients to listen for
+    final recipients = [uid]; // Always listen for own messages
+
+    // 2. If user is a School Admin, listen for 'role_school' messages
+    //    'all' is deprecated for notifications but kept for backward compatibility if needed.
+    //    But strictly, we want to AVOID listening to 'all' if it was used globally.
+    //    For now, we only add 'role_school' if the user has that role.
+    if (role == 'school') {
+      recipients.add('role_school');
+    }
+
+    // 3. Create the stream
+    _notificationStream = Rx.combineLatest2(
+      FirebaseFirestore.instance
+          .collection('notifications')
+          .where('recipientId', whereIn: recipients)
+          .snapshots(),
+      FirebaseFirestore.instance.collection('broadcasts').snapshots(),
+      (QuerySnapshot a, QuerySnapshot b) => [a, b],
+    );
+  }
+
+  Stream<QuerySnapshot>? _activeProgramsStream;
+
+  void _setupActiveProgramsStream() {
+    _activeProgramsStream = FirebaseFirestore.instance
+        .collection('programs')
+        .where('isActive', isEqualTo: true)
+        .limit(1)
+        .snapshots();
+  }
+
   @override
   void initState() {
     super.initState();
+    _setupEventsStream(); // Initial setup
+    _setupActiveProgramsStream(); // Initial setup for banner
     _loadUserData();
     _searchController.addListener(_onSearchChanged);
 
@@ -252,6 +308,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       String? imageUrl;
       bool localIsAdmin = false;
 
+      String? role;
+
       if (userDoc.exists) {
         final data = userDoc.data();
         final schoolName = data?['schoolName'] ?? data?['schoolname'];
@@ -260,12 +318,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         }
         imageUrl = data?['profileImageUrl']?.toString();
         localIsAdmin = data?['role'] == 'admin';
+        role = data?['role']?.toString();
       }
       if (mounted) {
         setState(() {
           _schoolDisplayName = finalDisplayName;
           _profileImageUrl = imageUrl;
           _isAdmin = localIsAdmin;
+          _setupEventsStream();
+
+          //Start of Fix
+          final schoolId = user.uid;
+
+          // 1. Subscribe to personal school topic
+          NotificationService().subscribeToUserTopic(schoolId);
+
+          // 3. Subscribe to role topic (if any)
+          if (role != null) {
+            NotificationService().subscribeToRoleTopic(role);
+          }
+
+          // 3. Update Notification Stream Query
+          _updateNotificationStream(user.uid, role);
         });
       }
     } catch (e) {
@@ -428,6 +502,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
 
     if (confirmed == true) {
+      // --- CLEANUP: Unsubscribe from ALL topics before logging out ---
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          // Fetch user role
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+          String? role;
+          if (userDoc.exists) {
+            role = userDoc.data()?['role']?.toString();
+          }
+
+          // Complete cleanup: Unsubscribe from ALL topics (user, role, AND broadcasts)
+          // Fire-and-forget: Don't await this, let it happen in background to speed up logout
+          NotificationService().unsubscribeAll(user.uid, role).catchError((e) {
+            debugPrint('Error unsubscribing from topics: $e');
+          });
+        } catch (e) {
+          debugPrint('Error getting user role for unsubscribe: $e');
+        }
+      }
+
       await FirebaseAuth.instance.signOut();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -447,19 +546,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         slivers: [
           _buildModernAppBar(),
           SliverToBoxAdapter(
-            child: FadeTransition(
-              opacity: _headerAnimation,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  const SizedBox(height: 16),
-                  const SizedBox(height: 16),
-                  _buildHighlightSection(),
-                  const SizedBox(height: 32),
-                  _buildRecentEventsSection(),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                _buildActiveProgramsBanner(),
+                _buildHighlightSection(),
+                const SizedBox(height: 32),
+                _buildRecentEventsSection(),
+              ],
+            ),
             ),
           ),
         ],
@@ -632,22 +728,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                       _buildHeaderIconButton(
                         StreamBuilder<List<QuerySnapshot>>(
-                          stream: StreamZip([
-                            FirebaseFirestore.instance
-                                .collection('notifications')
-                                .where(
-                                  'recipientId',
-                                  whereIn: [
-                                    FirebaseAuth.instance.currentUser?.uid ??
-                                        'INVALID_USER',
-                                    'all',
-                                  ],
-                                )
-                                .snapshots(),
-                            FirebaseFirestore.instance
-                                .collection('broadcasts')
-                                .snapshots(),
-                          ]),
+                          stream:
+                              _notificationStream ??
+                              // Fallback stream if not initialized
+                              Rx.combineLatest2(
+                                FirebaseFirestore.instance
+                                    .collection('notifications')
+                                    .where(
+                                      'recipientId',
+                                      isEqualTo:
+                                          FirebaseAuth
+                                              .instance
+                                              .currentUser
+                                              ?.uid ??
+                                          'INVALID',
+                                    )
+                                    .snapshots(),
+                                FirebaseFirestore.instance
+                                    .collection('broadcasts')
+                                    .snapshots(),
+                                (QuerySnapshot a, QuerySnapshot b) => [a, b],
+                              ),
                           builder: (context, snapshot) {
                             int unreadCount = 0;
                             if (snapshot.hasData && snapshot.data != null) {
@@ -764,6 +865,105 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         child: icon,
       ),
+    );
+  }
+
+  Widget _buildActiveProgramsBanner() {
+    if (_activeProgramsStream == null) {
+      _setupActiveProgramsStream();
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: _activeProgramsStream,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final programs = snapshot.data!.docs;
+        final latestProgram = programs.first.data() as Map<String, dynamic>;
+        final String programName = latestProgram['name'] ?? 'New Program';
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const RegistrationDashboard(),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.purple.shade700, Colors.purple.shade900],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.purple.shade900.withAlpha(77),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(51),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.campaign_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Registration Open!',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          programName,
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1049,18 +1249,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildRecentEventsList() {
-    final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
-
-    Query baseQuery = FirebaseFirestore.instance
-        .collection('events')
-        .orderBy('timestamp', descending: true);
-
-    if (!_isAdmin && currentUserUid != null) {
-      baseQuery = baseQuery.where('creatorId', isEqualTo: currentUserUid);
+    if (_eventsStream == null) {
+      _setupEventsStream();
     }
 
     return StreamBuilder<QuerySnapshot>(
-      stream: baseQuery.snapshots(),
+      stream: _eventsStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -1172,15 +1366,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.white.withOpacity(0.8), // Glassmorphic
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: Colors.blue.shade900.withAlpha(26),
+            color: const Color(0xFFFFE4B5).withOpacity(0.4), // Soft Gold Border
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(13),
+              color: Colors.orange.withOpacity(0.12), // Warm Shadow
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),

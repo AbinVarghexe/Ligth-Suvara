@@ -48,9 +48,7 @@ class _RegistrationDashboardState extends State<RegistrationDashboard> {
             ),
           ],
         ),
-        backgroundColor: isSuccess
-            ? Colors.green.shade600
-            : Colors.red.shade600,
+        backgroundColor: isSuccess ? Colors.green.shade600 : Colors.red.shade600,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         margin: const EdgeInsets.all(16),
@@ -69,24 +67,36 @@ class _RegistrationDashboardState extends State<RegistrationDashboard> {
     final now = DateTime.now();
 
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Colors.blue.shade900, Colors.indigo.shade800],
+            ),
+          ),
+        ),
         title: Text(
           'Active Programs',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.blue.shade900,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: Colors.blue.shade900),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Colors.white,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('programs')
-            .where('isActive', isEqualTo: true)
-            .snapshots(),
+        stream: FirebaseFirestore.instance.collection('programs').where('isActive', isEqualTo: true).snapshots(),
         builder: (context, programSnapshot) {
           if (programSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -108,22 +118,14 @@ class _RegistrationDashboardState extends State<RegistrationDashboard> {
               }
 
               final lockedPrograms =
-                  lockSnapshot.data?.docs
-                      .map(
-                        (doc) =>
-                            (doc.data() as Map<String, dynamic>)['programName']
-                                as String,
-                      )
-                      .toSet() ??
-                  {};
+                  lockSnapshot.data?.docs.map((doc) => (doc.data() as Map<String, dynamic>)['programName'] as String).toSet() ?? {};
 
               final allDocs = programSnapshot.data!.docs;
               final activePrograms = allDocs.where((doc) {
                 final data = doc.data() as Map<String, dynamic>;
                 final start = (data['startDate'] as Timestamp).toDate();
                 final end = (data['endDate'] as Timestamp).toDate();
-                return now.isAfter(start.subtract(const Duration(days: 1))) &&
-                    now.isBefore(end.add(const Duration(days: 1)));
+                return now.isAfter(start.subtract(const Duration(days: 1))) && now.isBefore(end.add(const Duration(days: 1)));
               }).toList();
 
               if (activePrograms.isEmpty) {
@@ -145,10 +147,11 @@ class _RegistrationDashboardState extends State<RegistrationDashboard> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.indigo.shade50),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 16,
+                          color: Colors.indigo.withAlpha(20),
+                          blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
                       ],
@@ -161,8 +164,7 @@ class _RegistrationDashboardState extends State<RegistrationDashboard> {
                         onTap: isLocked
                             ? () {
                                 _showModernSnackBar(
-                                  message:
-                                      'Registration for $name is locked by the parish.',
+                                  message: 'Registration for $name is locked by the parish.',
                                   isSuccess: false,
                                 );
                               }
@@ -170,90 +172,93 @@ class _RegistrationDashboardState extends State<RegistrationDashboard> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        StudentRegistrationForm(
-                                          programId: doc.id,
-                                          programName: name,
-                                        ),
+                                    builder: (context) => StudentRegistrationForm(
+                                      programId: doc.id,
+                                      programName: name,
+                                    ),
                                   ),
                                 );
                               },
                         child: Padding(
                           padding: const EdgeInsets.all(24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Row(
                             children: [
-                              Text(
-                                name,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue.shade900,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.access_time_rounded,
-                                    size: 16,
-                                    color: Colors.orange.shade700,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Closes: ${DateFormat('MMM dd, yyyy').format(end)}',
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isLocked
-                                      ? Colors.red.shade50
-                                      : Colors.green.shade50,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: isLocked
-                                        ? Colors.red.shade200.withOpacity(0.5)
-                                        : Colors.green.shade200.withOpacity(
-                                            0.5,
-                                          ),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(
-                                      isLocked
-                                          ? Icons.lock_rounded
-                                          : Icons.check_circle_outline_rounded,
-                                      size: 16,
-                                      color: isLocked
-                                          ? Colors.red.shade700
-                                          : Colors.green.shade700,
-                                    ),
-                                    const SizedBox(width: 8),
                                     Text(
-                                      isLocked
-                                          ? 'Registration Locked'
-                                          : 'Open for Registration',
+                                      name,
                                       style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.w600,
-                                        color: isLocked
-                                            ? Colors.red.shade700
-                                            : Colors.green.shade700,
-                                        fontSize: 13,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.indigo.shade900,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.calendar_today_rounded,
+                                          size: 14,
+                                          color: Colors.indigo.shade300,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Closes: ${DateFormat('MMM dd, yyyy').format(end)}',
+                                          style: GoogleFonts.poppins(
+                                            color: Colors.indigo.shade400,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isLocked ? Colors.red.shade50 : Colors.green.shade50,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            isLocked ? Icons.lock_rounded : Icons.check_circle_rounded,
+                                            size: 14,
+                                            color: isLocked ? Colors.red.shade600 : Colors.green.shade600,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            isLocked ? 'Registration Locked' : 'Open for Registration',
+                                            style: GoogleFonts.poppins(
+                                              fontWeight: FontWeight.w600,
+                                              color: isLocked ? Colors.red.shade700 : Colors.green.shade700,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isLocked ? Colors.red.shade50 : Colors.indigo.shade50,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: isLocked ? Colors.red.shade300 : Colors.indigo.shade400,
+                                  size: 24,
                                 ),
                               ),
                             ],

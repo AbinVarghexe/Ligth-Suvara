@@ -8,6 +8,8 @@ import 'package:sundayschool_app/providers/user_data_provider.dart';
 import 'package:sundayschool_app/animator/animator_dashboard_screen.dart';
 import 'package:sundayschool_app/parish/parish_dashboard_screen.dart'; // Added import
 
+import 'package:loading_animation_widget/loading_animation_widget.dart'; // Import modern loader
+
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -17,9 +19,16 @@ class AuthWrapper extends StatelessWidget {
     final userDataProvider = Provider.of<UserDataProvider>(context);
     final user = FirebaseAuth.instance.currentUser;
 
-    // 1. If loading, show spinner
+    // 1. If loading, show modern spinner
     if (userDataProvider.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        body: Center(
+          child: LoadingAnimationWidget.staggeredDotsWave(
+            color: const Color(0xFF0D47A1), // Use app theme blue
+            size: 50,
+          ),
+        ),
+      );
     }
 
     // 2. If no user is logged in, show Login

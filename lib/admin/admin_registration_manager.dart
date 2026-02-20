@@ -128,9 +128,10 @@ class _AdminRegistrationManagerState extends State<AdminRegistrationManager> {
                   // Client-side search
                   final filtered = docs.where((d) {
                     final data = d.data();
-                    final student = (data['studentName'] ?? '')
-                        .toString()
-                        .toLowerCase();
+                    final isCountOnly = data['isCountOnly'] == true;
+                    final student = isCountOnly
+                        ? '${data['studentCount']} Students'
+                        : (data['studentName'] ?? '').toString().toLowerCase();
                     final program = (data['programName'] ?? '')
                         .toString()
                         .toLowerCase();
@@ -274,7 +275,9 @@ class _AdminRegistrationManagerState extends State<AdminRegistrationManager> {
     final schoolName = data['schoolName']?.toString() ?? 'Unknown';
     // final parishId = data['parishUserId']?.toString() ?? 'N/A'; // Removed parish user ID to clean up UI
     final programName = data['programName']?.toString() ?? 'Unknown';
+    final bool isCountOnly = data['isCountOnly'] == true;
     final studentName = data['studentName'] ?? 'Unknown Student';
+    final int studentCount = data['studentCount'] ?? 1;
 
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 500),
@@ -314,12 +317,16 @@ class _AdminRegistrationManagerState extends State<AdminRegistrationManager> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: isCountOnly
+                          ? Colors.green.shade50
+                          : Colors.blue.shade50,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      Icons.person_rounded,
-                      color: Colors.blue.shade700,
+                      isCountOnly ? Icons.groups_rounded : Icons.person_rounded,
+                      color: isCountOnly
+                          ? Colors.green.shade700
+                          : Colors.blue.shade700,
                       size: 20,
                     ),
                   ),
@@ -329,7 +336,7 @@ class _AdminRegistrationManagerState extends State<AdminRegistrationManager> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          studentName,
+                          isCountOnly ? '+$studentCount Students' : studentName,
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -409,7 +416,9 @@ class _AdminRegistrationManagerState extends State<AdminRegistrationManager> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    data['studentPhone'] ?? 'N/A',
+                    isCountOnly
+                        ? 'No details'
+                        : (data['studentPhone'] ?? 'N/A'),
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       color: Colors.grey.shade600,

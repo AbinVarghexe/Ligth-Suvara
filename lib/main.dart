@@ -1,5 +1,4 @@
 // Import the necessary packages
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -8,9 +7,16 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:sundayschool_app/providers/user_data_provider.dart'; // ⭐️ 2. IMPORT YOUR NEW PROVIDER
 import 'firebase_options.dart';
-import 'package:sundayschool_app/auth_wrapper.dart'; // Import the new AuthWrapper
+// Import the new AuthWrapper
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:sundayschool_app/animated_splash_screen.dart'; // Import the animated splash screen
+import 'package:sundayschool_app/services/notification_service.dart'; // Import Notification Service
+import 'package:lottie/lottie.dart';
+
+import 'package:sundayschool_app/providers/content_provider.dart'; // Import ContentProvider
+
+// Global future for preloaded animation
+late Future<LottieComposition> animationCompositionFuture;
 
 void main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -48,10 +54,27 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  // Initialize Notification Service
+  try {
+    await NotificationService().init();
+  } catch (e) {
+    debugPrint("Notification Service init failed: $e");
+  }
+
+  // Preload Lottie Animation
+  animationCompositionFuture = AssetLottie(
+    'assets/images/animation n2.json',
+  ).load();
+
   // ⭐️ 3. WRAP YOUR APP WITH THE PROVIDER
   runApp(
-    ChangeNotifierProvider(
-      create: (BuildContext context) => UserDataProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => UserDataProvider()),
+        ChangeNotifierProvider(
+          create: (context) => ContentProvider(), // Added ContentProvider
+        ),
+      ],
       child: const MyApp(),
     ),
   );

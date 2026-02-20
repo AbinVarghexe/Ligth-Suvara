@@ -8,6 +8,7 @@ import 'package:sundayschool_app/admin_notification_screen.dart';
 import 'package:sundayschool_app/event_detail_screen.dart';
 
 import 'package:sundayschool_app/login_screen.dart';
+import 'package:sundayschool_app/services/notification_service.dart';
 // import 'package:sundayschool_app/admin/admin_question_manager.dart'; // Moved to sub-menu
 // import 'package:sundayschool_app/admin/admin_assignment_manager.dart'; // Moved to sub-menu
 // import 'package:sundayschool_app/admin/admin_marks_viewer.dart'; // Moved to sub-menu
@@ -299,234 +300,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  Future<void> _deleteEventsByUserId(BuildContext context) async {
-    final TextEditingController controller = TextEditingController();
-    String? deletedUserId = await showDialog<String>(
-      context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Colors.red.shade50, Colors.white],
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade100,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.delete_forever,
-                  color: Colors.red.shade700,
-                  size: 40,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Delete User Events',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 22,
-                  color: Colors.red.shade900,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Enter the User ID to delete all associated events',
-                style: GoogleFonts.poppins(
-                  color: Colors.grey.shade600,
-                  fontSize: 14,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: controller,
-                decoration: InputDecoration(
-                  hintText: "Enter Deleted User ID (UID)",
-                  prefixIcon: Icon(
-                    Icons.person_off,
-                    color: Colors.red.shade700,
-                  ),
-                  filled: true,
-                  fillColor: Colors.red.shade50,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(null),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: GoogleFonts.poppins(
-                          color: Colors.grey.shade700,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () =>
-                          Navigator.of(ctx).pop(controller.text.trim()),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade700,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        'Delete All',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (deletedUserId == null || deletedUserId.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.white),
-                SizedBox(width: 12),
-                Text('Cleanup canceled or no ID provided.'),
-              ],
-            ),
-            backgroundColor: Colors.blueGrey,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
-      return;
-    }
-
-    setState(() {
-      _isStatsLoading = true;
-    });
-
-    try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('events')
-          .where('creatorId', isEqualTo: deletedUserId)
-          .get();
-
-      if (querySnapshot.docs.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.info_outline, color: Colors.white),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text('No events found for user ID: $deletedUserId'),
-                  ),
-                ],
-              ),
-              backgroundColor: Colors.blueGrey,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          );
-        }
-        return;
-      }
-
-      final writeBatch = FirebaseFirestore.instance.batch();
-      for (var doc in querySnapshot.docs) {
-        writeBatch.delete(doc.reference);
-      }
-      await writeBatch.commit();
-
-      if (mounted) {
-        await _fetchAndSetStatistics();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '${querySnapshot.docs.length} events deleted for user ID: $deletedUserId',
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(child: Text('Failed to delete events: $e')),
-              ],
-            ),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isStatsLoading = false;
-        });
-      }
-    }
-  }
-
   Widget _buildStatisticsCards(Color themeColor) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 20.0),
@@ -766,6 +539,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
 
     if (shouldLogout == true) {
+      // --- CLEANUP: Unsubscribe from ALL topics before logging out ---
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+          String? role;
+          if (userDoc.exists) {
+            role = userDoc.data()?['role']?.toString();
+          }
+
+          // Complete cleanup: Unsubscribe from ALL topics (user, role, AND broadcasts)
+          // Fire-and-forget for speed
+          NotificationService().unsubscribeAll(user.uid, role).catchError((e) {
+            debugPrint('Error unsubscribing from topics: $e');
+          });
+        } catch (e) {
+          debugPrint('Error getting user role for unsubscribe: $e');
+        }
+      }
+
       await FirebaseAuth.instance.signOut();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -809,14 +606,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             leading: Row(
               children: [
                 const SizedBox(width: 8),
-                _buildAppBarAction(
-                  icon: Icons.cleaning_services_outlined,
-                  color: Colors.red.shade300,
-                  onPressed: _isStatsLoading
-                      ? null
-                      : () => _deleteEventsByUserId(context),
-                  tooltip: 'Delete User Events',
-                ),
+
                 _buildAppBarAction(
                   icon: Icons.refresh_rounded,
                   color: _isStatsLoading ? Colors.grey.shade400 : Colors.white,
@@ -1090,8 +880,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const EventListSkeleton();
         }
-        if (snapshot.hasError)
+        if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
+        }
 
         final docs = snapshot.data!.docs;
         if (docs.isEmpty) {

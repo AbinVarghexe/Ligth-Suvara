@@ -96,13 +96,19 @@ class _AdminProgramAnalyticsState extends State<AdminProgramAnalytics> {
       final schoolId = data['schoolUserId']?.toString();
       final schoolName = data['schoolName']?.toString() ?? 'Unknown School';
 
+      // Calculate how much this registration adds
+      final isCountOnly = data['isCountOnly'] == true;
+      final int countToAdd = isCountOnly
+          ? (data['studentCount'] as int? ?? 1)
+          : 1;
+
       // Count Program (if 'All', counts per program. If specific, only that program increments)
-      pCounts[pName] = (pCounts[pName] ?? 0) + 1;
-      total++;
+      pCounts[pName] = (pCounts[pName] ?? 0) + countToAdd;
+      total += countToAdd;
 
       // Count School
       if (schoolId != null) {
-        sCounts[schoolId] = (sCounts[schoolId] ?? 0) + 1;
+        sCounts[schoolId] = (sCounts[schoolId] ?? 0) + countToAdd;
         if (schoolName != 'Unknown School') {
           sNames[schoolId] = schoolName;
         }
@@ -453,15 +459,13 @@ class _AdminProgramAnalyticsState extends State<AdminProgramAnalytics> {
         final school = _topSchools[index];
         final rank = index + 1;
 
-        Color badgeColor;
-        if (rank == 1)
-          badgeColor = const Color(0xFFFFD700);
-        else if (rank == 2)
+        } else if (rank == 2) {
           badgeColor = const Color(0xFFC0C0C0);
-        else if (rank == 3)
+        } else if (rank == 3) {
           badgeColor = const Color(0xFFCD7F32);
-        else
+        } else {
           badgeColor = Colors.blue.shade100;
+        }
 
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),

@@ -5,11 +5,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:sundayschool_app/custom_app_bar.dart'; // ⭐️ 1. IMPORT THE CUSTOM APPBAR
+import 'package:sundayschool_app/custom_app_bar.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/cupertino.dart'; // Core: for modern picker
+import 'package:sundayschool_app/utils/image_optimizer.dart';
 
 class UploadScreen extends StatefulWidget {
   final String? eventId;
@@ -104,25 +104,76 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _pickImage() async {
+    // 1. Permission Check Logic
+    PermissionStatus status;
+
+    if (Platform.isAndroid) {
+      // For Android 13+ (SDK 33+), use photos.
+      // For older, use storage.
+      // Since we don't have device_info here easily, we can try photos first.
+      // However, permission_handler handles SDK checks internally often.
+      // A common pattern is checking both or relying on the specific one needed.
+      // Let's check photos first.
+      status = await Permission.photos.status;
+
+      if (status.isDenied || status.isRestricted) {
+        // If photos is denied, maybe it's an older Android that needs storage?
+        // But attempting to request photos on old android might return permanently denied/restricted.
+        // Let's try to request it.
+        Map<Permission, PermissionStatus> statuses = await [
+          Permission.photos,
+          Permission.storage, // Request both to be safe across versions
+        ].request();
+
+        // If either is granted, we are good.
+        if (statuses[Permission.photos]!.isGranted ||
+            statuses[Permission.storage]!.isGranted) {
+          status = PermissionStatus.granted;
+        } else if (statuses[Permission.photos]!.isPermanentlyDenied ||
+            statuses[Permission.storage]!.isPermanentlyDenied) {
+          status = PermissionStatus.permanentlyDenied;
+        } else {
+          status = PermissionStatus.denied;
+        }
+      }
+    } else {
+      // iOS usually handled by Info.plist description, but we can check photos
+      status = await Permission.photos.request();
+    }
+
+    if (status.isPermanentlyDenied) {
+      if (!mounted) return;
+      _showStatusDialog(
+        context: context,
+        isSuccess: false,
+        title: "Permission Required",
+        message:
+            "Gallery access is permanently denied. Please enable it in App Settings.",
+        onDismiss: () => openAppSettings(),
+      );
+      return;
+    }
+
+    if (!status.isGranted && !status.isLimited) {
+      // If still not granted (and not limited access on iOS 14+), stop.
+      // Note: Limited access is fine for picking.
+      return;
+    }
+
     final pickedImage = await ImagePicker().pickImage(
       source: ImageSource.gallery,
     );
     if (pickedImage == null) return;
 
-    final tempDir = await getTemporaryDirectory();
-    final targetPath = p.join(
-      tempDir.path,
-      '${DateTime.now().millisecondsSinceEpoch}.jpg',
+    setState(() => _isLoading = true);
+    final compressedFile = await ImageOptimizer.compressBelowLimit(
+      File(pickedImage.path),
+      targetSizeKB: 400,
     );
+    setState(() => _isLoading = false);
 
-    // 1. COMPRESS IMAGE
-    final compressedXFile = await FlutterImageCompress.compressAndGetFile(
-      pickedImage.path,
-      targetPath,
-      quality: 85,
-    );
-
-    if (compressedXFile == null) {
+    if (compressedFile == null) {
+      if (!mounted) return;
       _showStatusDialog(
         context: context,
         isSuccess: false,
@@ -132,62 +183,158 @@ class _UploadScreenState extends State<UploadScreen> {
       return;
     }
 
-    final compressedFile = File(compressedXFile.path);
-
-    // CORE CHANGE: Add file size check (400 KB limit)
-    const sizeLimitKB = 400;
-    final fileSizeInKB = await compressedFile.length() / 1024;
-
-    if (fileSizeInKB > sizeLimitKB) {
-      if (!mounted) return;
-      _showStatusDialog(
-        context: context,
-        isSuccess: false,
-        title: "Image Too Large",
-        message:
-            "File size (${fileSizeInKB.toStringAsFixed(2)} KB) exceeds the ${sizeLimitKB}KB limit. Please choose a smaller image.",
-      );
-      return;
-    }
-
     setState(() {
       _imageFile = compressedFile;
     });
   }
 
-  Future<void> _pickDateAndTime() async {
-    final pickedDate = await showDatePicker(
+  Future<void> _pickDate() async {
+    DateTime tempDate = _selectedDate ?? DateTime.now();
+    await showModalBottomSheet(
       context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Colors.blue[900]!,
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) {
+        return Container(
+          height: 350,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Container(
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Select Date',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade900,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  initialDateTime: tempDate,
+                  minimumDate: DateTime(2020),
+                  maximumDate: DateTime(2100),
+                  onDateTimeChanged: (val) => tempDate = val,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() => _selectedDate = tempDate);
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade900,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  child: Text(
+                    'Confirm Date',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
           ),
-          child: child!,
         );
       },
     );
+  }
 
-    if (pickedDate == null) return;
-
-    final pickedTime = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
+  Future<void> _pickTime() async {
+    final now = DateTime.now();
+    DateTime tempTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      _selectedTime?.hour ?? now.hour,
+      _selectedTime?.minute ?? now.minute,
     );
 
-    if (pickedTime == null) return;
-
-    setState(() {
-      _selectedDate = pickedDate;
-      _selectedTime = pickedTime;
-    });
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) {
+        return Container(
+          height: 350,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Container(
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Select Time',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade900,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  initialDateTime: tempTime,
+                  use24hFormat: false,
+                  onDateTimeChanged: (val) => tempTime = val,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedTime = TimeOfDay.fromDateTime(tempTime);
+                    });
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade900,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  child: Text(
+                    'Confirm Time',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _saveEvent() async {
@@ -370,7 +517,8 @@ class _UploadScreenState extends State<UploadScreen> {
                                 v!.isEmpty ? 'Place is required' : null,
                           ),
                           const SizedBox(height: 20),
-                          _buildDateTimePickerTile(themeColor),
+                          // CORE CHANGE 6: Modern Date/Time Picker
+                          _buildModernDateTimePicker(themeColor),
                           const SizedBox(height: 20),
                           _buildTextFormField(
                             controller: _descriptionController,
@@ -446,47 +594,87 @@ class _UploadScreenState extends State<UploadScreen> {
   // --- HELPER WIDGETS ---
   // (The rest of the helper widgets are kept below as they are in the original code.)
 
-  Widget _buildDateTimePickerTile(Color themeColor) {
-    String displayText;
-    if (_selectedDate == null) {
-      displayText = 'Select Event Date & Time';
-    } else {
-      final formattedDate = DateFormat('MMM dd, yyyy').format(_selectedDate!);
-      final formattedTime = _selectedTime?.format(context) ?? 'Time not set';
-      displayText = '$formattedDate  •  $formattedTime';
-    }
-
-    return InkWell(
-      onTap: _isLoading ? null : _pickDateAndTime,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: themeColor),
+  // CORE CHANGE 7: Modern Date/Time Picker Widgets
+  Widget _buildModernDateTimePicker(Color themeColor) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildTimePickCard(
+            label: 'Date',
+            value: _selectedDate != null
+                ? DateFormat('MMM dd, yyyy').format(_selectedDate!)
+                : 'Select Date',
+            icon: Icons.calendar_today_rounded,
+            themeColor: themeColor,
+            onTap: _pickDate,
+          ),
         ),
-        child: Row(
-          children: [
-            Icon(Icons.calendar_month_outlined, color: themeColor),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  displayText,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    color: _selectedDate == null
-                        ? themeColor.withOpacity(0.8)
-                        : Colors.black,
-                  ),
-                  maxLines: 1,
-                  softWrap: false,
-                ),
-              ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildTimePickCard(
+            label: 'Time',
+            value: _selectedTime?.format(context) ?? 'Select Time',
+            icon: Icons.access_time_rounded,
+            themeColor: themeColor,
+            onTap: _pickTime,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimePickCard({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color themeColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: _isLoading ? null : onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: themeColor.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            Icon(Icons.arrow_drop_down, color: themeColor),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 18, color: themeColor),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),

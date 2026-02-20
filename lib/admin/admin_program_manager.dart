@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:sundayschool_app/firestore_service.dart';
 
 class AdminProgramManager extends StatefulWidget {
   const AdminProgramManager({super.key});
@@ -52,6 +53,16 @@ class _AdminProgramManagerState extends State<AdminProgramManager> {
         // Create new
         data['createdAt'] = FieldValue.serverTimestamp();
         await FirebaseFirestore.instance.collection('programs').add(data);
+        // Notify all schools about the new program
+        try {
+          await sendNotification(
+            title: 'New Program Added!',
+            body: '${_nameController.text.trim()} has been announced.',
+            recipientId: 'role_school',
+          );
+        } catch (e) {
+          debugPrint("Failed to send notification for new program: $e");
+        }
       } else {
         // Update existing
         await FirebaseFirestore.instance
@@ -141,136 +152,139 @@ class _AdminProgramManagerState extends State<AdminProgramManager> {
                     ),
                     padding: const EdgeInsets.all(32),
                     constraints: const BoxConstraints(maxWidth: 400),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Header Icon
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            shape: BoxShape.circle,
+
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Header Icon
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _editingDocId == null
+                                  ? Icons.add_circle_outline_rounded
+                                  : Icons.edit_rounded,
+                              size: 32,
+                              color: Colors.blue.shade800,
+                            ),
                           ),
-                          child: Icon(
+                          const SizedBox(height: 24),
+                          Text(
                             _editingDocId == null
-                                ? Icons.add_circle_outline_rounded
-                                : Icons.edit_rounded,
-                            size: 32,
-                            color: Colors.blue.shade800,
+                                ? 'Create New Program'
+                                : 'Edit Program',
+                            style: GoogleFonts.poppins(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade900,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          _editingDocId == null
-                              ? 'Create New Program'
-                              : 'Edit Program',
-                          style: GoogleFonts.poppins(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade900,
+                          const SizedBox(height: 32),
+                          // Form Fields
+                          _buildStyledTextField(
+                            controller: _nameController,
+                            label: 'Program Name',
+                            icon: Icons.title_rounded,
                           ),
-                        ),
-                        const SizedBox(height: 32),
-                        // Form Fields
-                        _buildStyledTextField(
-                          controller: _nameController,
-                          label: 'Program Name',
-                          icon: Icons.title_rounded,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildDateSelector(
-                          label: 'Start Date',
-                          date: _startDate,
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: _startDate ?? DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (picked != null) {
-                              setStateDialog(() => _startDate = picked);
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        _buildDateSelector(
-                          label: 'End Date',
-                          date: _endDate,
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate:
-                                  _endDate ?? _startDate ?? DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (picked != null) {
-                              setStateDialog(() => _endDate = picked);
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 32),
-                        // Actions
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
+                          const SizedBox(height: 16),
+                          _buildDateSelector(
+                            label: 'Start Date',
+                            date: _startDate,
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _startDate ?? DateTime.now(),
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime(2100),
+                              );
+                              if (picked != null) {
+                                setStateDialog(() => _startDate = picked);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          _buildDateSelector(
+                            label: 'End Date',
+                            date: _endDate,
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate:
+                                    _endDate ?? _startDate ?? DateTime.now(),
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime(2100),
+                              );
+                              if (picked != null) {
+                                setStateDialog(() => _endDate = picked);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 32),
+                          // Actions
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Cancel',
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.grey.shade600,
-                                    fontWeight: FontWeight.w600,
+                                  child: Text(
+                                    'Cancel',
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _saveProgram,
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: _isLoading ? null : _saveProgram,
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    backgroundColor: Colors.blue.shade800,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    elevation: 4,
                                   ),
-                                  backgroundColor: Colors.blue.shade800,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  elevation: 4,
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : Text(
+                                          _editingDocId == null
+                                              ? 'Create'
+                                              : 'Update',
+                                          style: GoogleFonts.poppins(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
                                 ),
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : Text(
-                                        _editingDocId == null
-                                            ? 'Create'
-                                            : 'Update',
-                                        style: GoogleFonts.poppins(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -661,26 +675,30 @@ class _AdminProgramManagerState extends State<AdminProgramManager> {
             child: Icon(icon, color: color.shade700, size: 20),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: Colors.grey.shade500,
-                  fontWeight: FontWeight.w500,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              Text(
-                DateFormat('MMM dd, yyyy').format(date),
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade800,
+                Text(
+                  DateFormat('MMM dd, yyyy').format(date),
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
