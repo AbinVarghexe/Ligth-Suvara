@@ -44,7 +44,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
               ? 'Registration has been approved successfully.'
               : 'Registration has been rejected.',
         );
-        );
+
       }
     } catch (e) {
       if (mounted) {
@@ -116,7 +116,6 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
           isSuccess: true,
           title: 'Program Locked',
           message: 'The program has been locked successfully for this school.',
-        );
         );
       }
     } catch (e) {
@@ -190,7 +189,6 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
           isSuccess: true,
           title: 'Program Unlocked',
           message: 'The program registrations are now unlocked and editable.',
-        );
         );
       }
     } catch (e) {
@@ -296,8 +294,6 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                             }
                             if (isCountOnly && updatedCount.isEmpty) {
                               _showErrorSnackBar('Count is required');
-                              return;
-                            }
                               return;
                             }
 

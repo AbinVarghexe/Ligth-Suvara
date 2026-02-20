@@ -204,7 +204,6 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
           });
         }
       }
-      }
 
       await batch.commit();
 
@@ -559,7 +558,8 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                             ],
                           ),
                         ],
-
+                      ),
+                    ),
 
 
 
