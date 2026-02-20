@@ -281,6 +281,9 @@ class _AnimatorDashboardScreenState extends State<AnimatorDashboardScreen> {
                                       unitId: unitId,
                                       parish: parish,
                                       sundaySchool: sundaySchool,
+                                      schoolId:
+                                          assignmentMap['schoolUserId'] ??
+                                          '', // Pass schoolId
                                     ),
                                   ),
                                 );
