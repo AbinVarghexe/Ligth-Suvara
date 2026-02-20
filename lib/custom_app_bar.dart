@@ -23,51 +23,99 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
         // The rest of your AppBar UI remains IDENTICAL, but uses the provider's data
         return AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          leading: ModalRoute.of(context)?.canPop == true
-              ? IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1E40AF), size: 20),
-            onPressed: () => Navigator.of(context).pop(),
-          )
-              : GestureDetector(
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()))
-              // When returning from profile, tell the provider to re-fetch data
-                  .then((_) => Provider.of<UserDataProvider>(context, listen: false).fetchUserData());
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: CircleAvatar(
-                backgroundColor: Colors.blue.shade100,
-                backgroundImage: userData.profileImageUrl != null
-                    ? NetworkImage(userData.profileImageUrl!)
-                    : null,
-                child: userData.profileImageUrl == null
-                    ? const Icon(Icons.person, color: Colors.white)
-                    : null,
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.blue.shade900, Colors.blue.shade700],
               ),
             ),
           ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          /* shape: Border( // Removed border as it might clash with gradient
+            bottom: BorderSide(
+              color: const Color(0xFFFFE4B5).withOpacity(0.5),
+              width: 1,
+            ),
+          ), */
+          leading: ModalRoute.of(context)?.canPop == true
+              ? IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white, // Changed to white
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                )
+              : GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ProfileScreen(),
+                      ),
+                    )
+                    // When returning from profile, tell the provider to re-fetch data
+                    .then(
+                      (_) => Provider.of<UserDataProvider>(
+                        context,
+                        listen: false,
+                      ).fetchUserData(),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.blue.shade100,
+                      backgroundImage: userData.profileImageUrl != null
+                          ? NetworkImage(userData.profileImageUrl!)
+                          : null,
+                      child: userData.profileImageUrl == null
+                          ? const Icon(Icons.person, color: Colors.white)
+                          : null,
+                    ),
+                  ),
+                ),
           title: Text(
             userData.schoolDisplayName, // Use data from provider
-            style: GoogleFonts.poppins(color: const Color(0xFF1E40AF), fontWeight: FontWeight.bold, fontSize: 17),
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
           centerTitle: true,
           actions: [
             IconButton(
-              icon: const Icon(Icons.announcement_outlined, color: Color(0xFF1E40AF)),
+              icon: const Icon(
+                Icons.notifications_outlined,
+                color: Colors.white,
+              ),
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsScreen()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationsScreen(),
+                  ),
+                );
               },
             ),
             // ⭐️ 5. Use the 'isAdmin' flag directly from the provider
             if (userData.isAdmin)
               IconButton(
-                icon: const Icon(Icons.admin_panel_settings_outlined, color: Color(0xFF1E40AF)),
+                icon: const Icon(
+                  Icons.admin_panel_settings_outlined,
+                  color: Color(0xFF1E40AF),
+                ),
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDashboardScreen()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminDashboardScreen(),
+                    ),
+                  );
                 },
               ),
           ],

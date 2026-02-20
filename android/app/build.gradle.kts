@@ -10,10 +10,18 @@ plugins {
 
 // 2. Load the properties file (Kotlin syntax)
 val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("android/key.properties") // Use double quotes
+val keystorePropertiesFile = rootProject.file("key.properties") // Corrected path
+
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
+}
+
 
 android {
     namespace = "in.cse.ajce.sundayschool"
@@ -23,6 +31,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -32,7 +41,11 @@ android {
     signingConfigs {
         create("release") {
             if (keystorePropertiesFile.exists()) {
-                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                var storeFilePath = keystoreProperties.getProperty("storeFile")
+                if (storeFilePath.startsWith("app/") || storeFilePath.startsWith("app\\")) {
+                     storeFilePath = storeFilePath.substring(4)
+                }
+                storeFile = file(storeFilePath)
                 storePassword = keystoreProperties.getProperty("storePassword")
                 keyAlias = keystoreProperties.getProperty("keyAlias")
                 keyPassword = keystoreProperties.getProperty("keyPassword")
@@ -44,8 +57,8 @@ android {
         applicationId = "in.cse.ajce.sundayschool"
         minSdk = 24
         targetSdk = 35
-        versionCode = (project.findProperty("flutter.versionCode") as String?)?.toInt() ?: 1
-        versionName = project.findProperty("flutter.versionName") as String?
+        versionCode = localProperties.getProperty("flutter.versionCode")?.toInt() ?: 1
+        versionName = localProperties.getProperty("flutter.versionName") ?: "1.0"
         multiDexEnabled = true
     }
 
@@ -55,12 +68,17 @@ android {
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

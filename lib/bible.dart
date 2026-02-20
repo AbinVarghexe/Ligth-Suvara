@@ -15,7 +15,8 @@ class PocBibleScreen extends StatefulWidget {
 class _PocBibleScreenState extends State<PocBibleScreen> {
   late final WebViewController _controller;
 
-  static const String webUrl = 'https://www.pocbible.com/m/';
+  static const String webUrl =
+      'https://thiruvachanam.in/ShowChaptersOfBook.do?b=12&t=1';
   bool _isLoading = true;
 
   @override
@@ -27,14 +28,13 @@ class _PocBibleScreenState extends State<PocBibleScreen> {
     // Access platform methods directly, only call those supported by your plugin version
     if (controller.platform is AndroidWebViewController) {
       (controller.platform as AndroidWebViewController)
-        ..setMediaPlaybackRequiresUserGesture(false);
+          .setMediaPlaybackRequiresUserGesture(false);
     }
 
     _controller = controller
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0x00000000))
-
-    // Configure navigation and error handling
+      // Configure navigation and error handling
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
@@ -62,7 +62,7 @@ class _PocBibleScreenState extends State<PocBibleScreen> {
           },
         ),
       )
-    // Load the URL
+      // Load the URL
       ..loadRequest(Uri.parse(webUrl));
   }
 

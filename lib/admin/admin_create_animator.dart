@@ -17,11 +17,24 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _addressController =
+      TextEditingController(); // Added address controller
   bool _isLoading = false;
   bool _obscurePassword = true;
 
+  String? _selectedParishId;
+  String? _selectedParishName;
+
   Future<void> _createAnimator() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedParishId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Please select a parish')));
+      }
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -42,13 +55,24 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
       final uid = userCredential.user?.uid;
 
       if (uid != null) {
-        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        final Map<String, dynamic> animatorData = {
           'email': _emailController.text.trim(),
           'name': _nameController.text.trim(),
           'role': 'animator',
+          'parishId': _selectedParishId,
+          'parishName': _selectedParishName,
           'createdAt': FieldValue.serverTimestamp(),
           'createdBy': FirebaseAuth.instance.currentUser?.uid,
-        });
+        };
+
+        if (_addressController.text.trim().isNotEmpty) {
+          animatorData['address'] = _addressController.text.trim();
+        }
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .set(animatorData);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -83,11 +107,12 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.blue.shade900, Colors.blue.shade700],
+              colors: [Colors.blue.shade900, Colors.indigo.shade800],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -101,30 +126,31 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
             color: Colors.white,
           ),
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
       body: Container(
         height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blue.shade50, Colors.white],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+        decoration: BoxDecoration(color: Colors.grey.shade50),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Center(
             child: Card(
-              elevation: 4,
-              shadowColor: Colors.blue.withOpacity(0.1),
+              elevation: 8,
+              shadowColor: Colors.indigo.withOpacity(0.15),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 500),
-                padding: const EdgeInsets.all(32.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 36.0,
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -134,22 +160,23 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
+                          color: Colors.indigo.shade50,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.person_add_rounded,
                           size: 48,
-                          color: Colors.blue.shade900,
+                          color: Colors.indigo.shade900,
                         ),
                       ),
                       const SizedBox(height: 24),
                       Text(
                         'New Animator Account',
+                        textAlign: TextAlign.center,
                         style: GoogleFonts.poppins(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade900,
+                          color: Colors.indigo.shade900,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -187,6 +214,94 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
                         validator: (v) => v == null || !v.contains('@')
                             ? 'Invalid email address'
                             : null,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Parish Selection Dropdown
+                      FutureBuilder<QuerySnapshot>(
+                        future: FirebaseFirestore.instance
+                            .collection('users')
+                            .where('role', isEqualTo: 'parish')
+                            .get(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+
+                          if (snapshot.hasError) {
+                            return Text(
+                              'Error loading parishes',
+                              style: TextStyle(color: Colors.red.shade700),
+                            );
+                          }
+
+                          final parishes = snapshot.data?.docs ?? [];
+
+                          return DropdownButtonFormField<String>(
+                            value: _selectedParishId,
+                            decoration: _buildInputDecoration(
+                              'Home Parish',
+                              Icons.church_rounded,
+                            ),
+                            style: GoogleFonts.inter(
+                              color: Colors.black87,
+                              fontSize: 15,
+                            ),
+                            items: parishes.map((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              final name =
+                                  data['name'] ??
+                                  data['parishName'] ??
+                                  'Unnamed Parish';
+
+                              return DropdownMenuItem(
+                                value: doc.id,
+                                child: Text(name),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedParishId = value;
+                                // Find the matching document to store the name
+                                if (value != null) {
+                                  final selectedDoc = parishes.firstWhere(
+                                    (doc) => doc.id == value,
+                                  );
+                                  final data =
+                                      selectedDoc.data()
+                                          as Map<String, dynamic>;
+                                  _selectedParishName =
+                                      data['name'] ??
+                                      data['parishName'] ??
+                                      'Unnamed Parish';
+                                }
+                              });
+                            },
+                            validator: (v) =>
+                                v == null ? 'Please select a parish' : null,
+                            icon: Icon(
+                              Icons.arrow_drop_down_circle_rounded,
+                              color: Colors.blue.shade700,
+                            ),
+                            dropdownColor: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Address Field (Optional)
+                      TextFormField(
+                        controller: _addressController,
+                        style: GoogleFonts.inter(),
+                        maxLines: 2,
+                        decoration: _buildInputDecoration(
+                          'Address (Optional)',
+                          Icons.location_on_outlined,
+                        ),
                       ),
                       const SizedBox(height: 20),
 
@@ -296,16 +411,16 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
   InputDecoration _buildInputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      labelStyle: GoogleFonts.inter(color: Colors.blue.shade700),
-      prefixIcon: Icon(icon, color: Colors.blue.shade700),
+      labelStyle: GoogleFonts.inter(color: Colors.indigo.shade700),
+      prefixIcon: Icon(icon, color: Colors.indigo.shade700),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.blue.shade100),
+        borderSide: BorderSide(color: Colors.indigo.shade100),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.blue.shade900, width: 2),
+        borderSide: BorderSide(color: Colors.indigo.shade900, width: 2),
       ),
       filled: true,
       fillColor: Colors.grey.shade50,
@@ -318,6 +433,7 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 }

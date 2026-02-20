@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sundayschool_app/auth_wrapper.dart'; // Update import
 import 'package:lottie/lottie.dart';
+import 'package:sundayschool_app/main.dart'; // Import global future
 
 class AnimatedSplashScreen extends StatefulWidget {
   const AnimatedSplashScreen({super.key});
@@ -18,6 +19,13 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
     super.initState();
 
     _controller = AnimationController(vsync: this);
+
+    animationCompositionFuture.then((composition) {
+      if (mounted) {
+        _controller.duration = composition.duration;
+        _controller.forward();
+      }
+    });
 
     // Use a listener for precise navigation
     _controller.addStatusListener((status) {
@@ -59,14 +67,20 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
           children: [
             const Spacer(flex: 3),
             // Your Lottie animation
-            Lottie.asset(
-              'assets/images/animation.json',
-              controller: _controller,
-              onLoaded: (composition) {
-                // Configure the controller and start the animation
-                _controller
-                  ..duration = composition.duration
-                  ..forward();
+            FutureBuilder<LottieComposition>(
+              future: animationCompositionFuture,
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Lottie(
+                    composition: snapshot.data,
+                    controller: _controller,
+                    height: 100, // Reduced size
+                  );
+                } else {
+                  return const SizedBox(
+                    height: 100,
+                  ); // Placeholder while loading
+                }
               },
             ),
             const Spacer(flex: 2),

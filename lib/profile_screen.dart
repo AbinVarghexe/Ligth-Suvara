@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:sundayschool_app/privacy_policy_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,9 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 // Import compression libraries
-import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
+import 'package:sundayschool_app/utils/image_optimizer.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -124,22 +123,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<File?> _compressImage(File file) async {
-    final tempDir = await getTemporaryDirectory();
-    final targetPath = p.join(
-      tempDir.path,
-      '${DateTime.now().millisecondsSinceEpoch}_compressed.jpg',
-    );
-
-    final compressedXFile = await FlutterImageCompress.compressAndGetFile(
-      file.absolute.path,
-      targetPath,
-      quality: 85,
-    );
-
-    if (compressedXFile == null) {
-      return null;
-    }
-    return File(compressedXFile.path);
+    return await ImageOptimizer.compressBelowLimit(file, targetSizeKB: 500);
   }
 
   Future<void> _updateProfile() async {
@@ -162,7 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         uploadFile = compressedFile;
 
         final storageRef = FirebaseStorage.instance.ref().child(
-          'profile_pictures/${_userDocId}',
+          'profile_pictures/$_userDocId',
         );
         final uploadTask = await storageRef.putFile(uploadFile);
         updatedImageUrl = await uploadTask.ref.getDownloadURL();
@@ -285,6 +269,32 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ),
                     ),
                   ),
+          ),
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 24.0),
+                child: TextButton(
+                  onPressed: () {
+                    // Navigate to Privacy Policy Screen
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const PrivacyPolicyScreen(),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'Privacy Policy',
+                    style: GoogleFonts.poppins(
+                      color: Colors.blue.shade900,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),

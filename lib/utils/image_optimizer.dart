@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -75,5 +74,58 @@ class ImageOptimizer {
     final fileSize = await imageFile.length();
     final fileSizeKB = fileSize ~/ 1024;
     return fileSizeKB <= maxSizeKB;
+  }
+
+  /// Iteratively compress image until it's below the target size (in KB)
+  static Future<File?> compressBelowLimit(
+    File imageFile, {
+    int targetSizeKB = 400,
+  }) async {
+    try {
+      final originalSize = await imageFile.length();
+      if (originalSize <= targetSizeKB * 1024) {
+        return imageFile;
+      }
+
+      print(
+        'Starting iterative compression for image of size ${originalSize ~/ 1024}KB',
+      );
+
+      // Pass 1: High quality
+      File? result = await compressImage(imageFile, quality: 85);
+      if (result != null && await result.length() <= targetSizeKB * 1024) {
+        return result;
+      }
+
+      // Pass 2: Medium quality
+      result = await compressImage(imageFile, quality: 60);
+      if (result != null && await result.length() <= targetSizeKB * 1024) {
+        return result;
+      }
+
+      // Pass 3: Low quality + Scale
+      result = await compressImage(
+        imageFile,
+        quality: 40,
+        minWidth: 1024,
+        minHeight: 768,
+      );
+      if (result != null && await result.length() <= targetSizeKB * 1024) {
+        return result;
+      }
+
+      // Pass 4: Very low quality + Aggressive Scale
+      result = await compressImage(
+        imageFile,
+        quality: 25,
+        minWidth: 800,
+        minHeight: 600,
+      );
+
+      return result; // Return whatever we got in the final pass
+    } catch (e) {
+      print('Error in iterative compression: $e');
+      return imageFile; // Fallback to original
+    }
   }
 }

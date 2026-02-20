@@ -22,8 +22,11 @@ class StudentRegistrationForm extends StatefulWidget {
 
 class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
+  // Replaced single controllers with a list of entries
+  final List<Map<String, TextEditingController>> _studentEntries = [];
+  final TextEditingController _countController = TextEditingController();
+
+  bool _isCountOnly = false;
   bool _isSubmitting = false;
   bool _isLoading = true;
   String? _parishUserId;
@@ -31,10 +34,59 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
   String? _schoolName;
   String? _schoolDisplayName;
 
+  bool _isLocked = false;
+
   @override
   void initState() {
     super.initState();
+    _addStudentEntry(); // Add initial entry
     _loadContext();
+    _checkLockStatus();
+  }
+
+  void _addStudentEntry() {
+    setState(() {
+      _studentEntries.add({
+        'name': TextEditingController(),
+        'phone': TextEditingController(),
+        'address': TextEditingController(),
+        'studentClass': TextEditingController(),
+      });
+    });
+  }
+
+  void _removeStudentEntry(int index) {
+    if (_studentEntries.length <= 1) return;
+    final entry = _studentEntries[index];
+    entry['name']?.dispose();
+    entry['phone']?.dispose();
+    entry['address']?.dispose();
+    entry['studentClass']?.dispose();
+    setState(() {
+      _studentEntries.removeAt(index);
+    });
+  }
+
+  Future<void> _checkLockStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('program_registrations')
+          .where('schoolUserId', isEqualTo: user.uid)
+          .where('programName', isEqualTo: widget.programName)
+          // If *any* registration for this program is marked locked, we consider the program locked.
+          .where('status', isEqualTo: 'locked')
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        if (mounted) setState(() => _isLocked = true);
+      }
+    } catch (e) {
+      debugPrint("Error checking lock status: $e");
+    }
   }
 
   Future<void> _loadContext() async {
@@ -104,27 +156,67 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
     setState(() => _isSubmitting = true);
 
     try {
-      await FirebaseFirestore.instance.collection('program_registrations').add({
-        'programId': widget.programId,
-        'programName': widget.programName,
-        'schoolUserId': user.uid,
-        'parishUserId': _parishUserId,
-        'parishName': _schoolDisplayName ?? _schoolName,
-        'studentName': _nameController.text.trim(),
-        'studentPhone': _phoneController.text.trim(),
-        'submittedAt': FieldValue.serverTimestamp(),
-        'status': 'pending_parish',
-        if (_schoolName != null) 'schoolName': _schoolName,
-      });
+      final batch = FirebaseFirestore.instance.batch();
+      final collection = FirebaseFirestore.instance.collection(
+        'program_registrations',
+      );
+
+      if (_isCountOnly) {
+        final countStr = _countController.text.trim();
+        final count = int.tryParse(countStr) ?? 0;
+        if (count <= 0) return; // Should be handled by form validation
+
+        final docRef = collection.doc();
+        batch.set(docRef, {
+          'programId': widget.programId,
+          'programName': widget.programName,
+          'schoolUserId': user.uid,
+          'parishUserId': _parishUserId,
+          'parishName': _schoolDisplayName ?? _schoolName,
+          'studentCount': count,
+          'isCountOnly': true,
+          'submittedAt': FieldValue.serverTimestamp(),
+          'status': 'pending_parish',
+          if (_schoolName != null) 'schoolName': _schoolName,
+        });
+      } else {
+        for (final entry in _studentEntries) {
+          final name = entry['name']!.text.trim();
+          final phone = entry['phone']!.text.trim();
+          final address = entry['address']!.text.trim();
+          final studentClass = entry['studentClass']!.text.trim();
+
+          final docRef = collection.doc();
+          batch.set(docRef, {
+            'programId': widget.programId,
+            'programName': widget.programName,
+            'schoolUserId': user.uid,
+            'parishUserId': _parishUserId,
+            'parishName': _schoolDisplayName ?? _schoolName,
+            'studentName': name,
+            'studentPhone': phone,
+            'studentAddress': address.isEmpty ? null : address,
+            'studentClass': studentClass.isEmpty ? null : studentClass,
+            'isCountOnly': false,
+            'submittedAt': FieldValue.serverTimestamp(),
+            'status': 'pending_parish',
+            if (_schoolName != null) 'schoolName': _schoolName,
+          });
+        }
+      }
+
+      await batch.commit();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration Submitted Successfully!'),
-            backgroundColor: Colors.green,
-          ),
+        await _showStatusDialog(
+          context: context,
+          isSuccess: true,
+          title: "Registration Successful!",
+          message: _isCountOnly
+              ? 'Successfully registered ${_countController.text.trim()} students!'
+              : 'Successfully registered ${_studentEntries.length} students!',
         );
-        Navigator.pop(context);
+        if (mounted) Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -142,27 +234,186 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
     }
   }
 
+  Future<void> _showStatusDialog({
+    required BuildContext context,
+    required bool isSuccess,
+    required String title,
+    required String message,
+  }) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        final color = isSuccess ? const Color(0xFF22C55E) : Colors.red;
+        final icon = isSuccess
+            ? Icons.check_circle_rounded
+            : Icons.error_rounded;
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 48),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                  color: Colors.blueGrey.shade800,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  color: Colors.blueGrey.shade600,
+                ),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    "Great!",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
+    for (var entry in _studentEntries) {
+      entry['name']?.dispose();
+      entry['phone']?.dispose();
+      entry['address']?.dispose();
+      entry['studentClass']?.dispose();
+    }
+    _countController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.pop(context),
+          tooltip: 'Back',
+        ),
         title: Text(
           'Register Student',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Colors.blue.shade900, Colors.indigo.shade800],
+            ),
+          ),
+        ),
+        foregroundColor: Colors.white,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _isLocked
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.lock_person_rounded,
+                      size: 80,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Registration Locked',
+                      style: GoogleFonts.poppins(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'The registration for ${widget.programName} has been finalized and locked by the parish.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade900,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Go Back',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Form(
@@ -201,103 +452,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                                     color: Colors.orange.shade700,
                                   ),
                                   const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      "No linked parish found. Ask an admin to set a parish for this school before submitting.",
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 13,
-                                        color: Colors.orange.shade900,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color:
-                                    (_parishUserId != null &&
-                                        _parishUserId!.length > 20)
-                                    ? Colors.blue.shade50
-                                    : Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color:
-                                      (_parishUserId != null &&
-                                          _parishUserId!.length > 20)
-                                      ? Colors.blue.shade200
-                                      : Colors.red.shade200,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.church,
-                                    color:
-                                        (_parishUserId != null &&
-                                            _parishUserId!.length > 20)
-                                        ? Colors.blue.shade800
-                                        : Colors.red.shade800,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          "Linked Parish User",
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 12,
-                                            color:
-                                                (_parishUserId != null &&
-                                                    _parishUserId!.length > 20)
-                                                ? Colors.blue.shade800
-                                                : Colors.red.shade900,
-                                          ),
-                                        ),
-                                        Text(
-                                          _parishUserId!,
-                                          style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color:
-                                                (_parishUserId != null &&
-                                                    _parishUserId!.length > 20)
-                                                ? Colors.blue.shade900
-                                                : Colors.red.shade900,
-                                          ),
-                                        ),
-                                        // DEBUG INFO FOR USER
-                                        if (_parishUserId != null &&
-                                            _parishUserId!.length < 20)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 4.0,
-                                            ),
-                                            child: Text(
-                                              "WARNING: This looks like a Name, not an ID! Linkage is broken. Ask Admin to update your 'parishId' field with the Parish User UID.",
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 11,
-                                                color: Colors.red.shade700,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        if (_schoolName != null) ...[
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            "School: $_schoolName",
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 12,
-                                              color: Colors.grey.shade700,
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
+
                                   Icon(
                                     (_parishUserId != null &&
                                             _parishUserId!.length > 20)
@@ -311,38 +466,107 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                                   ),
                                 ],
                               ),
-                            ),
+                            )
+                          : const SizedBox.shrink(),
                     ),
 
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Student Name',
-                        prefixIcon: const Icon(Icons.person),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      validator: (val) => val == null || val.trim().isEmpty
-                          ? 'Name is required'
-                          : null,
-                    ),
                     const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
-                        labelText: 'Parent Phone Number',
-                        prefixIcon: const Icon(Icons.phone),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+
+                    // --- SEGMENTED CONTROL TOGGLE ---
+                    Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                      validator: (val) => val == null || val.trim().isEmpty
-                          ? 'Phone is required'
-                          : null,
+                      child: Stack(
+                        children: [
+                          AnimatedAlign(
+                            alignment: Alignment(_isCountOnly ? 1.0 : -1.0, 0),
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOutCubic,
+                            child: Container(
+                              width:
+                                  (MediaQuery.of(context).size.width - 40) / 2,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.blue.shade700,
+                                    Colors.indigo.shade800,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.indigo.withAlpha(77),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      setState(() => _isCountOnly = false),
+                                  child: Container(
+                                    color: Colors.transparent,
+                                    child: Center(
+                                      child: Text(
+                                        'Detailed Entry',
+                                        style: GoogleFonts.poppins(
+                                          color: !_isCountOnly
+                                              ? Colors.white
+                                              : Colors.grey.shade700,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      setState(() => _isCountOnly = true),
+                                  child: Container(
+                                    color: Colors.transparent,
+                                    child: Center(
+                                      child: Text(
+                                        'Count Only',
+                                        style: GoogleFonts.poppins(
+                                          color: _isCountOnly
+                                              ? Colors.white
+                                              : Colors.grey.shade700,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 24),
+
+                    // --- CONDITIONAL FORM UI ---
+                    if (_isCountOnly)
+                      _buildCountOnlyEntry()
+                    else
+                      _buildDetailedEntry(),
+
+                    const SizedBox(height: 24),
+
                     ElevatedButton(
                       onPressed:
                           (_isSubmitting || _parishUserId == null || _isLoading)
@@ -350,33 +574,288 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                           : _submitRegistration,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.blue.shade900,
+                        backgroundColor:
+                            Colors.transparent, // handeled by gradient
+                        shadowColor: Colors.transparent,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         foregroundColor: Colors.white,
                       ),
-                      child: _isSubmitting
-                          ? const SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Text(
-                              'Submit Registration',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                      child: Ink(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.deepPurple.shade600,
+                              Colors.indigo.shade600,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Container(
+                          alignment: Alignment.center,
+                          height: 56, // Enforce min height
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  _isCountOnly
+                                      ? 'Submit Count Registration'
+                                      : 'Submit Registrations (${_studentEntries.length})',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildCountOnlyEntry() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.indigo.shade50),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.indigo.withAlpha(20),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.groups_rounded, size: 60, color: Colors.blue.shade900),
+          const SizedBox(height: 16),
+          Text(
+            'Total Students',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue.shade900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Enter the total number of students participating',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 24),
+          TextFormField(
+            controller: _countController,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue.shade900,
+            ),
+            decoration: InputDecoration(
+              hintText: '0',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              fillColor: Colors.grey.shade50,
+              filled: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 20),
+            ),
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) return 'Enter count';
+              final num = int.tryParse(val.trim());
+              if (num == null || num <= 0) return 'Must be greater than 0';
+              return null;
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailedEntry() {
+    return Column(
+      children: [
+        ..._studentEntries.asMap().entries.map((element) {
+          final index = element.key;
+          final entry = element.value;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.indigo.shade50),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.indigo.withAlpha(20),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Student ${index + 1}',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Colors.indigo.shade900,
+                        ),
+                      ),
+                    ),
+                    if (_studentEntries.length > 1)
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          color: Colors.red,
+                        ),
+                        onPressed: () => _removeStudentEntry(index),
+                        tooltip: 'Remove Student',
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: entry['name'],
+                  decoration: InputDecoration(
+                    labelText: 'Student Name',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    fillColor: Colors.grey.shade50,
+                    filled: true,
+                  ),
+                  validator: (val) => val == null || val.trim().isEmpty
+                      ? 'Name Required'
+                      : null,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        controller: entry['phone'],
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          labelText: 'Phone',
+                          prefixIcon: const Icon(
+                            Icons.phone_android_rounded,
+                            size: 20,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          fillColor: Colors.grey.shade50,
+                          filled: true,
+                        ),
+                        validator: (val) => val == null || val.trim().isEmpty
+                            ? 'Phone Required'
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: entry['studentClass'],
+                        keyboardType: TextInputType.text,
+                        decoration: InputDecoration(
+                          labelText: 'Class',
+                          prefixIcon: const Icon(
+                            Icons.school_rounded,
+                            size: 20,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          fillColor: Colors.grey.shade50,
+                          filled: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: entry['address'],
+                  keyboardType: TextInputType.streetAddress,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: 'Address',
+                    prefixIcon: const Padding(
+                      padding: EdgeInsets.only(bottom: 24),
+                      child: Icon(Icons.home_work_outlined),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    fillColor: Colors.grey.shade50,
+                    filled: true,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+        Center(
+          child: TextButton.icon(
+            onPressed: _addStudentEntry,
+            icon: const Icon(Icons.add_circle_outline_rounded, size: 24),
+            label: Text(
+              'Add Another Student',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              foregroundColor: Colors.blue.shade900,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -13,78 +13,274 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String _searchQuery = '';
 
-  Future<void> _updateAnimatorName(
+  Future<void> _editAnimator(
     String animatorId,
-    String currentName,
+    Map<String, dynamic> currentData,
   ) async {
-    final controller = TextEditingController(text: currentName);
-    final confirmed = await showDialog<String>(
+    final nameController = TextEditingController(
+      text: currentData['name'] ?? '',
+    );
+    final addressController = TextEditingController(
+      text: currentData['address'] ?? '',
+    );
+    String? selectedParishId = currentData['parishId'];
+    String? selectedParishName = currentData['parishName'];
+
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.edit_rounded, color: Colors.blue.shade900),
-            const SizedBox(width: 10),
-            Text(
-              'Edit Name',
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ],
-        ),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: 'Display Name',
-            floatingLabelStyle: TextStyle(color: Colors.blue.shade900),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.blue.shade900, width: 2),
-            ),
-            filled: true,
-            fillColor: Colors.grey.shade50,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(color: Colors.grey),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade900,
-              foregroundColor: Colors.white,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(24),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            child: Text(
-              'Save',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.edit_rounded,
+                      color: Colors.indigo.shade900,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Edit Animator',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        color: Colors.indigo.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Name Field
+                      TextField(
+                        controller: nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Display Name',
+                          labelStyle: TextStyle(color: Colors.indigo.shade700),
+                          prefixIcon: Icon(
+                            Icons.person_outline_rounded,
+                            color: Colors.indigo.shade700,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Colors.indigo.shade100,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Colors.indigo.shade900,
+                              width: 2,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Parish Dropdown
+                      FutureBuilder<QuerySnapshot>(
+                        future: FirebaseFirestore.instance
+                            .collection('users')
+                            .where('role', isEqualTo: 'parish')
+                            .get(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          final parishes = snapshot.data?.docs ?? [];
+
+                          // Ensure selectedParishId exists in the fetched list, else null it
+                          if (selectedParishId != null &&
+                              !parishes.any(
+                                (doc) => doc.id == selectedParishId,
+                              )) {
+                            selectedParishId = null;
+                            selectedParishName = null;
+                          }
+
+                          return DropdownButtonFormField<String>(
+                            value: selectedParishId,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: 'Home Parish',
+                              labelStyle: TextStyle(
+                                color: Colors.indigo.shade700,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.church_rounded,
+                                color: Colors.indigo.shade700,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                  color: Colors.indigo.shade100,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                  color: Colors.indigo.shade900,
+                                  width: 2,
+                                ),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey.shade50,
+                            ),
+                            items: parishes.map((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              final name =
+                                  data['name'] ??
+                                  data['parishName'] ??
+                                  'Unnamed Parish';
+                              return DropdownMenuItem(
+                                value: doc.id,
+                                child: Text(name),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setDialogState(() {
+                                selectedParishId = value;
+                                if (value != null) {
+                                  final selectedDoc = parishes.firstWhere(
+                                    (doc) => doc.id == value,
+                                  );
+                                  final data =
+                                      selectedDoc.data()
+                                          as Map<String, dynamic>;
+                                  selectedParishName =
+                                      data['name'] ??
+                                      data['parishName'] ??
+                                      'Unnamed';
+                                }
+                              });
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Address Field
+                      TextField(
+                        controller: addressController,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          labelText: 'Address',
+                          labelStyle: TextStyle(color: Colors.indigo.shade700),
+                          prefixIcon: Icon(
+                            Icons.location_on_outlined,
+                            color: Colors.indigo.shade700,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Colors.indigo.shade100,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Colors.indigo.shade900,
+                              width: 2,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.poppins(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (nameController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Name cannot be empty')),
+                      );
+                      return;
+                    }
+                    Navigator.pop(context, {
+                      'name': nameController.text.trim(),
+                      if (selectedParishId != null)
+                        'parishId': selectedParishId,
+                      if (selectedParishName != null)
+                        'parishName': selectedParishName,
+                      'address': addressController.text.trim(),
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo.shade800,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: Text(
+                    'Save Changes',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
 
-    if (confirmed != null && confirmed.isNotEmpty && confirmed != currentName) {
+    if (result != null) {
       try {
-        await _firestore.collection('users').doc(animatorId).update({
-          'name': confirmed,
-        });
+        await _firestore.collection('users').doc(animatorId).update(result);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Animator name updated successfully'),
+              content: Text('Animator details updated successfully'),
               backgroundColor: Colors.green,
             ),
           );
@@ -93,7 +289,7 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Error updating name: $e')));
+          ).showSnackBar(SnackBar(content: Text('Error updating details: $e')));
         }
       }
     }
@@ -104,6 +300,10 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: Container(
           decoration: BoxDecoration(
@@ -118,6 +318,7 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
           'Manage Animators',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.bold,
+            fontSize: 20,
             color: Colors.white,
           ),
         ),
@@ -255,8 +456,8 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
                         color: Colors.blue.shade700,
                         size: 20,
                       ),
-                      onPressed: () => _updateAnimatorName(id, name),
-                      tooltip: 'Edit Display Name',
+                      onPressed: () => _editAnimator(id, data),
+                      tooltip: 'Edit Animator',
                     ),
                   ),
                 ),

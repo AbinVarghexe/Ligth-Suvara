@@ -11,6 +11,7 @@ import 'package:sundayschool_app/animator/animator_dashboard_screen.dart';
 import 'package:sundayschool_app/parish/parish_dashboard_screen.dart'; // Added import for routing
 
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
+import 'package:sundayschool_app/services/notification_service.dart'; // Import NotificationService
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -213,7 +214,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         String? role;
         if (userDoc.exists) {
           final data = userDoc.data();
-          if (data != null && data is Map<String, dynamic>) {
+          if (data != null) {
             role = data['role'];
           }
         }
@@ -234,6 +235,21 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           } else {
             destination = const HomeScreen();
           }
+
+          // --- Subscribe to all necessary topics ---
+
+          // 1. Subscribe to user-specific topic (for individual messages)
+          NotificationService().subscribeToUserTopic(user.uid);
+
+          // 3. Subscribe to role-specific topic (e.g., 'role_school')
+          if (role != null && role.isNotEmpty) {
+            NotificationService().subscribeToRoleTopic(role);
+          }
+
+          debugPrint(
+            'Subscribed to topics: broadcasts, school_${user.uid}, role_$role',
+          );
+
           await _animatedNavigate(destination);
         }
       }
@@ -264,9 +280,10 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
     return SafeArea(
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
             icon: Icon(Icons.arrow_back_ios_new, color: Colors.blue.shade900),
@@ -285,6 +302,20 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         // --- WRAPPED BODY IN A STACK ---
         body: Stack(
           children: [
+            // Gradient Background Layer
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: [0.0, 1.0],
+                  colors: [
+                    Color(0xFFFFFAF0), // Very Soft Cream (Floral White)
+                    Color(0xFFFFF8E1), // Ultra Light Gold
+                  ],
+                ),
+              ),
+            ),
             // --- MAIN CONTENT (ListView) ---
             FadeTransition(
               opacity:
@@ -301,14 +332,16 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                 child: ListView(
                   padding: EdgeInsets.symmetric(horizontal: contentPadding),
                   children: [
-                    const SizedBox(height: 10), // Reduced spacing
+                    const SizedBox(height: 80), // Space for transparent AppBar
                     Text(
                       'Welcome',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
                         fontSize: 28, // Slightly smaller font
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade900,
+                        color: const Color(
+                          0xFF1E3A8A,
+                        ), // Deep Blue from login_screen
                       ),
                     ),
                     const SizedBox(height: 20), // Reduced spacing
@@ -316,7 +349,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                       'Login name',
                       style: GoogleFonts.poppins(
                         fontSize: 16, // Slightly smaller font
-                        color: Colors.blue.shade900,
+                        color: const Color(
+                          0xFF1E3A8A,
+                        ), // Deep Blue from login_screen
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -332,7 +367,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                       'Password',
                       style: GoogleFonts.poppins(
                         fontSize: 16, // Slightly smaller font
-                        color: Colors.blue.shade900,
+                        color: const Color(
+                          0xFF1E3A8A,
+                        ), // Deep Blue from login_screen
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -387,7 +424,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                               ),
                             ),
                     ),
-                    const SizedBox(height: 60), // Reduced spacing
+                    const SizedBox(height: 120), // Reduced spacing
                     FadeTransition(
                       opacity:
                           _exitController.status == AnimationStatus.forward ||
@@ -398,18 +435,13 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                       child: Column(
                         children: [
                           Image.asset(
-                            'assets/images/suvara logo wbg5.jpg',
+                            'assets/images/suvara logo wbg6.png',
                             height: 70, // Reduced height
                             fit: BoxFit.contain,
                           ),
                           Padding(
                             padding: const EdgeInsets.only(
-                              top: 16.0, // Reduced padding
-                            ),
-                            child: Image.asset(
-                              'assets/images/diocese-logo-new1.png',
-                              height: 55, // Reduced height
-                              fit: BoxFit.contain,
+                              top: 25.0, // Reduced padding
                             ),
                           ),
                           // Add padding at the bottom to ensure watermark doesn't overlap logos
@@ -459,9 +491,16 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F4FF),
+        color: Colors.blue.shade50, // Light blue background
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD4E0FF), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.shade900.withOpacity(0.1), // Blue shadow
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: TextField(
         controller: controller,
@@ -470,7 +509,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w500),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: GoogleFonts.poppins(color: const Color(0xFF6C8AF7)),
+          hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
           contentPadding: const EdgeInsets.symmetric(
             vertical: 18.0,
             horizontal: 20.0,

@@ -12,9 +12,12 @@ import 'package:sundayschool_app/event_detail_screen.dart';
 import 'package:sundayschool_app/profile_screen.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:async/async.dart';
-import 'dart:math' as math;
+// import 'package:async/async.dart'; // Removed StreamZip dependency
+import 'package:sundayschool_app/services/notification_service.dart';
+import 'package:rxdart/rxdart.dart';
+
 import 'package:sundayschool_app/animator/registration_dashboard.dart';
+import 'package:sundayschool_app/animator/school_my_registrations_screen.dart';
 
 enum SortOption { newestFirst, alphabetical }
 
@@ -30,6 +33,135 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
+  bool _isFabExpanded = false;
+
+  void _toggleFab() {
+    setState(() {
+      _isFabExpanded = !_isFabExpanded;
+      if (_isFabExpanded) {
+        _fabMenuController.forward();
+      } else {
+        _fabMenuController.reverse();
+      }
+    });
+  }
+
+  void _showRegistrationOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Registration Options',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const RegistrationDashboard(),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.blue.shade100),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.app_registration_rounded,
+                            size: 40,
+                            color: Colors.blue.shade900,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'New\nRegistration',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const SchoolMyRegistrationsScreen(),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.green.shade100),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.assignment_turned_in_rounded,
+                            size: 40,
+                            color: Colors.green.shade800,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'My\nRegistrations',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   int _selectedCategoryIndex = 0;
   final List<String> _categories = ['ALL', 'CML', 'SUVARA'];
 
@@ -39,12 +171,67 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   late AnimationController _headerAnimationController;
   late AnimationController _fabAnimationController;
+  late AnimationController _fabMenuController; // New controller
   late Animation<double> _headerAnimation;
   late Animation<double> _fabAnimation;
+
+  late Animation<double> _fabMenuAnimation; // New animation
+
+  Stream<QuerySnapshot>? _eventsStream;
+
+  void _setupEventsStream() {
+    final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
+    Query baseQuery = FirebaseFirestore.instance
+        .collection('events')
+        .orderBy('timestamp', descending: true);
+
+    if (!_isAdmin && currentUserUid != null) {
+      baseQuery = baseQuery.where('creatorId', isEqualTo: currentUserUid);
+    }
+    _eventsStream = baseQuery.snapshots();
+  }
+
+  // --- NEW: Dynamic Notification Stream ---
+  Stream<List<QuerySnapshot>>? _notificationStream;
+
+  void _updateNotificationStream(String uid, String? role) {
+    // 1. Determine which recipients to listen for
+    final recipients = [uid]; // Always listen for own messages
+
+    // 2. If user is a School Admin, listen for 'role_school' messages
+    //    'all' is deprecated for notifications but kept for backward compatibility if needed.
+    //    But strictly, we want to AVOID listening to 'all' if it was used globally.
+    //    For now, we only add 'role_school' if the user has that role.
+    if (role == 'school') {
+      recipients.add('role_school');
+    }
+
+    // 3. Create the stream
+    _notificationStream = Rx.combineLatest2(
+      FirebaseFirestore.instance
+          .collection('notifications')
+          .where('recipientId', whereIn: recipients)
+          .snapshots(),
+      FirebaseFirestore.instance.collection('broadcasts').snapshots(),
+      (QuerySnapshot a, QuerySnapshot b) => [a, b],
+    );
+  }
+
+  Stream<QuerySnapshot>? _activeProgramsStream;
+
+  void _setupActiveProgramsStream() {
+    _activeProgramsStream = FirebaseFirestore.instance
+        .collection('programs')
+        .where('isActive', isEqualTo: true)
+        .limit(1)
+        .snapshots();
+  }
 
   @override
   void initState() {
     super.initState();
+    _setupEventsStream(); // Initial setup
+    _setupActiveProgramsStream(); // Initial setup for banner
     _loadUserData();
     _searchController.addListener(_onSearchChanged);
 
@@ -66,6 +253,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       parent: _fabAnimationController,
       curve: Curves.elasticOut,
     );
+
+    // New Menu Animation
+    _fabMenuController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _fabMenuAnimation = CurvedAnimation(
+      parent: _fabMenuController,
+      curve: Curves.easeOut,
+    );
+
     Future.delayed(const Duration(milliseconds: 600), () {
       if (mounted) _fabAnimationController.forward();
     });
@@ -77,6 +275,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _searchController.dispose();
     _headerAnimationController.dispose();
     _fabAnimationController.dispose();
+    _fabMenuController.dispose(); // Dispose new controller
     super.dispose();
   }
 
@@ -108,6 +307,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       String? imageUrl;
       bool localIsAdmin = false;
 
+      String? role;
+
       if (userDoc.exists) {
         final data = userDoc.data();
         final schoolName = data?['schoolName'] ?? data?['schoolname'];
@@ -116,12 +317,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         }
         imageUrl = data?['profileImageUrl']?.toString();
         localIsAdmin = data?['role'] == 'admin';
+        role = data?['role']?.toString();
       }
       if (mounted) {
         setState(() {
           _schoolDisplayName = finalDisplayName;
           _profileImageUrl = imageUrl;
           _isAdmin = localIsAdmin;
+          _setupEventsStream();
+
+          //Start of Fix
+          final schoolId = user.uid;
+
+          // 1. Subscribe to personal school topic
+          NotificationService().subscribeToUserTopic(schoolId);
+
+          // 3. Subscribe to role topic (if any)
+          if (role != null) {
+            NotificationService().subscribeToRoleTopic(role);
+          }
+
+          // 3. Update Notification Stream Query
+          _updateNotificationStream(user.uid, role);
         });
       }
     } catch (e) {
@@ -284,6 +501,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
 
     if (confirmed == true) {
+      // --- CLEANUP: Unsubscribe from ALL topics before logging out ---
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          // Fetch user role
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+          String? role;
+          if (userDoc.exists) {
+            role = userDoc.data()?['role']?.toString();
+          }
+
+          // Complete cleanup: Unsubscribe from ALL topics (user, role, AND broadcasts)
+          // Fire-and-forget: Don't await this, let it happen in background to speed up logout
+          NotificationService().unsubscribeAll(user.uid, role).catchError((e) {
+            debugPrint('Error unsubscribing from topics: $e');
+          });
+        } catch (e) {
+          debugPrint('Error getting user role for unsubscribe: $e');
+        }
+      }
+
       await FirebaseAuth.instance.signOut();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -303,62 +545,94 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         slivers: [
           _buildModernAppBar(),
           SliverToBoxAdapter(
-            child: FadeTransition(
-              opacity: _headerAnimation,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  const SizedBox(height: 16),
-                  _buildRegistrationCard(),
-                  const SizedBox(height: 16),
-                  _buildHighlightSection(),
-                  const SizedBox(height: 32),
-                  _buildRecentEventsSection(),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                _buildActiveProgramsBanner(),
+                _buildHighlightSection(),
+                const SizedBox(height: 32),
+                _buildRecentEventsSection(),
+              ],
             ),
           ),
         ],
       ),
-      floatingActionButton: ScaleTransition(
-        scale: _fabAnimation,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Colors.blue.shade700, Colors.blue.shade900],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.blue.shade900.withAlpha(102),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (_isFabExpanded) ...[
+            ScaleTransition(
+              scale: _fabMenuAnimation,
+              child: FloatingActionButton.extended(
+                heroTag: 'fab_new_event',
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  _toggleFab();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UploadScreen(),
+                    ),
+                  );
+                },
+                backgroundColor: Colors.blue.shade900,
+                icon: const Icon(
+                  Icons.add_photo_alternate_rounded,
+                  color: Colors.white,
+                ),
+                label: Text(
+                  'New Event',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ],
-          ),
-          child: FloatingActionButton.extended(
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const UploadScreen()),
-              );
-            },
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            icon: const Icon(Icons.add_rounded, color: Colors.white),
-            label: Text(
-              'New Event',
-              style: GoogleFonts.poppins(
+            ),
+            const SizedBox(height: 16),
+            ScaleTransition(
+              scale: _fabMenuAnimation,
+              child: FloatingActionButton.extended(
+                heroTag: 'fab_registration',
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  _toggleFab();
+                  _showRegistrationOptions();
+                },
+                backgroundColor: Colors.orange.shade800,
+                icon: const Icon(Icons.how_to_reg_rounded, color: Colors.white),
+                label: Text(
+                  'Registration',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          ScaleTransition(
+            scale: _fabAnimation,
+            child: FloatingActionButton(
+              heroTag: 'fab_main',
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                _toggleFab();
+              },
+              backgroundColor: _isFabExpanded
+                  ? Colors.grey.shade800
+                  : Colors.blue.shade900,
+              child: Icon(
+                _isFabExpanded ? Icons.close_rounded : Icons.add_rounded,
                 color: Colors.white,
-                fontWeight: FontWeight.w600,
+                size: 28,
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -452,22 +726,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                       _buildHeaderIconButton(
                         StreamBuilder<List<QuerySnapshot>>(
-                          stream: StreamZip([
-                            FirebaseFirestore.instance
-                                .collection('notifications')
-                                .where(
-                                  'recipientId',
-                                  whereIn: [
-                                    FirebaseAuth.instance.currentUser?.uid ??
-                                        'INVALID_USER',
-                                    'all',
-                                  ],
-                                )
-                                .snapshots(),
-                            FirebaseFirestore.instance
-                                .collection('broadcasts')
-                                .snapshots(),
-                          ]),
+                          stream:
+                              _notificationStream ??
+                              // Fallback stream if not initialized
+                              Rx.combineLatest2(
+                                FirebaseFirestore.instance
+                                    .collection('notifications')
+                                    .where(
+                                      'recipientId',
+                                      isEqualTo:
+                                          FirebaseAuth
+                                              .instance
+                                              .currentUser
+                                              ?.uid ??
+                                          'INVALID',
+                                    )
+                                    .snapshots(),
+                                FirebaseFirestore.instance
+                                    .collection('broadcasts')
+                                    .snapshots(),
+                                (QuerySnapshot a, QuerySnapshot b) => [a, b],
+                              ),
                           builder: (context, snapshot) {
                             int unreadCount = 0;
                             if (snapshot.hasData && snapshot.data != null) {
@@ -584,6 +863,105 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         child: icon,
       ),
+    );
+  }
+
+  Widget _buildActiveProgramsBanner() {
+    if (_activeProgramsStream == null) {
+      _setupActiveProgramsStream();
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: _activeProgramsStream,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final programs = snapshot.data!.docs;
+        final latestProgram = programs.first.data() as Map<String, dynamic>;
+        final String programName = latestProgram['name'] ?? 'New Program';
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const RegistrationDashboard(),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.purple.shade700, Colors.purple.shade900],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.purple.shade900.withAlpha(77),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(51),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.campaign_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Registration Open!',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          programName,
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -729,85 +1107,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildRegistrationCard() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Card(
-        elevation: 4,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const RegistrationDashboard(),
-              ),
-            );
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                colors: [Colors.orange.shade50, Colors.white],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              border: Border.all(color: Colors.orange.shade200),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade700,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.app_registration_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Program Registration',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Register students for active programs',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: Colors.orange.shade800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 20,
-                  color: Colors.orange.shade700,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildModernCategoryFilter() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -948,18 +1247,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildRecentEventsList() {
-    final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
-
-    Query baseQuery = FirebaseFirestore.instance
-        .collection('events')
-        .orderBy('timestamp', descending: true);
-
-    if (!_isAdmin && currentUserUid != null) {
-      baseQuery = baseQuery.where('creatorId', isEqualTo: currentUserUid);
+    if (_eventsStream == null) {
+      _setupEventsStream();
     }
 
     return StreamBuilder<QuerySnapshot>(
-      stream: baseQuery.snapshots(),
+      stream: _eventsStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -1071,15 +1364,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.white.withOpacity(0.8), // Glassmorphic
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: Colors.blue.shade900.withAlpha(26),
+            color: const Color(0xFFFFE4B5).withOpacity(0.4), // Soft Gold Border
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(13),
+              color: Colors.orange.withOpacity(0.12), // Warm Shadow
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),

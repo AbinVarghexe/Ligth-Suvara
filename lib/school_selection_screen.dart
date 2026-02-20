@@ -6,10 +6,13 @@ import 'package:google_fonts/google_fonts.dart';
 
 class SchoolSelectionScreen extends StatefulWidget {
   final bool enableBroadcast; // Controls visibility of "Broadcast to All"
+  final bool
+  excludeAssignedSchools; // Filters out schools with existing parish users
 
   const SchoolSelectionScreen({
     super.key,
     this.enableBroadcast = true, // Default to true for backward compatibility
+    this.excludeAssignedSchools = false,
   });
 
   @override
@@ -83,45 +86,71 @@ class _SchoolSelectionScreenState extends State<SchoolSelectionScreen> {
     Color iconColor = const Color(0xFF495057),
     bool isBroadcast = false,
   }) {
-    // ... (This widget remains the same as provided previously)
-    return Material(
-      color: Colors.white,
-      child: InkWell(
-        onTap: onTap,
-        splashColor: Colors.blue.withOpacity(0.1),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isBroadcast
-                      ? Colors.blue.shade50
-                      : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  color: isBroadcast ? Colors.blue.shade700 : iconColor,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: isBroadcast ? FontWeight.w700 : FontWeight.w500,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.shade900.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: isBroadcast ? Colors.blue.shade100 : Colors.grey.shade100,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          splashColor: Colors.blue.withOpacity(0.05),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 16.0,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
                     color: isBroadcast
-                        ? const Color(0xFF1E3A8A)
-                        : const Color(0xFF343A40),
+                        ? Colors.blue.shade50
+                        : Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isBroadcast ? Colors.blue.shade700 : iconColor,
+                    size: 24,
                   ),
                 ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(0xFFADB5BD)),
-            ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: isBroadcast
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      color: isBroadcast
+                          ? Colors.blue.shade900
+                          : Colors.grey.shade800,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: Colors.grey.shade300,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -138,133 +167,191 @@ class _SchoolSelectionScreenState extends State<SchoolSelectionScreen> {
         .orderBy('schoolname'); // Still sorting for initial display
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue.shade900, Colors.blue.shade700],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         title: Text(
           'Select Recipient',
           style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF1E3A8A),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.white,
           ),
         ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        elevation: 1,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF4B5563)),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Column(
-        children: [
-          _buildSearchBar(), // Display the search bar at the top
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blue.shade50.withOpacity(0.5), Colors.white],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Column(
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).padding.top + kToolbarHeight,
+            ),
+            _buildSearchBar(), // Display the search bar at the top
 
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: baseQuery.snapshots(), // Stream returns ALL documents
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData) {
-                  return Center(
-                    child: Text(
-                      'No schools found.',
-                      style: GoogleFonts.poppins(),
-                    ),
-                  );
-                }
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: widget.excludeAssignedSchools
+                    ? FirebaseFirestore.instance
+                          .collection('users')
+                          .where('role', isEqualTo: 'parish')
+                          .snapshots()
+                    : const Stream.empty(),
+                builder: (context, parishSnapshot) {
+                  // If we are excluding assigned schools and the parish data is loading, show loading
+                  if (widget.excludeAssignedSchools &&
+                      parishSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                // ➡️ CLIENT-SIDE FILTERING LOGIC (The core of the video's technique) ⬅️
-                final allSchoolDocs = snapshot.data!.docs;
+                  final assignedSchoolIds = <String>{};
+                  if (widget.excludeAssignedSchools && parishSnapshot.hasData) {
+                    for (var doc in parishSnapshot.data!.docs) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      if (data['schoolId'] != null) {
+                        assignedSchoolIds.add(data['schoolId'] as String);
+                      }
+                    }
+                  }
 
-                final filteredSchoolDocs = allSchoolDocs.where((school) {
-                  final data = school.data() as Map<String, dynamic>;
-                  final schoolName =
-                      data['schoolname']?.toString().toLowerCase() ?? '';
+                  return StreamBuilder<QuerySnapshot>(
+                    stream: baseQuery
+                        .snapshots(), // Stream returns ALL documents
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (!snapshot.hasData) {
+                        return Center(
+                          child: Text(
+                            'No schools found.',
+                            style: GoogleFonts.poppins(),
+                          ),
+                        );
+                      }
 
-                  // If search is empty, show all. Otherwise, check if name starts with query.
-                  return _searchQuery.isEmpty ||
-                      schoolName.startsWith(_searchQuery);
-                }).toList();
+                      // ➡️ CLIENT-SIDE FILTERING LOGIC ⬅️
+                      final allSchoolDocs = snapshot.data!.docs;
 
-                if (filteredSchoolDocs.isEmpty) {
-                  String message = _searchQuery.isEmpty
-                      ? 'No schools found.'
-                      : 'No schools matching "$_searchQuery".';
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Text(
-                        message,
-                        style: GoogleFonts.poppins(color: Colors.grey.shade600),
-                      ),
-                    ),
-                  );
-                }
+                      final filteredSchoolDocs = allSchoolDocs.where((school) {
+                        // Filter out if already assigned to a parish user (if flag is true)
+                        if (widget.excludeAssignedSchools &&
+                            assignedSchoolIds.contains(school.id)) {
+                          return false;
+                        }
 
-                // End client-side filtering logic
+                        final data = school.data() as Map<String, dynamic>;
+                        final schoolName =
+                            data['schoolname']?.toString().toLowerCase() ?? '';
 
-                // Logic to adjust item count and index based on enableBroadcast
-                final int itemCount = widget.enableBroadcast
-                    ? filteredSchoolDocs.length + 1
-                    : filteredSchoolDocs.length;
+                        // Search filter
+                        return _searchQuery.isEmpty ||
+                            schoolName.startsWith(_searchQuery);
+                      }).toList();
 
-                return ListView.separated(
-                  itemCount: itemCount,
-                  // Use filtered list count
-                  separatorBuilder: (context, index) => const Divider(
-                    height: 1,
-                    indent: 16,
-                    endIndent: 16,
-                    color: Color(0xFFE5E7EB),
-                  ),
-                  itemBuilder: (context, index) {
-                    // --- 1. Add "Broadcast to All" as the first item if enabled ---
-                    if (widget.enableBroadcast && index == 0) {
-                      return _buildSelectionTile(
-                        icon: Icons.campaign_rounded,
-                        title: 'Broadcast to All Schools',
-                        isBroadcast: true,
-                        onTap: () {
-                          Navigator.of(context).pop({
-                            'id': 'all',
-                            'name': 'Broadcast to All Schools',
-                          });
+                      if (filteredSchoolDocs.isEmpty) {
+                        String message;
+                        if (widget.excludeAssignedSchools &&
+                            _searchQuery.isEmpty) {
+                          message = 'All schools already have Parish Users.';
+                        } else {
+                          message = _searchQuery.isEmpty
+                              ? 'No schools found.'
+                              : 'No schools matching "$_searchQuery".';
+                        }
+
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Text(
+                              message,
+                              style: GoogleFonts.poppins(
+                                color: Colors.grey.shade600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        );
+                      }
+
+                      // Logic to adjust item count and index based on enableBroadcast
+                      final int itemCount = widget.enableBroadcast
+                          ? filteredSchoolDocs.length + 1
+                          : filteredSchoolDocs.length;
+
+                      return ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        itemCount: itemCount,
+                        itemBuilder: (context, index) {
+                          // --- 1. Add "Broadcast to All" as the first item if enabled ---
+                          if (widget.enableBroadcast && index == 0) {
+                            return _buildSelectionTile(
+                              icon: Icons.campaign_rounded,
+                              title: 'Broadcast to All Schools',
+                              isBroadcast: true,
+                              onTap: () {
+                                Navigator.of(context).pop({
+                                  'id': 'all',
+                                  'name': 'Broadcast to All Schools',
+                                });
+                              },
+                            );
+                          }
+
+                          // --- 2. School List Item ---
+                          final int listIndex = widget.enableBroadcast
+                              ? index - 1
+                              : index;
+
+                          final school = filteredSchoolDocs[listIndex];
+                          final data = school.data() as Map<String, dynamic>;
+                          final displayName =
+                              data['schoolname']?.toString() ??
+                              'Unnamed School';
+
+                          return _buildSelectionTile(
+                            icon: Icons.school_outlined,
+                            title: displayName,
+                            onTap: () {
+                              Navigator.of(
+                                context,
+                              ).pop({'id': school.id, 'name': displayName});
+                            },
+                          );
                         },
                       );
-                    }
-
-                    // --- 2. School List Item ---
-                    // Adjust index if broadcast is enabled
-                    final int listIndex = widget.enableBroadcast
-                        ? index - 1
-                        : index;
-
-                    final school =
-                        filteredSchoolDocs[listIndex]; // Use filtered list
-                    final data = school.data() as Map<String, dynamic>;
-
-                    // NOTE: Display name will be lowercase unless you apply TitleCase formatting
-                    final displayName =
-                        data['schoolname']?.toString() ?? 'Unnamed School';
-
-                    return _buildSelectionTile(
-                      icon: Icons.school_outlined,
-                      title: displayName,
-                      onTap: () {
-                        Navigator.of(
-                          context,
-                        ).pop({'id': school.id, 'name': displayName});
-                      },
-                    );
-                  },
-                );
-              },
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

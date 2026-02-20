@@ -128,3 +128,16 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+// Workaround for cross-drive build issue with flutter_plugin_android_lifecycle
+subprojects {
+    if (project.name == "flutter_plugin_android_lifecycle") {
+        val userProfile = System.getenv("USERPROFILE")
+        if (userProfile != null) {
+            // Force build directory to C: drive (Temp folder) to avoid cross-drive path issues
+            val newBuildDir = File(userProfile, "AppData/Local/Temp/flutter_build/${project.name}")
+            layout.buildDirectory.set(newBuildDir)
+            println("✅ Redirecting buildDir for ${project.name} to $newBuildDir to fix cross-drive issue")
+        }
+    }
+}
