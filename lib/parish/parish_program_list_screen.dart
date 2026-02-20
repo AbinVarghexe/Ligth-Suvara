@@ -30,6 +30,12 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
           .update({'status': newStatus});
 
       if (mounted) {
+        _showModernSnackBar(
+          message: newStatus == 'approved_parish'
+              ? 'Approved successfully!'
+              : 'Registration rejected',
+          isSuccess: newStatus == 'approved_parish',
+        );
         await _showStatusDialog(
           context: context,
           isSuccess: newStatus == 'approved_parish',
@@ -37,6 +43,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
           message: newStatus == 'approved_parish'
               ? 'Registration has been approved successfully.'
               : 'Registration has been rejected.',
+        );
         );
       }
     } catch (e) {
@@ -99,11 +106,17 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
       await batch.commit();
 
       if (mounted) {
+        _showModernSnackBar(
+          message: 'Program Locked Successfully',
+          isSuccess: true,
+          icon: Icons.lock_outline_rounded,
+        );
         await _showStatusDialog(
           context: context,
           isSuccess: true,
           title: 'Program Locked',
           message: 'The program has been locked successfully for this school.',
+        );
         );
       }
     } catch (e) {
@@ -167,11 +180,17 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
       await batch.commit();
 
       if (mounted) {
+        _showModernSnackBar(
+          message: 'Program Unlocked Successfully',
+          isSuccess: true,
+          icon: Icons.lock_open_rounded,
+        );
         await _showStatusDialog(
           context: context,
           isSuccess: true,
           title: 'Program Unlocked',
           message: 'The program registrations are now unlocked and editable.',
+        );
         );
       }
     } catch (e) {
@@ -186,7 +205,6 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
   void _showEditBottomSheet(String docId, Map<String, dynamic> data) {
     if (_isSaving) return;
     final bool isCountOnly = data['isCountOnly'] == true;
-
     final nameController = TextEditingController(
       text: data['studentName']?.toString() ?? '',
     );
@@ -280,6 +298,8 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                               _showErrorSnackBar('Count is required');
                               return;
                             }
+                              return;
+                            }
 
                             setModalState(() => _isSaving = true);
                             try {
@@ -297,7 +317,11 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                   .doc(docId)
                                   .update(updateData);
                               if (mounted) {
-                                Navigator.pop(ctx);
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                _showModernSnackBar(
+                                  message: 'Registration updated successfully',
+                                  isSuccess: true,
+                                );
                                 await _showStatusDialog(
                                   context: context,
                                   isSuccess: true,
@@ -465,7 +489,6 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
       },
     );
   }
-
   void _showModernSnackBar({
     required String message,
     required bool isSuccess,
@@ -521,7 +544,6 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
   void _showErrorSnackBar(String message) {
     _showModernSnackBar(message: message, isSuccess: false);
   }
-
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(

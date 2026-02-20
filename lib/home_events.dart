@@ -268,6 +268,7 @@ class HomeEventsScreen extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
   }
 

@@ -204,6 +204,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
           });
         }
       }
+      }
 
       await batch.commit();
 
@@ -233,6 +234,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
       }
     }
   }
+
 
   Future<void> _showStatusDialog({
     required BuildContext context,
@@ -314,6 +316,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
       },
     );
   }
+
 
   @override
   void dispose() {
@@ -470,6 +473,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                           : const SizedBox.shrink(),
                     ),
 
+
                     const SizedBox(height: 20),
 
                     // --- SEGMENTED CONTROL TOGGLE ---
@@ -555,9 +559,37 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                             ],
                           ),
                         ],
+
+
+
+
+                    // Add Button
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: _addStudentEntry,
+                        icon: const Icon(
+                          Icons.add_circle_outline_rounded,
+                          size: 24,
+                        ),
+                        label: Text(
+                          'Add Another Student',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          foregroundColor: Colors.blue.shade900,
+                        ),
+
                       ),
                     ),
                     const SizedBox(height: 24),
+
 
                     // --- CONDITIONAL FORM UI ---
                     if (_isCountOnly)
@@ -566,6 +598,8 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                       _buildDetailedEntry(),
 
                     const SizedBox(height: 24),
+
+
 
                     ElevatedButton(
                       onPressed:
@@ -625,6 +659,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
             ),
     );
   }
+
 
   Widget _buildCountOnlyEntry() {
     return Container(

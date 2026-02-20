@@ -71,9 +71,7 @@ class SchoolMyRegistrationsScreen extends StatelessWidget {
             final status = data['status'] as String? ?? 'pending';
 
             final isCountOnly = data['isCountOnly'] == true;
-            final studentCount = isCountOnly
-                ? (data['studentCount'] as int? ?? 1)
-                : 1;
+            final studentCount = isCountOnly ? (data['studentCount'] as int? ?? 1) : 1;
 
             programCounts[pName] = (programCounts[pName] ?? 0) + studentCount;
             programIds[pName] = pId;
@@ -152,9 +150,7 @@ class SchoolMyRegistrationsScreen extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: isLocked
-                                ? Colors.grey.shade100
-                                : Colors.green.shade50,
+                            color: isLocked ? Colors.grey.shade100 : Colors.green.shade50,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -162,9 +158,7 @@ class SchoolMyRegistrationsScreen extends StatelessWidget {
                             style: GoogleFonts.poppins(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: isLocked
-                                  ? Colors.grey.shade600
-                                  : Colors.green.shade700,
+                              color: isLocked ? Colors.grey.shade600 : Colors.green.shade700,
                             ),
                           ),
                         ),
@@ -200,8 +194,7 @@ class SchoolProgramDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<SchoolProgramDetailScreen> createState() =>
-      _SchoolProgramDetailScreenState();
+  State<SchoolProgramDetailScreen> createState() => _SchoolProgramDetailScreenState();
 }
 
 class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
@@ -244,10 +237,7 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
 
     if (confirmed == true) {
       try {
-        await FirebaseFirestore.instance
-            .collection('program_registrations')
-            .doc(docId)
-            .delete();
+        await FirebaseFirestore.instance.collection('program_registrations').doc(docId).delete();
         if (mounted) {
           await _showStatusDialog(
             context: context,
@@ -258,9 +248,7 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("Error deleting: $e")));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error deleting: $e")));
         }
       }
     }
@@ -390,9 +378,7 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         final color = isSuccess ? const Color(0xFF22C55E) : Colors.red;
-        final icon = isSuccess
-            ? Icons.check_circle_rounded
-            : Icons.error_rounded;
+        final icon = isSuccess ? Icons.check_circle_rounded : Icons.error_rounded;
 
         return AlertDialog(
           shape: RoundedRectangleBorder(
@@ -546,13 +532,10 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                         try {
                           final Map<String, dynamic> updateData = {};
                           if (isCountOnly) {
-                            updateData['studentCount'] =
-                                int.tryParse(countController.text) ?? 1;
+                            updateData['studentCount'] = int.tryParse(countController.text) ?? 1;
                           } else {
-                            updateData['studentName'] = nameController.text
-                                .trim();
-                            updateData['studentPhone'] = phoneController.text
-                                .trim();
+                            updateData['studentName'] = nameController.text.trim();
+                            updateData['studentPhone'] = phoneController.text.trim();
                           }
 
                           await FirebaseFirestore.instance
@@ -566,8 +549,7 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                               context: context,
                               isSuccess: true,
                               title: "Updated!",
-                              message:
-                                  "Registration details updated successfully.",
+                              message: "Registration details updated successfully.",
                             );
                           }
                         } catch (e) {
@@ -679,26 +661,18 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(16),
                   leading: CircleAvatar(
-                    backgroundColor: isCountOnly
-                        ? Colors.green.shade50
-                        : Colors.blue.shade50,
+                    backgroundColor: isCountOnly ? Colors.green.shade50 : Colors.blue.shade50,
                     child: Icon(
                       isCountOnly ? Icons.groups_rounded : Icons.person_rounded,
-                      color: isCountOnly
-                          ? Colors.green.shade700
-                          : Colors.blue.shade700,
+                      color: isCountOnly ? Colors.green.shade700 : Colors.blue.shade700,
                     ),
                   ),
                   title: Text(
-                    isCountOnly
-                        ? '$studentCount Students (Count Only)'
-                        : (data['studentName'] ?? 'Unknown'),
+                    isCountOnly ? '$studentCount Students (Count Only)' : (data['studentName'] ?? 'Unknown'),
                     style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    isCountOnly
-                        ? 'No details provided'
-                        : (data['studentPhone'] ?? 'No Phone'),
+                    isCountOnly ? 'No details provided' : (data['studentPhone'] ?? 'No Phone'),
                     style: GoogleFonts.poppins(),
                   ),
                   trailing: widget.isLocked

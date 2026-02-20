@@ -22,7 +22,28 @@ class _AnimatorDashboardScreenState extends State<AnimatorDashboardScreen> {
     final user = _auth.currentUser;
 
     if (user == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.warning_rounded,
+                size: 64,
+                color: Colors.orange.shade700,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Not logged in',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return StreamBuilder<DocumentSnapshot>(
@@ -201,6 +222,7 @@ class _AnimatorDashboardScreenState extends State<AnimatorDashboardScreen> {
                         assignmentMap['parish'] ?? 'Unknown Parish';
                     final String sundaySchool =
                         assignmentMap['schoolname'] ??
+                        assignmentMap['sundaySchool'] ??
                         assignmentMap['name'] ??
                         'Unknown Sunday School';
 

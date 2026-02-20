@@ -8,20 +8,26 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// 2. Load the properties file (Kotlin syntax)
-val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("key.properties") // Corrected path
-
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-}
-
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
-    localProperties.load(FileInputStream(localPropertiesFile))
+    FileInputStream(localPropertiesFile).use { stream ->
+        localProperties.load(stream)
+    }
 }
 
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties") // Corrected path
+if (keystorePropertiesFile.exists()) {
+    FileInputStream(keystorePropertiesFile).use { stream ->
+        keystoreProperties.load(stream)
+    }
+}
+
+val flutterVersionCode =
+    (localProperties.getProperty("flutter.versionCode") ?: "1").toInt()
+val flutterVersionName =
+    localProperties.getProperty("flutter.versionName") ?: "1.0"
 
 android {
     namespace = "in.cse.ajce.sundayschool"
@@ -57,8 +63,8 @@ android {
         applicationId = "in.cse.ajce.sundayschool"
         minSdk = 24
         targetSdk = 35
-        versionCode = localProperties.getProperty("flutter.versionCode")?.toInt() ?: 1
-        versionName = localProperties.getProperty("flutter.versionName") ?: "1.0"
+        versionCode = flutterVersionCode
+        versionName = flutterVersionName
         multiDexEnabled = true
     }
 

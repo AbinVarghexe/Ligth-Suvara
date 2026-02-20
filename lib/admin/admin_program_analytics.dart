@@ -459,15 +459,13 @@ class _AdminProgramAnalyticsState extends State<AdminProgramAnalytics> {
         final school = _topSchools[index];
         final rank = index + 1;
 
-        Color badgeColor;
-        if (rank == 1) {
-          badgeColor = const Color(0xFFFFD700);
-        } else if (rank == 2)
+        } else if (rank == 2) {
           badgeColor = const Color(0xFFC0C0C0);
-        else if (rank == 3)
+        } else if (rank == 3) {
           badgeColor = const Color(0xFFCD7F32);
-        else
+        } else {
           badgeColor = Colors.blue.shade100;
+        }
 
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),

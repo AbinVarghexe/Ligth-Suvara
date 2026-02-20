@@ -174,6 +174,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late AnimationController _fabMenuController; // New controller
   late Animation<double> _headerAnimation;
   late Animation<double> _fabAnimation;
+  late Animation<double> _fabMenuAnimation; // New animation
 
   late Animation<double> _fabMenuAnimation; // New animation
 
@@ -554,6 +555,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 32),
                 _buildRecentEventsSection(),
               ],
+            ),
             ),
           ),
         ],

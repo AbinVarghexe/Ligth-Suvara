@@ -53,7 +53,6 @@ class _AdminProgramManagerState extends State<AdminProgramManager> {
         // Create new
         data['createdAt'] = FieldValue.serverTimestamp();
         await FirebaseFirestore.instance.collection('programs').add(data);
-
         // Notify all schools about the new program
         try {
           await sendNotification(
@@ -153,6 +152,7 @@ class _AdminProgramManagerState extends State<AdminProgramManager> {
                     ),
                     padding: const EdgeInsets.all(32),
                     constraints: const BoxConstraints(maxWidth: 400),
+
                     child: SingleChildScrollView(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,

@@ -275,7 +275,6 @@ class _AdminRegistrationManagerState extends State<AdminRegistrationManager> {
     final schoolName = data['schoolName']?.toString() ?? 'Unknown';
     // final parishId = data['parishUserId']?.toString() ?? 'N/A'; // Removed parish user ID to clean up UI
     final programName = data['programName']?.toString() ?? 'Unknown';
-
     final bool isCountOnly = data['isCountOnly'] == true;
     final studentName = data['studentName'] ?? 'Unknown Student';
     final int studentCount = data['studentCount'] ?? 1;
