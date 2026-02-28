@@ -17,6 +17,7 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController(); // Added phone controller
   final _addressController =
       TextEditingController(); // Added address controller
   bool _isLoading = false;
@@ -58,6 +59,7 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
         final Map<String, dynamic> animatorData = {
           'email': _emailController.text.trim(),
           'name': _nameController.text.trim(),
+          'phoneNumber': _phoneController.text.trim(), // Added phoneNumber
           'role': 'animator',
           'parishId': _selectedParishId,
           'parishName': _selectedParishName,
@@ -214,6 +216,18 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
                         validator: (v) => v == null || !v.contains('@')
                             ? 'Invalid email address'
                             : null,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Phone Number Field (Optional)
+                      TextFormField(
+                        controller: _phoneController,
+                        style: GoogleFonts.inter(),
+                        decoration: _buildInputDecoration(
+                          'Phone Number (Optional)',
+                          Icons.phone_outlined,
+                        ),
+                        keyboardType: TextInputType.phone,
                       ),
                       const SizedBox(height: 20),
 
@@ -433,6 +447,7 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _phoneController.dispose();
     _addressController.dispose();
     super.dispose();
   }

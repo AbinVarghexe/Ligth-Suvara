@@ -4,9 +4,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart'; // Added shimmer
+import 'dart:ui'; // Added Import for BackdropFilter
 import 'package:sundayschool_app/login_screen.dart';
 import 'package:sundayschool_app/event_detail_screen_from_home.dart';
 import 'package:sundayschool_app/parish/parish_program_list_screen.dart';
+import 'package:sundayschool_app/services/notification_service.dart'; // Added Import
+import 'package:sundayschool_app/notification_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:rxdart/rxdart.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ParishDashboardScreen extends StatefulWidget {
   const ParishDashboardScreen({super.key});
@@ -25,16 +31,53 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
   String? _parishName;
   int _selectedIndex = 0; // 0: Events, 1: Registrations
   bool _isLoading = true;
+  bool _isObserverMinimized = false;
+  bool _isObserverCollapsed = false;
 
   // Streams for registrations
   Stream<QuerySnapshot>? _pendingStream;
   Stream<QuerySnapshot>? _approvedStream;
+
+  // Streams for notifications
+  Stream<QuerySnapshot>? _userNotificationsStream;
+  Stream<QuerySnapshot>? _broadcastsStream;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _initializeData();
+    _loadObserverPreference();
+  }
+
+  Future<void> _loadObserverPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _isObserverMinimized =
+            prefs.getBool('observer_minimized_parish') ?? false;
+        _isObserverCollapsed =
+            prefs.getBool('observer_collapsed_parish') ?? false;
+      });
+    }
+  }
+
+  Future<void> _toggleObserverMinimized() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isObserverMinimized = !_isObserverMinimized;
+      prefs.setBool('observer_minimized_parish', _isObserverMinimized);
+    });
+    HapticFeedback.mediumImpact();
+  }
+
+  Future<void> _toggleObserverCollapsed() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isObserverCollapsed = !_isObserverCollapsed;
+      prefs.setBool('observer_collapsed_parish', _isObserverCollapsed);
+    });
+    HapticFeedback.mediumImpact();
   }
 
   @override
@@ -76,6 +119,27 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                   ) // Include locked
                   .snapshots();
             });
+
+            // Subscribe to linked school notifications
+            NotificationService().subscribeToUserTopic(schoolId);
+            NotificationService().subscribeToRoleTopic('school');
+
+            // Setup notification streams
+            _userNotificationsStream = FirebaseFirestore.instance
+                .collection('notifications')
+                .where(
+                  'recipientId',
+                  whereIn: [
+                    user.uid,
+                    schoolId,
+                    'school_$schoolId',
+                    'role_school',
+                  ],
+                )
+                .snapshots();
+            _broadcastsStream = FirebaseFirestore.instance
+                .collection('broadcasts')
+                .snapshots();
           } else {
             debugPrint("Parish User has no linked schoolId.");
           }
@@ -101,6 +165,13 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
 
   Future<void> _logout() async {
     HapticFeedback.mediumImpact();
+
+    // Unsubscribe from school notifications before logging out
+    if (_linkedSchoolId != null) {
+      NotificationService().unsubscribeFromUserTopic(_linkedSchoolId!);
+      NotificationService().unsubscribeFromRoleTopic('school');
+    }
+
     await _auth.signOut();
     if (mounted) {
       Navigator.of(context).pushReplacement(
@@ -162,45 +233,101 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text(
-          _selectedIndex == 0
-              ? (_parishName ?? 'Parish Dashboard')
-              : 'Registrations',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            color: Colors.blue.shade900,
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _selectedIndex,
+            children: [_buildSchoolEventsView(), _buildRegistrationsView()],
+          ),
+          if (_selectedIndex == 0 && _isObserverMinimized)
+            _buildFloatingObserverButton(),
+        ],
+      ),
+      extendBody: true, // Needed for floating nav bar to overlay body
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.shade900.withOpacity(0.15),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+                spreadRadius: 2,
+              ),
+            ],
+            // Outer border for the glass effect
+            border: Border.all(
+              color: Colors.white.withOpacity(0.5),
+              width: 1.5,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(30),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: Container(
+                color: Colors.white.withOpacity(0.8), // Semi-transparent white
+                child: BottomNavigationBar(
+                  currentIndex: _selectedIndex,
+                  onTap: _onItemTapped,
+                  selectedItemColor: Colors.blue.shade900,
+                  unselectedItemColor: Colors.grey.shade600,
+                  selectedLabelStyle: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                  unselectedLabelStyle: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                  ),
+                  type: BottomNavigationBarType.fixed,
+                  backgroundColor: Colors.transparent, // Very important
+                  elevation: 0,
+                  items: const [
+                    BottomNavigationBarItem(
+                      icon: Padding(
+                        padding: EdgeInsets.only(bottom: 4.0),
+                        child: Icon(Icons.calendar_today_rounded),
+                      ),
+                      activeIcon: Padding(
+                        padding: EdgeInsets.only(bottom: 4.0),
+                        child: Icon(Icons.calendar_month_rounded),
+                      ),
+                      label: 'School Events',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Padding(
+                        padding: EdgeInsets.only(bottom: 4.0),
+                        child: Icon(Icons.assignment_outlined),
+                      ),
+                      activeIcon: Padding(
+                        padding: EdgeInsets.only(bottom: 4.0),
+                        child: Icon(Icons.assignment_rounded),
+                      ),
+                      label: 'Approvals',
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.logout_rounded, color: Colors.blue.shade900),
-            onPressed: _logout,
-          ),
-        ],
-        bottom: _selectedIndex == 1
-            ? TabBar(
-                controller: _tabController,
-                labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-                labelColor: Colors.blue.shade900,
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: Colors.blue.shade900,
-                indicatorWeight: 3,
-                tabs: const [
-                  Tab(text: 'Pending'),
-                  Tab(text: 'Approved'),
-                ],
-              )
-            : null,
       ),
-      body: _selectedIndex == 0
-          ? _buildSchoolEventsView()
-          : TabBarView(
+    );
+  }
+
+  Widget _buildRegistrationsView() {
+    return SafeArea(
+      child: Column(
+        children: [
+          _buildModernHeader(title: 'Registrations'),
+          const SizedBox(height: 16),
+          _buildSegmentedControl(),
+          const SizedBox(height: 16),
+          Expanded(
+            child: TabBarView(
               controller: _tabController,
               children: [
                 _buildProgramGroups(_pendingStream, ['pending_parish']),
@@ -210,41 +337,250 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                 ]),
               ],
             ),
-      bottomNavigationBar: Container(
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSegmentedControl() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        height: 50,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.grey.shade600,
+          labelStyle: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+          unselectedLabelStyle: GoogleFonts.poppins(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+          indicator: BoxDecoration(
+            color: Colors.blue.shade900,
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.shade900.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          indicatorSize: TabBarIndicatorSize.tab,
+          dividerColor: Colors.transparent, // Remove default underline
+          tabs: const [
+            Tab(text: 'Pending'),
+            Tab(text: 'Approved'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernHeader({required String title, String? subtitle}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (subtitle != null)
+                  Text(
+                    subtitle,
+                    style:
+                        GoogleFonts.poppins(
+                          color: Colors.blue.shade900,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          letterSpacing: 1.1,
+                        ).copyWith(
+                          foreground: Paint()
+                            ..shader =
+                                LinearGradient(
+                                  colors: [
+                                    Colors.blue.shade900,
+                                    Colors.blue.shade600,
+                                  ],
+                                ).createShader(
+                                  const Rect.fromLTWH(0.0, 0.0, 200.0, 70.0),
+                                ),
+                        ),
+                  ),
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black87,
+                    height: 1.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Row(
+            children: [
+              _buildNotificationBell(),
+              const SizedBox(width: 12),
+              _buildProfileIcon(),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationBell() {
+    return StreamBuilder<QuerySnapshot>(
+      stream:
+          _userNotificationsStream ??
+          FirebaseFirestore.instance
+              .collection('notifications')
+              .where(
+                'recipientId',
+                isEqualTo: _auth.currentUser?.uid ?? 'INVALID',
+              )
+              .snapshots(),
+      builder: (context, notifSnapshot) {
+        return StreamBuilder<QuerySnapshot>(
+          stream:
+              _broadcastsStream ??
+              FirebaseFirestore.instance.collection('broadcasts').snapshots(),
+          builder: (context, broadSnapshot) {
+            int unreadCount = 0;
+            if (notifSnapshot.hasData && broadSnapshot.hasData) {
+              final user = _auth.currentUser;
+              if (user != null) {
+                final allDocs = [
+                  ...notifSnapshot.data!.docs,
+                  ...broadSnapshot.data!.docs,
+                ];
+                unreadCount = allDocs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>?;
+                  final readBy = data?['readBy'] as List<dynamic>? ?? [];
+                  return !readBy.contains(user.uid);
+                }).length;
+              }
+            }
+
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.shade900.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.notifications_outlined,
+                      color: Colors.blue.shade900,
+                    ),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                if (unreadCount > 0)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade600,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withOpacity(0.4),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 20,
+                        minHeight: 20,
+                      ),
+                      child: Text(
+                        unreadCount > 9 ? '9+' : '$unreadCount',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildProfileIcon() {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        // Since there is no profile screen directly applicable here yet,
+        // we map it to quick logout for the moment. Will refine later if needed.
+        _logout();
+      },
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [Colors.blue.shade700, Colors.blue.shade900],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
+              color: Colors.blue.shade900.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          selectedItemColor: Colors.blue.shade900,
-          unselectedItemColor: Colors.grey.shade400,
-          selectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-          unselectedLabelStyle: GoogleFonts.poppins(
-            fontWeight: FontWeight.w500,
-          ),
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today_rounded),
-              activeIcon: Icon(Icons.calendar_month_rounded),
-              label: 'School Events',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.assignment_outlined),
-              activeIcon: Icon(Icons.assignment_rounded),
-              label: 'Approvals',
-            ),
-          ],
+        child: const Icon(
+          Icons
+              .logout_rounded, // Assuming Logout represents profile action for Parish
+          color: Colors.white,
+          size: 20,
         ),
       ),
     );
@@ -299,280 +635,842 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
   }
 
   Widget _buildSchoolEventsView() {
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 20),
-            child: _buildHighlightSection(),
+    return SafeArea(
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: _buildModernHeader(title: _parishName ?? 'Dashboard'),
           ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
-          sliver: SliverToBoxAdapter(
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.blue.shade700, Colors.blue.shade900],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.shade900.withAlpha(77),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.event_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Recent Events',
-                  style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade900,
-                  ),
-                ),
-              ],
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 24),
+              child: _buildHighlightSection(),
             ),
           ),
-        ),
-        StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('events')
-              .where('creatorId', isEqualTo: _linkedSchoolId)
-              .orderBy('timestamp', descending: true)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return SliverFillRemaining(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.event_busy_rounded,
-                          size: 64,
-                          color: Colors.blue.shade900,
-                        ),
+          if (!_isObserverMinimized) ...[
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            SliverToBoxAdapter(child: _buildObserverSection()),
+          ],
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
+            sliver: SliverToBoxAdapter(
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.blue.shade700, Colors.blue.shade900],
                       ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'No events found',
-                        style: GoogleFonts.poppins(
-                          color: Colors.blue.shade900,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.shade900.withAlpha(77),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.event_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
-                ),
-              );
-            }
-
-            final docs = snapshot.data!.docs;
-
-            return SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final data = docs[index].data() as Map<String, dynamic>;
-                  final String eventId = docs[index].id;
-
-                  return TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    duration: Duration(milliseconds: 300 + (index * 100)),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, value, child) {
-                      return Opacity(
-                        opacity: value,
-                        child: Transform.translate(
-                          offset: Offset(0, 30 * (1 - value)),
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.blue.shade900.withAlpha(26),
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha(13),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Recent Events',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('events')
+                .where('creatorId', isEqualTo: _linkedSchoolId)
+                .where('isPublic', isEqualTo: true)
+                .orderBy('timestamp', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            shape: BoxShape.circle,
                           ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
+                          child: Icon(
+                            Icons.event_busy_rounded,
+                            size: 64,
+                            color: Colors.blue.shade900,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'No events found',
+                          style: GoogleFonts.poppins(
+                            color: Colors.blue.shade900,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final docs = snapshot.data!.docs;
+
+              return SliverPadding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 0,
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final data = docs[index].data() as Map<String, dynamic>;
+                    final String eventId = docs[index].id;
+
+                    return TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: Duration(milliseconds: 300 + (index * 100)),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, child) {
+                        return Opacity(
+                          opacity: value,
+                          child: Transform.translate(
+                            offset: Offset(0, 30 * (1 - value)),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    EventDetailScreenFromHome(eventId: eventId),
-                              ),
-                            );
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                Hero(
-                                  tag: 'event_$eventId',
-                                  child: Container(
-                                    width: 80,
-                                    height: 80,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          Colors.blue.shade100,
-                                          Colors.blue.shade200,
+                          border: Border.all(
+                            color: Colors.blue.shade900.withAlpha(26),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(13),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(20),
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      EventDetailScreenFromHome(
+                                        eventId: eventId,
+                                      ),
+                                ),
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  Hero(
+                                    tag: 'event_$eventId',
+                                    child: Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(16),
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.blue.shade100,
+                                            Colors.blue.shade200,
+                                          ],
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.blue.shade900
+                                                .withAlpha(51),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
                                         ],
                                       ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.blue.shade900.withAlpha(
-                                            51,
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(16),
+                                        child: data['imageUrl'] != null
+                                            ? Image.network(
+                                                data['imageUrl'],
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (ctx, err, st) =>
+                                                    Icon(
+                                                      Icons.image_rounded,
+                                                      color:
+                                                          Colors.blue.shade900,
+                                                      size: 32,
+                                                    ),
+                                              )
+                                            : Icon(
+                                                Icons.image_rounded,
+                                                color: Colors.blue.shade900,
+                                                size: 32,
+                                              ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          data['title'] ?? 'Untitled Event',
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: Colors.blue.shade900,
                                           ),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 4),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.location_on_outlined,
+                                              size: 14,
+                                              color: Colors.grey.shade400,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                              child: Text(
+                                                data['place'] ??
+                                                    'Unknown location',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 13,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.access_time_rounded,
+                                              size: 14,
+                                              color: Colors.grey.shade400,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              _formatEventTime(
+                                                data['timestamp'] as Timestamp?,
+                                              ),
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 11,
+                                                color: Colors.grey.shade500,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(16),
-                                      child: data['imageUrl'] != null
-                                          ? Image.network(
-                                              data['imageUrl'],
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (ctx, err, st) =>
-                                                  Icon(
-                                                    Icons.image_rounded,
-                                                    color: Colors.blue.shade900,
-                                                    size: 32,
-                                                  ),
-                                            )
-                                          : Icon(
-                                              Icons.image_rounded,
-                                              color: Colors.blue.shade900,
-                                              size: 32,
-                                            ),
+                                  ),
+                                  Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    color: Colors.blue.shade900.withOpacity(
+                                      0.5,
                                     ),
+                                    size: 16,
                                   ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        data['title'] ?? 'Untitled Event',
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: Colors.blue.shade900,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.location_on_outlined,
-                                            size: 14,
-                                            color: Colors.grey.shade400,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              data['place'] ??
-                                                  'Unknown location',
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 13,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.access_time_rounded,
-                                            size: 14,
-                                            color: Colors.grey.shade400,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            _formatEventTime(
-                                              data['timestamp'] as Timestamp?,
-                                            ),
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 11,
-                                              color: Colors.grey.shade500,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  color: Colors.blue.shade900.withOpacity(0.5),
-                                  size: 16,
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
+                    );
+                  }, childCount: docs.length),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildObserverSection() {
+    return StreamBuilder<List<QuerySnapshot>>(
+      stream: CombineLatestStream.list([
+        FirebaseFirestore.instance
+            .collection('assignments')
+            .where('type', isEqualTo: 'Observer')
+            .snapshots(),
+        FirebaseFirestore.instance
+            .collection('settings')
+            .doc('observer_dates')
+            .collection('years')
+            .snapshots(),
+      ]),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+
+        final assignmentsData = snapshot.data![0];
+        final settingsData = snapshot.data![1];
+
+        if (assignmentsData.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final now = DateTime.now();
+        final todayMidnight = DateTime(now.year, now.month, now.day);
+
+        final Map<String, DateTime> expirationDates = {};
+        for (var doc in settingsData.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['expirationDate'] != null) {
+            expirationDates[doc.id] = (data['expirationDate'] as Timestamp)
+                .toDate();
+          }
+        }
+
+        bool isExpired(String? academicYear) {
+          if (academicYear == null ||
+              !expirationDates.containsKey(academicYear))
+            return false;
+          return expirationDates[academicYear]!.isBefore(todayMidnight);
+        }
+
+        final incoming = assignmentsData.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['targetSchoolId'] != _linkedSchoolId) return false;
+          if (isExpired(data['academicYear'])) return false;
+          return true;
+        }).toList();
+
+        final outgoing = assignmentsData.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['sourceSchoolId'] != _linkedSchoolId) return false;
+          if (isExpired(data['academicYear'])) return false;
+          return true;
+        }).toList();
+
+        if (incoming.isEmpty && outgoing.isEmpty)
+          return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.indigo.shade400,
+                                Colors.indigo.shade600,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.indigo.shade400.withAlpha(77),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.assignment_ind_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: Text(
+                            'Observer Assignments',
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade900,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
-                  );
-                }, childCount: docs.length),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: _toggleObserverCollapsed,
+                        icon: AnimatedRotation(
+                          turns: _isObserverCollapsed ? 0 : 0.5,
+                          duration: const Duration(milliseconds: 300),
+                          child: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: Colors.grey.shade400,
+                            size: 24,
+                          ),
+                        ),
+                        tooltip: _isObserverCollapsed ? 'Expand' : 'Collapse',
+                      ),
+                      IconButton(
+                        onPressed: _toggleObserverMinimized,
+                        icon: Icon(
+                          Icons.close_fullscreen_rounded,
+                          color: Colors.grey.shade400,
+                          size: 20,
+                        ),
+                        tooltip: 'Minimize to floating button',
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            );
-          },
+              AnimatedCrossFade(
+                firstChild: const SizedBox.shrink(),
+                secondChild: Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    if (incoming.isNotEmpty)
+                      _buildObserverCard(
+                        title: 'Incoming Observer (at your school)',
+                        observerName:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['teacherName'] ??
+                            'Unknown',
+                        schoolName:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['sourceSchoolName'] ??
+                            'Unknown',
+                        isIncoming: true,
+                        phone:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['teacherPhone'],
+                      ),
+                    if (incoming.isNotEmpty && outgoing.isNotEmpty)
+                      const SizedBox(height: 12),
+                    if (outgoing.isNotEmpty)
+                      ...outgoing.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildObserverCard(
+                            title: 'Outgoing Observer (from your school)',
+                            observerName: data['teacherName'] ?? 'Unknown',
+                            schoolName: data['targetSchoolName'] ?? 'Unknown',
+                            isIncoming: false,
+                            phone: data['teacherPhone'],
+                          ),
+                        );
+                      }),
+                  ],
+                ),
+                crossFadeState: _isObserverCollapsed
+                    ? CrossFadeState.showFirst
+                    : CrossFadeState.showSecond,
+                duration: const Duration(milliseconds: 300),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFloatingObserverButton() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('assignments')
+          .where('type', isEqualTo: 'Observer')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final incoming = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['targetSchoolId'] != _linkedSchoolId) return false;
+          return true;
+        }).toList();
+
+        final outgoing = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['sourceSchoolId'] != _linkedSchoolId) return false;
+          return true;
+        }).toList();
+
+        if (incoming.isEmpty && outgoing.isEmpty)
+          return const SizedBox.shrink();
+
+        return Positioned(
+          right: 20,
+          bottom: 110, // Above the floating bottom nav
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.elasticOut,
+            builder: (context, value, child) {
+              return Transform.scale(scale: value, child: child);
+            },
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                _showObserverDetailsModal(incoming, outgoing);
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.indigo.shade900.withValues(
+                              alpha: 0.8,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.assignment_ind_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Observers',
+                          style: GoogleFonts.poppins(
+                            color: Colors.indigo.shade900,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showObserverDetailsModal(
+    List<DocumentSnapshot> incoming,
+    List<DocumentSnapshot> outgoing,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.9),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(30),
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.5),
+                width: 1.5,
+              ),
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.assignment_ind_rounded,
+                          color: Colors.indigo.shade900,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Observer Details',
+                            style: GoogleFonts.poppins(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo.shade900,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _toggleObserverMinimized();
+                          },
+                          icon: const Icon(
+                            Icons.open_in_full_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            'Expand',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.indigo.shade700,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    if (incoming.isNotEmpty) ...[
+                      _buildObserverCard(
+                        title: 'Incoming Observer',
+                        observerName:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['teacherName'] ??
+                            'Unknown',
+                        schoolName:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['sourceSchoolName'] ??
+                            'Unknown',
+                        isIncoming: true,
+                        phone:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['teacherPhone'],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    if (outgoing.isNotEmpty)
+                      ...outgoing.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildObserverCard(
+                            title: 'Outgoing Observer',
+                            observerName: data['teacherName'] ?? 'Unknown',
+                            schoolName: data['targetSchoolName'] ?? 'Unknown',
+                            isIncoming: false,
+                            phone: data['teacherPhone'],
+                          ),
+                        );
+                      }).toList(),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildObserverCard({
+    required String title,
+    required String observerName,
+    required String schoolName,
+    required bool isIncoming,
+    String? phone,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isIncoming ? Colors.indigo.shade100 : Colors.orange.shade100,
+          width: 1.5,
         ),
-      ],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isIncoming ? Colors.indigo.shade50 : Colors.orange.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isIncoming ? Icons.login_rounded : Icons.logout_rounded,
+              color: isIncoming
+                  ? Colors.indigo.shade700
+                  : Colors.orange.shade700,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  observerName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade900,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  isIncoming ? 'From: $schoolName' : 'Going to: $schoolName',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey.shade500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (phone != null && phone.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.phone,
+                          size: 14,
+                          color: Colors.grey.shade500,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            phone,
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: Colors.grey.shade500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (phone != null && phone.isNotEmpty)
+            IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.call, color: Colors.green.shade700, size: 20),
+              ),
+              onPressed: () async {
+                final url = Uri.parse('tel:$phone');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url);
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Could not launch dialer')),
+                    );
+                  }
+                }
+              },
+            ),
+        ],
+      ),
     );
   }
 
@@ -603,24 +1501,50 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: Colors.white,
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.shade900.withValues(alpha: 0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                    border: Border.all(
+                      color: Colors.blue.shade50.withValues(alpha: 0.8),
+                      width: 2,
+                    ),
                   ),
                   child: Icon(
-                    Icons.inbox_outlined,
-                    size: 48,
-                    color: Colors.grey.shade400,
+                    Icons.inbox_rounded,
+                    size: 56,
+                    color: Colors.blue.shade400,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 Text(
                   statuses.contains('pending_parish')
-                      ? 'No pending approvals'
+                      ? 'All caught up!'
                       : 'No approved registrations',
-                  style: GoogleFonts.poppins(color: Colors.grey.shade500),
+                  style: GoogleFonts.poppins(
+                    color: Colors.blue.shade900,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
                 ),
+                if (statuses.contains('pending_parish')) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'There are no pending approvals right now.',
+                    style: GoogleFonts.poppins(
+                      color: Colors.grey.shade500,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ],
             ),
           );
@@ -666,25 +1590,26 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                 );
               },
               child: Container(
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.blue.shade50.withValues(alpha: 0.5),
+                    width: 1.5,
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.08),
-                      blurRadius: 15,
-                      offset: const Offset(0, 4),
+                      color: Colors.blue.shade900.withValues(alpha: 0.04),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
                 child: Material(
                   color: Colors.transparent,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
-                    ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
                     onTap: () {
                       HapticFeedback.lightImpact();
                       Navigator.push(
@@ -698,46 +1623,62 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                         ),
                       );
                     },
-                    leading: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.blue.shade50,
-                            Colors.blue.shade100.withOpacity(0.5),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
                       ),
-                      child: Icon(
-                        Icons.school_rounded,
-                        color: Colors.blue.shade900,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.blue.shade50,
+                                  Colors.blue.shade100.withValues(alpha: 0.5),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.school_rounded,
+                              color: Colors.blue.shade900,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  programName,
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.blue.shade900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '$count Student${count == 1 ? '' : 's'}',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 16,
+                            color: Colors.blue.shade900.withValues(alpha: 0.5),
+                          ),
+                        ],
                       ),
-                    ),
-                    title: Text(
-                      programName,
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.blue.shade900,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '$count Student${count == 1 ? '' : 's'}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    trailing: Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 16,
-                      color: Colors.blue.shade900.withOpacity(0.5),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                 ),
@@ -763,6 +1704,7 @@ class HighlightEventCard extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('events')
           .where('creatorId', isEqualTo: schoolId)
+          .where('isPublic', isEqualTo: true)
           .orderBy('timestamp', descending: true)
           .limit(1)
           .snapshots(),

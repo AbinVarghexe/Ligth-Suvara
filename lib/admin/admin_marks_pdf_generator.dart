@@ -4,47 +4,180 @@ import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
 class AdminMarksPdfGenerator {
+  static String _intToRoman(int number) {
+    if (number <= 0) return number.toString();
+    final Map<int, String> romanMap = {
+      1000: 'M',
+      900: 'CM',
+      500: 'D',
+      400: 'CD',
+      100: 'C',
+      90: 'XC',
+      50: 'L',
+      40: 'XL',
+      10: 'X',
+      9: 'IX',
+      5: 'V',
+      4: 'IV',
+      1: 'I',
+    };
+    String result = '';
+    romanMap.forEach((key, value) {
+      while (number >= key) {
+        result += value;
+        number -= key;
+      }
+    });
+    return result;
+  }
+
   static Future<void> generateAndOpen({
     required String parish,
     required String sundaySchool,
     required String animatorName,
     required String year,
     required Map<String, dynamic> marks,
+    required Map<String, dynamic> textValues,
     required String remarks,
     required Map<String, String> questionMap,
-    required Map<String, int> maxMarkMap,
+    required Map<String, int?> maxMarkMap,
+    required Map<String, String> partMap,
+    required Map<String, String> partTitleMap,
     required List<String> sortedQuestionIds,
   }) async {
     // 1. Calculate scores and prepare table rows
     int totalScore = 0;
     int maxTotalScore = 0;
+    bool hasUnlimited = false;
 
     // Build table rows HTML
     StringBuffer rowsBuffer = StringBuffer();
     int index = 1;
+    String currentPart = '';
 
-    for (String key in sortedQuestionIds) {
-      if (!marks.containsKey(key)) continue;
+    final mainQuestionIds = sortedQuestionIds
+        .where((q) => !q.contains('_sub_'))
+        .toList();
 
-      final String questionText = questionMap[key] ?? 'Unknown Question ($key)';
-      final int maxMark = maxMarkMap[key] ?? 10;
-      final dynamic rawValue = marks[key];
+    for (String mainKey in mainQuestionIds) {
+      final String part = partMap[mainKey] ?? '';
+      final String partTitle = partTitleMap[mainKey] ?? '';
 
-      final int awardedMark = rawValue is int
-          ? rawValue
-          : int.tryParse(rawValue?.toString() ?? '0') ?? 0;
+      if (part.isNotEmpty && part != currentPart) {
+        currentPart = part;
+        index = 1; // Reset numbering for new part
 
-      totalScore += awardedMark;
-      maxTotalScore += maxMark;
+        // Convert the part string to a Roman numeral if it's a valid integer
+        final int? parsedPart = int.tryParse(part);
+        final String formattedPart = parsedPart != null
+            ? _intToRoman(parsedPart)
+            : part;
 
-      rowsBuffer.writeln('''
-        <tr>
-          <td style="text-align: center;">$index</td>
-          <td>$questionText</td>
-          <td style="text-align: center;">$maxMark</td>
-          <td style="text-align: center;">$awardedMark</td>
-        </tr>
-      ''');
+        final String displayTitle = partTitle.isNotEmpty
+            ? '$formattedPart. $partTitle'
+            : formattedPart;
+        rowsBuffer.writeln('''
+          <tr>
+            <td colspan="4" style="background-color: #f0f0f0; font-weight: bold; padding: 10px; text-align: left;">
+              $displayTitle
+            </td>
+          </tr>
+        ''');
+      }
+      final String questionText =
+          questionMap[mainKey] ?? 'Unknown Question ($mainKey)';
+      final int? maxMark = maxMarkMap[mainKey];
+      final String maxMarkStr = maxMark != null ? maxMark.toString() : '';
+
+      final subQIds = sortedQuestionIds
+          .where((k) => k.startsWith('${mainKey}_sub_'))
+          .toList();
+
+      if (subQIds.isEmpty) {
+        final dynamic rawValue = marks[mainKey];
+        if (rawValue == null) continue; // Skip unanswered questions
+
+        final int awardedMark = rawValue is int
+            ? rawValue
+            : int.tryParse(rawValue?.toString() ?? '0') ?? 0;
+        totalScore += awardedMark;
+        if (maxMark != null) {
+          maxTotalScore += maxMark;
+        } else {
+          hasUnlimited = true;
+        }
+
+        rowsBuffer.writeln('''
+          <tr>
+            <td style="text-align: center;">$index</td>
+            <td>$questionText</td>
+            <td style="text-align: center;">$maxMarkStr</td>
+            <td style="text-align: center;">$awardedMark</td>
+          </tr>
+        ''');
+      } else {
+        // Main question with sub-fields
+        final answeredSubKeys = subQIds.where((subKey) {
+          final mark = marks[subKey];
+          final textVal = textValues[subKey];
+
+          // Strict check: mark must be a non-null number
+          bool hasMark = mark != null && (mark is int || mark is double);
+          // Text must have content after trimming
+          bool hasText =
+              textVal != null && textVal.toString().trim().isNotEmpty;
+
+          return hasMark || hasText;
+        }).toList();
+
+        if (answeredSubKeys.isEmpty)
+          continue; // Skip main question if all subfields are unanswered
+
+        rowsBuffer.writeln('''
+          <tr>
+            <td style="text-align: center;">$index</td>
+            <td colspan="3" style="font-weight: bold;">$questionText</td>
+          </tr>
+        ''');
+
+        for (String subKey in answeredSubKeys) {
+          final String subText = questionMap[subKey] ?? '';
+          final int? subMaxMark = maxMarkMap[subKey];
+          final String subMaxMarkStr = subMaxMark != null
+              ? subMaxMark.toString()
+              : '';
+
+          final textVal = textValues[subKey];
+          final String displaySubText =
+              textVal != null && textVal.toString().isNotEmpty
+              ? '$subText - <i>${textVal.toString()}</i>'
+              : subText;
+
+          final dynamic rawValue = marks[subKey];
+          final String awardedStr = rawValue != null
+              ? rawValue.toString()
+              : '-';
+          final int awardedMark = rawValue is int
+              ? rawValue
+              : int.tryParse(rawValue?.toString() ?? '0') ?? 0;
+
+          totalScore += awardedMark;
+          if (subMaxMark != null) {
+            maxTotalScore += subMaxMark;
+          } else {
+            hasUnlimited = true;
+          }
+
+          rowsBuffer.writeln('''
+            <tr>
+              <td></td>
+              <td style="padding-left: 20px;">$displaySubText</td>
+              <td style="text-align: center;">$subMaxMarkStr</td>
+              <td style="text-align: center;">$awardedStr</td>
+            </tr>
+          ''');
+        }
+      }
       index++;
     }
 
@@ -197,7 +330,7 @@ class AdminMarksPdfGenerator {
 
       <div class="score-box">
         <span class="score-label">Total Score</span>
-        <span class="score-value">$totalScore / $maxTotalScore</span>
+        <span class="score-value">$totalScore</span>
       </div>
 
       <table class="marks-table">

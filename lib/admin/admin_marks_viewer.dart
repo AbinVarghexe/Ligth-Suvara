@@ -15,9 +15,10 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String _selectedYear = DateTime.now().year.toString();
 
-  // Maps to store Question ID -> Question Text / Max Mark
   Map<String, String> _questionMap = {};
-  Map<String, int> _maxMarkMap = {};
+  Map<String, int?> _maxMarkMap = {};
+  Map<String, String> _partMap = {};
+  Map<String, String> _partTitleMap = {};
   bool _isLoadingQuestions = true;
 
   @override
@@ -33,18 +34,38 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
           .orderBy('order')
           .get();
       final qMap = <String, String>{};
-      final mMap = <String, int>{};
+      final mMap = <String, int?>{};
+      final pMap = <String, String>{};
+      final pTMap = <String, String>{};
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
         qMap[doc.id] = data['text'] ?? 'Unknown Question';
-        mMap[doc.id] = data['maxMark'] ?? 10;
+        mMap[doc.id] = data['maxMark'];
+        pMap[doc.id] = data['part']?.toString() ?? '';
+        pTMap[doc.id] = data['partTitle']?.toString() ?? '';
+
+        if (data['subFields'] != null && data['subFields'] is List) {
+          final List subFields = data['subFields'] as List;
+          for (int i = 0; i < subFields.length; i++) {
+            final Map<String, dynamic> subFieldData =
+                subFields[i] as Map<String, dynamic>;
+            final subId = '${doc.id}_sub_$i';
+            qMap[subId] = subFieldData['text'] ?? 'Unknown Sub-field';
+            mMap[subId] = subFieldData['maxMark'];
+            // Sub-fields inherit parent's part data for seamless grouping
+            pMap[subId] = data['part']?.toString() ?? '';
+            pTMap[subId] = data['partTitle']?.toString() ?? '';
+          }
+        }
       }
 
       if (mounted) {
         setState(() {
           _questionMap = qMap;
           _maxMarkMap = mMap;
+          _partMap = pMap;
+          _partTitleMap = pTMap;
           _isLoadingQuestions = false;
         });
       }
@@ -201,6 +222,8 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
                         data['animatorName'] ?? 'Unknown Animator';
 
                     final marks = data['marks'] as Map<String, dynamic>? ?? {};
+                    final textValues =
+                        data['textValues'] as Map<String, dynamic>? ?? {};
                     final totalMarks = marks.values.fold(
                       0,
                       (sum, val) => sum + (val as int),
@@ -223,6 +246,7 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
                             unitId,
                             animatorName,
                             marks,
+                            textValues,
                             data['remarks'] as String? ?? '',
                             pdfUrl,
                           );
@@ -361,6 +385,7 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
     String unitId,
     String animatorName,
     Map<String, dynamic> marks,
+    Map<String, dynamic> textValues,
     String remarks,
     String? pdfUrl,
   ) {
@@ -411,29 +436,118 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
                 ),
               ),
               const SizedBox(height: 16),
-              ...marks.entries.map((e) {
-                final qText =
-                    _questionMap[e.key] ?? 'Unknown Question (${e.key})';
-                final maxMark = _maxMarkMap[e.key] ?? 10;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          qText,
-                          style: GoogleFonts.inter(color: Colors.grey.shade700),
+              ..._questionMap.keys.where((k) => !k.contains('_sub_')).map((
+                mainKey,
+              ) {
+                final mainText = _questionMap[mainKey] ?? 'Unknown Question';
+                final subKeys = _questionMap.keys
+                    .where((k) => k.startsWith('${mainKey}_sub_'))
+                    .toList();
+
+                if (subKeys.isEmpty) {
+                  final mark = marks[mainKey];
+                  if (mark == null)
+                    return const SizedBox.shrink(); // Only show answered
+                  final maxMark = _maxMarkMap[mainKey];
+                  final maxMarkStr = maxMark != null
+                      ? maxMark.toString()
+                      : 'Unlimited';
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            mainText,
+                            style: GoogleFonts.inter(
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${e.value} / $maxMark',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                );
+                        const SizedBox(width: 8),
+                        Text(
+                          '${mark} / $maxMarkStr',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  );
+                } else {
+                  final answeredSubKeys = subKeys.where((subKey) {
+                    final mark = marks[subKey];
+                    final textVal = textValues[subKey];
+
+                    // Strict check: mark must be a non-null number
+                    bool hasMark =
+                        mark != null && (mark is int || mark is double);
+                    // Text must have content after trimming
+                    bool hasText =
+                        textVal != null && textVal.toString().trim().isNotEmpty;
+
+                    return hasMark || hasText;
+                  }).toList();
+
+                  if (answeredSubKeys.isEmpty) return const SizedBox.shrink();
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          mainText,
+                          style: GoogleFonts.inter(
+                            color: Colors.grey.shade900,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        ...answeredSubKeys.map((subKey) {
+                          final subText = _questionMap[subKey] ?? '';
+                          final textVal = textValues[subKey];
+                          final displaySubText =
+                              textVal != null && textVal.toString().isNotEmpty
+                              ? '$subText: ${textVal.toString()}'
+                              : subText;
+
+                          final mark = marks[subKey];
+                          final maxMark = _maxMarkMap[subKey];
+                          final maxMarkStr = maxMark != null
+                              ? maxMark.toString()
+                              : 'Unlimited';
+
+                          return Padding(
+                            padding: const EdgeInsets.only(
+                              left: 16.0,
+                              bottom: 4.0,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    displaySubText,
+                                    style: GoogleFonts.inter(
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${mark ?? '-'} / $maxMarkStr',
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  );
+                }
               }),
 
               if (remarks.isNotEmpty) ...[
@@ -547,9 +661,12 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
                 animatorName: animatorName,
                 year: _selectedYear,
                 marks: marks,
+                textValues: textValues,
                 remarks: remarks,
                 questionMap: _questionMap,
                 maxMarkMap: _maxMarkMap,
+                partMap: _partMap,
+                partTitleMap: _partTitleMap,
                 sortedQuestionIds: _questionMap.keys.toList(),
               );
             },

@@ -2,6 +2,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -130,12 +133,37 @@ class NotificationService {
     RemoteNotification? notification = message.notification;
     AndroidNotification? android = message.notification?.android;
 
+    String? imageUrl = message.data['imageUrl'] ?? android?.imageUrl;
+    BigPictureStyleInformation? bigPictureStyleInformation;
+
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      try {
+        final String largeIconPath = await _downloadAndSaveFile(
+          imageUrl,
+          'largeIcon',
+        );
+        final String bigPicturePath = await _downloadAndSaveFile(
+          imageUrl,
+          'bigPicture',
+        );
+
+        bigPictureStyleInformation = BigPictureStyleInformation(
+          FilePathAndroidBitmap(bigPicturePath),
+          largeIcon: FilePathAndroidBitmap(largeIconPath),
+          contentTitle: notification?.title,
+          summaryText: notification?.body,
+        );
+      } catch (e) {
+        debugPrint('Error downloading notification image: $e');
+      }
+    }
+
     if (notification != null && android != null) {
       await _flutterLocalNotificationsPlugin.show(
         id: notification.hashCode,
         title: notification.title,
         body: notification.body,
-        notificationDetails: const NotificationDetails(
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             'high_importance_channel', // id
             'High Importance Notifications', // title
@@ -144,11 +172,21 @@ class NotificationService {
             importance: Importance.max,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
+            styleInformation: bigPictureStyleInformation,
           ),
         ),
         payload: message.data.toString(),
       );
     }
+  }
+
+  Future<String> _downloadAndSaveFile(String url, String fileName) async {
+    final Directory directory = await getApplicationDocumentsDirectory();
+    final String filePath = '${directory.path}/$fileName';
+    final http.Response response = await http.get(Uri.parse(url));
+    final File file = File(filePath);
+    await file.writeAsBytes(response.bodyBytes);
+    return filePath;
   }
 }
 

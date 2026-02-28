@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:sundayschool_app/widgets/full_screen_image_viewer.dart';
 
 // --- DATA MODEL ---
 class AppNotification {
@@ -127,12 +128,19 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
       if (userDoc.exists) {
         final role = userDoc.data()?['role'];
-        // STRICT VISIBILITY: Only add 'role_school' if user has that role
+        final schoolId = userDoc
+            .data()?['schoolId']; // Extract linked school ID
+
+        // STRICT VISIBILITY: Add topic recipients
         if (role == 'school' || role == 'admin') {
           recipients.add('role_school');
-          // We do NOT add 'all' here for regular users to prevent leaks.
-          // If 'all' was used for admins previously, we can keep it for them if needed,
-          // but strictly speaking, we want to deprecate 'all'.
+        } else if (role == 'parish') {
+          // A parish also needs to see the specific school topic
+          if (schoolId != null) {
+            recipients.add(schoolId);
+            recipients.add('school_$schoolId'); // Support both formats
+            recipients.add('role_school'); // See general school broadcasts too
+          }
         }
       }
     } catch (e) {
@@ -1003,9 +1011,25 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
             actions: [],
             flexibleSpace: FlexibleSpaceBar(
               background: widget.notification.imageUrl != null
-                  ? Image.network(
-                      widget.notification.imageUrl!,
-                      fit: BoxFit.cover,
+                  ? GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => FullScreenImageViewer(
+                              imageUrl: widget.notification.imageUrl!,
+                              heroTag: 'notif_image_${widget.notification.id}',
+                            ),
+                          ),
+                        );
+                      },
+                      child: Hero(
+                        tag: 'notif_image_${widget.notification.id}',
+                        child: Image.network(
+                          widget.notification.imageUrl!,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                     )
                   : Container(
                       decoration: BoxDecoration(

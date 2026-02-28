@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProgramsScreen extends StatefulWidget {
   const ProgramsScreen({super.key});
@@ -74,30 +75,58 @@ class _ProgramsScreenState extends State<ProgramsScreen>
             child: Column(
               children: [
                 Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildThemeCard(),
-                        const SizedBox(height: 25),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4.0),
-                          child: Text(
-                            'FORMATION & TRAINING',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade600,
-                              letterSpacing: 1.2,
+                  child: FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('settings')
+                        .doc('theme_programs')
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      Map<String, dynamic> data = {};
+                      if (snapshot.hasData && snapshot.data!.exists) {
+                        data = snapshot.data!.data() as Map<String, dynamic>;
+                      }
+
+                      final themeYear = data['themeYear'] ?? '2025-26';
+                      final themeMal =
+                          data['themeMalayalam'] ??
+                          '“നിത്യജീവനിലുള്ള പ്രത്യാശ”';
+                      final themeEng =
+                          data['themeEnglish'] ?? 'Hope in Eternal Life';
+                      final List<dynamic> programsList =
+                          data['programs'] ?? _getDefaultPrograms();
+
+                      return SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildThemeCard(themeYear, themeMal, themeEng),
+                            const SizedBox(height: 25),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4.0),
+                              child: Text(
+                                'FORMATION & TRAINING',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade600,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 15),
+                            _buildProgramList(
+                              programsList.cast<Map<String, dynamic>>(),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 15),
-                        _buildProgramList(),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -108,7 +137,11 @@ class _ProgramsScreenState extends State<ProgramsScreen>
     );
   }
 
-  Widget _buildThemeCard() {
+  Widget _buildThemeCard(
+    String year,
+    String malayalamTheme,
+    String englishTheme,
+  ) {
     return SlideTransition(
       position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
           .animate(
@@ -163,7 +196,7 @@ class _ProgramsScreenState extends State<ProgramsScreen>
               ),
               const SizedBox(height: 20),
               Text(
-                '2025-26',
+                year,
                 style: GoogleFonts.outfit(
                   fontSize: 48,
                   fontWeight: FontWeight.bold,
@@ -173,7 +206,7 @@ class _ProgramsScreenState extends State<ProgramsScreen>
               ),
               const SizedBox(height: 15),
               Text(
-                '“നിത്യജീവനിലുള്ള പ്രത്യാശ”',
+                malayalamTheme,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.notoSansMalayalam(
                   fontSize: 26,
@@ -184,7 +217,7 @@ class _ProgramsScreenState extends State<ProgramsScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                'Hope in Eternal Life',
+                englishTheme,
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -199,50 +232,87 @@ class _ProgramsScreenState extends State<ProgramsScreen>
     );
   }
 
-  Widget _buildProgramList() {
-    final List<Map<String, dynamic>> programs = [
+  List<Map<String, dynamic>> _getDefaultPrograms() {
+    return [
       {
         'title': 'Uthanothsavam',
         'desc':
             'An integral and intensive 5-day formation for catechetical students.',
-        'icon': FontAwesomeIcons.fire,
+        'iconName': 'fire',
       },
       {
         'title': 'BTC & CTC Course',
         'desc': 'Catechists’ Training Course designed to equip teachers.',
-        'icon': FontAwesomeIcons.bookOpenReader,
+        'iconName': 'bookOpenReader',
       },
       {
         'title': 'HDC',
         'desc':
             'Teachers’ Diploma Course for advanced theological understanding.',
-        'icon': FontAwesomeIcons.graduationCap,
+        'iconName': 'graduationCap',
       },
       {
         'title': 'Teachers’ Seminar',
         'desc':
             'A one-day seminar based on the year’s theme to refresh and inspire.',
-        'icon': FontAwesomeIcons.users,
+        'iconName': 'users',
       },
       {
         'title': 'Teachers’ Quiz',
         'desc': 'Interactive quiz sessions based on specific spiritual topics.',
-        'icon': FontAwesomeIcons.circleQuestion,
+        'iconName': 'circleQuestion',
       },
       {
         'title': 'Lifeline',
         'desc':
             'A two-day orientation programme tailored for Std VIII children.',
-        'icon': FontAwesomeIcons.handsHoldingChild,
+        'iconName': 'handsHoldingChild',
       },
       {
         'title': 'Bible Kalolsavam',
         'desc':
             'A spiritual and cultural arts festival organized to promote Biblical literacy and Christian values through creative expression.',
-        'icon': FontAwesomeIcons.masksTheater,
+        'iconName': 'masksTheater',
       },
     ];
+  }
 
+  IconData _getIconFromName(String iconName) {
+    switch (iconName) {
+      case 'fire':
+        return FontAwesomeIcons.fire;
+      case 'bookOpenReader':
+        return FontAwesomeIcons.bookOpenReader;
+      case 'graduationCap':
+        return FontAwesomeIcons.graduationCap;
+      case 'users':
+        return FontAwesomeIcons.users;
+      case 'circleQuestion':
+        return FontAwesomeIcons.circleQuestion;
+      case 'handsHoldingChild':
+        return FontAwesomeIcons.handsHoldingChild;
+      case 'masksTheater':
+        return FontAwesomeIcons.masksTheater;
+      case 'star':
+        return FontAwesomeIcons.star;
+      case 'church':
+        return FontAwesomeIcons.church;
+      case 'cross':
+        return FontAwesomeIcons.cross;
+      case 'dove':
+        return FontAwesomeIcons.dove;
+      case 'heart':
+        return FontAwesomeIcons.heart;
+      case 'lightbulb':
+        return FontAwesomeIcons.lightbulb;
+      case 'music':
+        return FontAwesomeIcons.music;
+      default:
+        return FontAwesomeIcons.star;
+    }
+  }
+
+  Widget _buildProgramList(List<Map<String, dynamic>> programs) {
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
@@ -295,7 +365,9 @@ class _ProgramsScreenState extends State<ProgramsScreen>
                     borderRadius: BorderRadius.circular(15),
                   ),
                   child: Icon(
-                    programs[index]['icon'] as IconData,
+                    _getIconFromName(
+                      programs[index]['iconName']?.toString() ?? 'star',
+                    ),
                     color: _primaryBlue,
                     size: 22,
                   ),

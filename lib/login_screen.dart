@@ -11,7 +11,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // Restored for
 import 'package:sundayschool_app/auth_screen.dart'; // Added AuthScreen import
 import 'package:google_fonts/google_fonts.dart';
 
-// Assuming you have all these screen imports available
 import 'package:sundayschool_app/broadcast_screen.dart';
 import 'package:sundayschool_app/catechism_screen.dart';
 // Note: This import was missing in your provided code but is used in the carousel.
@@ -25,6 +24,7 @@ import 'package:sundayschool_app/programs_screen.dart';
 import 'package:sundayschool_app/event_detail_screen_from_home.dart';
 import 'package:provider/provider.dart'; // Import provider
 import 'package:sundayschool_app/providers/content_provider.dart'; // Import ContentProvider
+import 'package:sundayschool_app/homescreen.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 
@@ -50,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
   // --- Helper Widget for the Top Images (Side by Side) ---
   Widget _buildTopImagesHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Row(
         children: [
           Expanded(
@@ -60,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
               isAsset: true,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Expanded(
             child: _buildCarouselItem(
               'assets/images/unnamed2.png',
@@ -80,48 +80,37 @@ class _LoginScreenState extends State<LoginScreen> {
     bool isAsset = false,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20.0),
-        color: Colors.white.withOpacity(
-          0.8,
-        ), // More opaque to match cream background
+        borderRadius: BorderRadius.circular(24.0),
+        color: const Color(0xFFFFFBEB).withOpacity(0.9), // Amber/Gold
         border: Border.all(
-          color: Color(0xFFFFE4B5).withOpacity(0.4),
+          color: const Color(0xFFFDE68A).withOpacity(0.6), // Saturated gold
           width: 1.5,
-        ), // Soft gold border
-        boxShadow: [
-          BoxShadow(
-            color: Colors.orange.withOpacity(
-              0.12,
-            ), // Warm shadow to match gold theme
-            blurRadius: 12,
-            spreadRadius: 1,
-            offset: const Offset(0, 6),
-          ),
-          BoxShadow(
-            color: Colors.orange.shade200.withOpacity(0.08),
-            blurRadius: 3,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        ),
+        // Shadow removed for performance
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18.5), // Inner radius (20 - 1.5)
-        child: isAsset
-            ? Image.asset(
-                imageUrl,
-                fit: BoxFit.contain, // Show full image without cropping
-                alignment: Alignment.center,
-              )
-            : Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: Colors.grey[200],
-                  child: Icon(Icons.broken_image, color: Colors.grey[400]),
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.all(4.0),
+          child: isAsset
+              ? Image.asset(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                  // Cache width to prevent high-res image decoding lag
+                  cacheWidth: 800,
+                )
+              : Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: Colors.grey[200],
+                    child: Icon(Icons.broken_image, color: Colors.grey[400]),
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }
@@ -141,56 +130,64 @@ class _LoginScreenState extends State<LoginScreen> {
         extendBodyBehindAppBar: true,
         backgroundColor: Colors.transparent, // Transparent to show gradient
         appBar: AppBar(
-          backgroundColor: Colors.transparent, // Transparent AppBar
+          backgroundColor: Colors.transparent,
           elevation: 0,
-          toolbarHeight: 60, // Retained large height
-          leading: Container(
-            padding: const EdgeInsets.all(4.0),
+          toolbarHeight: 70,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 16.0),
             child: Image.asset(
               'assets/images/diocese-logo-new1.png',
-              height: 55,
+              height: 50,
               fit: BoxFit.contain,
             ),
           ),
-          leadingWidth: 80,
-          title: Container(
-            width: 140, // Give it a generous, fixed width
-            height: 70,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            child: Image.asset(
-              'assets/images/app_logo6.png',
-              fit: BoxFit.cover,
-            ),
+          leadingWidth: 70,
+          title: Image.asset(
+            'assets/images/app_logo6.png',
+            height: 60,
+            fit: BoxFit.contain,
           ),
           centerTitle: true,
           actions: [
             Padding(
-              padding: const EdgeInsets.only(right: 8.0),
+              padding: const EdgeInsets.only(right: 16.0),
               child: Center(
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      CustomPageRoute(child: AuthScreen()),
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: Colors.blue.shade900,
-                    side: BorderSide(color: Colors.blue.shade900, width: 1.5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
-                    ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1E3A8A).withOpacity(0.1),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    'Log In',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        CustomPageRoute(child: AuthScreen()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: const Color(0xFF1E3A8A),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
+                    ),
+                    child: Text(
+                      'Log In',
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ),
@@ -200,27 +197,45 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         body: Stack(
           children: [
-            // Gradient Background Layer
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: [0.0, 1.0],
-                  colors: [
-                    Color(0xFFFFFAF0), // Very Soft Cream (Floral White)
-                    Color(0xFFFFF8E1), // Ultra Light Gold
-                  ],
-                ),
+            // Premium Soft Gold Gradient Background Layer
+            RepaintBoundary(
+              child: Stack(
+                children: [
+                  Container(color: const Color(0xFFFFFDF5)), // Warm cream base
+                  Positioned(
+                    top: -100,
+                    right: -100,
+                    child: _buildOptimizedBlob(
+                      color: const Color(0xFFFFDAB9), // Soft Orange
+                      size: 400,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -150,
+                    left: -50,
+                    child: _buildOptimizedBlob(
+                      color: const Color(0xFFFFE5B4), // Peach
+                      size: 500,
+                    ),
+                  ),
+                  Positioned(
+                    top: 200,
+                    left: -100,
+                    child: _buildOptimizedBlob(
+                      color: const Color(0xFFFFF8DC), // Pale Gold
+                      size: 350,
+                    ),
+                  ),
+                ],
               ),
             ),
 
             // Spacer for Transparent AppBar (Toolbar Height + Extra)
             // const SizedBox(height: kToolbarHeight + 8), // Removed from here, handled in RefreshIndicator
             LiquidPullToRefresh(
-              color: const Color(0xFFFFF8E1), // Loader color (Gold/Cream)
-              backgroundColor: Colors.blue.shade900, // Background color (Blue)
-              height: 200,
+              color: const Color(0xFFE2E8F0),
+              backgroundColor: const Color(0xFF1E3A8A),
+              height: 150,
               showChildOpacityTransition: false,
               animSpeedFactor: 2.0,
               onRefresh: () async {
@@ -230,58 +245,80 @@ class _LoginScreenState extends State<LoginScreen> {
                 ).refreshContent();
               },
               child: SingleChildScrollView(
-                physics:
-                    const AlwaysScrollableScrollPhysics(), // Ensure scroll for refresh
+                physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
                   children: [
-                    const SizedBox(
-                      height: kToolbarHeight + 8,
-                    ), // Added back here
-                    SizedBox(
-                      height: 160,
-                      child: _buildTopImagesHeader(),
-                    ), // Reduced height container
-                    const SizedBox(height: 6),
-
-                    _buildAnnouncementMarquee(),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20.0,
-                      ), // Reduced horizontal padding
+                    const SizedBox(height: kToolbarHeight + 20),
+                    // Animated Header Section
+                    TweenAnimationBuilder<double>(
+                      duration: const Duration(seconds: 1),
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      curve: Curves.easeOutQuart,
+                      builder: (context, value, child) {
+                        return Transform.translate(
+                          offset: Offset(0, 20 * (1 - value)),
+                          child: Opacity(opacity: value, child: child),
+                        );
+                      },
                       child: Column(
                         children: [
-                          const SizedBox(height: 5),
+                          _buildTopImagesHeader(),
+                          const SizedBox(height: 12),
+                          _buildAnnouncementMarquee(),
+                          const SizedBox(height: 16),
                           Text(
                             'Welcome',
-                            style: GoogleFonts.poppins(
-                              fontSize: 24, // Reduced font size slightly
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF1E3A8A),
+                            style: GoogleFonts.outfit(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF0F172A),
+                              letterSpacing: -0.5,
                             ),
                           ),
-                          const SizedBox(height: 10), // Reduced spacing
-                          // --- 3. LATEST UPDATES SECTION (Horizontal Scroll) ---
+                          Text(
+                            'Eparchy of Kanjirapally',
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.blue.shade900,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: Column(
+                        children: [
                           _buildLatestUpdatesSection(context),
-
-                          const SizedBox(height: 10), // Reduced spacing
-                          // --- 4. RECENT PROGRAMS SECTION (Dynamic from Events) ---
+                          const SizedBox(height: 24),
                           _buildRecentProgramsSection(context),
-
-                          const SizedBox(height: 25),
-
-                          // Logo Section
+                          const SizedBox(height: 48),
+                          // Premium Logo Footer
                           Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Image.asset(
                                 'assets/images/suvara logo wbg6.png',
-                                height: 60, // Reduced logo size
+                                height: 70,
                                 fit: BoxFit.contain,
+                              ),
+                              const SizedBox(height: 24),
+                              Text(
+                                '© ${DateTime.now().year} AJCE. All Rights Reserved.',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 11,
+                                  color: const Color(
+                                    0xFF1E3A8A,
+                                  ).withOpacity(0.4),
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 100), // Padding for bottom nav
+                          const SizedBox(height: 120),
                         ],
                       ),
                     ),
@@ -293,28 +330,32 @@ class _LoginScreenState extends State<LoginScreen> {
             // --- STICKY BOTTOM FOOTER (Liquid Glass Effect) ---
             Positioned(
               bottom: 16,
-              left: 30,
-              right: 30,
+              left: 20,
+              right: 20,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(30),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                      horizontal: 20,
+                      vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFFDF7).withOpacity(0.85),
+                      color: const Color(
+                        0xFFFFFBEB,
+                      ).withOpacity(0.85), // Soft Gold
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
-                        color: const Color(0xFFFFE4B5).withOpacity(0.5),
+                        color: const Color(
+                          0xFFFDE68A,
+                        ).withOpacity(0.6), // Saturated Gold
                         width: 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.orange.withOpacity(0.15),
-                          blurRadius: 20,
+                          color: const Color(0xFF1E3A8A).withOpacity(0.08),
+                          blurRadius: 30,
                           offset: const Offset(0, 10),
                         ),
                       ],
@@ -323,9 +364,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       top: false,
                       bottom: false,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // 1. Home Item
                           _buildBottomNavItem(
                             icon: Icons.home_rounded,
                             label: 'Home',
@@ -334,8 +374,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               setState(() => _selectedIndex = 0);
                             },
                           ),
-
-                          // 2. Resources Item
                           _buildBottomNavItem(
                             icon: Icons.grid_view_rounded,
                             label: 'Resources',
@@ -345,8 +383,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               _showResourcesPopup(context);
                             },
                           ),
-
-                          // 3. Programs Item
                           _buildBottomNavItem(
                             icon: Icons.calendar_month_rounded,
                             label: 'Programs',
@@ -355,7 +391,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               setState(() => _selectedIndex = 2);
                               Navigator.push(
                                 context,
-                                CustomPageRoute(child: ProgramsScreen()),
+                                CustomPageRoute(child: const ProgramsScreen()),
                               ).then((_) {
                                 setState(() => _selectedIndex = 0);
                               });
@@ -374,47 +410,59 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Widget _buildOptimizedBlob({required Color color, required double size}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            color.withOpacity(0.4),
+            color.withOpacity(0.1),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.4, 1.0],
+        ),
+      ),
+    );
+  }
+
   Widget _buildBottomNavItem({
     required IconData icon,
     required String label,
     required bool isActive,
     required VoidCallback onTap,
   }) {
-    final activeColor = Colors.blue.shade900;
+    final activeColor = const Color(0xFF1E3A8A);
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? activeColor.withOpacity(0.08) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          color: isActive ? activeColor.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
         ),
-        child: Column(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: isActive
-                  ? BoxDecoration(
-                      color: activeColor.withOpacity(0.15),
-                      shape: BoxShape.circle,
-                    )
-                  : null,
-              child: Icon(
-                icon,
-                color: isActive ? activeColor : Colors.grey.shade500,
-                size: 20,
-              ),
+            Icon(
+              icon,
+              color: isActive ? activeColor : const Color(0xFF64748B),
+              size: 20,
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                color: isActive ? activeColor : Colors.grey.shade500,
+            if (isActive) ...[
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: activeColor,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -438,18 +486,25 @@ class _LoginScreenState extends State<LoginScreen> {
         final announcementText =
             data?['text'] ?? 'Welcome to the Sunday School App!';
         return Container(
-          height: 24,
-          color: Colors.red.withOpacity(0.1),
+          height: 28,
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.red.withOpacity(0.05),
+            border: Border.symmetric(
+              horizontal: BorderSide(color: Colors.red.withOpacity(0.1)),
+            ),
+          ),
           child: Marquee(
             text: announcementText,
-            style: const TextStyle(
+            style: GoogleFonts.outfit(
               fontWeight: FontWeight.bold,
-              color: Colors.red,
+              fontSize: 13,
+              color: Colors.red.shade700,
             ),
             scrollAxis: Axis.horizontal,
             crossAxisAlignment: CrossAxisAlignment.center,
             blankSpace: 20.0,
-            velocity: 50.0,
+            velocity: 40.0,
           ),
         );
       },
@@ -471,10 +526,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Text(
                     'Latest Updates',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E3A8A),
+                    style: GoogleFonts.outfit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
                     ),
                   ),
                   TextButton(
@@ -488,17 +543,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         Text(
                           'View All',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue.shade900,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF1E3A8A),
                           ),
                         ),
                         const SizedBox(width: 4),
                         Icon(
                           Icons.arrow_forward_ios_rounded,
-                          size: 12,
-                          color: Colors.blue.shade900,
+                          size: 14,
+                          color: const Color(0xFF1E3A8A),
                         ),
                       ],
                     ),
@@ -557,6 +612,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   final iconData = _getIconData(title);
 
                   final message = BroadcastMessage(
+                    id: provider.broadcasts[index].id,
                     title: title,
                     body: body,
                     timestamp: timestamp,
@@ -572,7 +628,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       date: DateFormat('MMM d, yyyy').format(timestamp),
                       iconData: iconData,
                       imageUrl: imageUrl,
-                      onTap: () => showBroadcastDetailDialog(context, message),
+                      heroTag: imageUrl != null
+                          ? 'broadcast_image_${provider.broadcasts[index].id}'
+                          : 'broadcast_icon_${provider.broadcasts[index].id}',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                BroadcastDetailScreen(message: message),
+                          ),
+                        );
+                      },
                     ),
                   );
                 },
@@ -589,56 +656,103 @@ class _LoginScreenState extends State<LoginScreen> {
     required String date,
     required Map<String, dynamic> iconData,
     String? imageUrl,
+    String? heroTag,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.8),
-          borderRadius: BorderRadius.circular(16),
+          color: const Color(0xFFFFFBEB).withOpacity(0.9), // Soft Gold
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: const Color(0xFFFFE4B5).withOpacity(0.4),
+            color: const Color(0xFFFDE68A).withOpacity(0.6), // Saturated gold
             width: 1.5,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.orange.withOpacity(0.08),
-              spreadRadius: 1,
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          // Shadow removed for scroll performance
         ),
         child: Padding(
-          padding: const EdgeInsets.all(10.0),
+          padding: const EdgeInsets.all(12.0),
           child: Row(
             children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  gradient: imageUrl == null
-                      ? (iconData['gradient'] as LinearGradient?)
-                      : null,
-                  color: imageUrl == null ? null : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(12),
-                  image: imageUrl != null
-                      ? DecorationImage(
-                          image: NetworkImage(imageUrl),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
+              if (heroTag != null)
+                Hero(
+                  tag: heroTag,
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      gradient: imageUrl == null
+                          ? (iconData['gradient'] as LinearGradient?)
+                          : null,
+                      color: imageUrl == null ? null : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (iconData['color'] as Color? ?? Colors.blue)
+                              .withOpacity(0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: imageUrl != null
+                          ? Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              width: 60,
+                              height: 60,
+                            )
+                          : Center(
+                              child: Icon(
+                                iconData['icon'] as IconData?,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                            ),
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient: imageUrl == null
+                        ? (iconData['gradient'] as LinearGradient?)
+                        : null,
+                    color: imageUrl == null ? null : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (iconData['color'] as Color? ?? Colors.blue)
+                            .withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: imageUrl != null
+                        ? Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            width: 60,
+                            height: 60,
+                          )
+                        : Center(
+                            child: Icon(
+                              iconData['icon'] as IconData?,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                  ),
                 ),
-                child: imageUrl == null
-                    ? Icon(
-                        iconData['icon'] as IconData?,
-                        color: Colors.white,
-                        size: 24,
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -648,28 +762,36 @@ class _LoginScreenState extends State<LoginScreen> {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF0F172A),
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       date,
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF64748B),
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 12,
-                color: Colors.grey.shade400,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E3A8A).withOpacity(0.05),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: const Color(0xFF1E3A8A),
+                ),
               ),
             ],
           ),
@@ -690,10 +812,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Text(
                     'Recent Programs',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade900,
+                    style: GoogleFonts.outfit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
                     ),
                   ),
                   TextButton(
@@ -707,17 +829,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         Text(
                           'View All',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue.shade900,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF1E3A8A),
                           ),
                         ),
                         const SizedBox(width: 4),
                         Icon(
                           Icons.arrow_forward_ios_rounded,
-                          size: 12,
-                          color: Colors.blue.shade900,
+                          size: 14,
+                          color: const Color(0xFF1E3A8A),
                         ),
                       ],
                     ),
@@ -753,7 +875,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Center(
                   child: Text(
                     'No recent programs',
-                    style: GoogleFonts.poppins(color: Colors.grey),
+                    style: GoogleFonts.outfit(
+                      color: const Color(0xFF64748B),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               )
@@ -788,7 +913,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       );
                     },
-                    child: _buildProgramCard(imageUrl),
+                    child: _buildProgramCard(imageUrl, data['category'] ?? ''),
                   );
                 },
               ),
@@ -798,33 +923,51 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildProgramCard(String? imageUrl) {
+  Widget _buildProgramCard(String? imageUrl, String category) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: Colors.white.withOpacity(0.5), // Glassmorphism
-        border: Border.all(color: Colors.white.withOpacity(0.6), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.15), // Blue Shadow
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(24),
+        color: const Color(0xFFFFFBEB).withOpacity(0.9), // Soft Gold
+        border: Border.all(
+          color: const Color(0xFFFDE68A).withOpacity(0.6), // Saturated gold
+          width: 1.5,
+        ),
+        gradient: imageUrl == null || imageUrl.isEmpty
+            ? HomeScreen.getEventPlaceholderData(category)['gradient']
+                  as LinearGradient?
+            : null,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
         child: imageUrl != null && imageUrl.isNotEmpty
             ? Image.network(
                 imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.broken_image, color: Colors.grey),
+                errorBuilder: (context, error, stackTrace) => Container(
+                  decoration: BoxDecoration(
+                    gradient:
+                        HomeScreen.getEventPlaceholderData(category)['gradient']
+                            as LinearGradient?,
+                  ),
+                  child: Center(
+                    child: Icon(
+                      HomeScreen.getEventPlaceholderData(category)['icon']
+                          as IconData?,
+                      color: Colors.white,
+                      size: 40,
+                    ),
+                  ),
+                ),
               )
-            : const Center(
-                child: Icon(Icons.image_not_supported, color: Colors.grey),
+            : Center(
+                child: Icon(
+                  HomeScreen.getEventPlaceholderData(category)['icon']
+                      as IconData?,
+                  color: Colors.white,
+                  size: 40,
+                ),
               ),
       ),
     );
@@ -910,8 +1053,8 @@ class _LoginScreenState extends State<LoginScreen> {
             Positioned(
               bottom:
                   100, // Position ABOVE the floating menu bar (approx 80-90px height)
-              left: 20,
-              right: 20,
+              left: 40,
+              right: 40,
               child: Material(
                 color: Colors.transparent,
                 child: ScaleTransition(
@@ -927,54 +1070,63 @@ class _LoginScreenState extends State<LoginScreen> {
                           sigmaY: 10,
                         ), // Glass effect
                         child: Container(
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: Color(
-                              0xFFFFF4D6,
-                            ).withOpacity(0.75), // More visible warm gold glass
-                            borderRadius: BorderRadius.circular(24),
+                            color: const Color(
+                              0xFFFFFBEB,
+                            ).withOpacity(0.85), // Soft Gold
+                            borderRadius: BorderRadius.circular(32),
                             border: Border.all(
-                              color: Color(
-                                0xFFFFD700,
-                              ).withOpacity(0.4), // Stronger gold border
-                              width: 2,
+                              color: const Color(
+                                0xFFFDE68A,
+                              ).withOpacity(0.6), // Saturated gold
+                              width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.orange.withOpacity(
-                                  0.2,
-                                ), // Stronger warm shadow
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
+                                color: const Color(
+                                  0xFF1E3A8A,
+                                ).withOpacity(0.15),
+                                blurRadius: 40,
+                                offset: const Offset(0, 20),
                               ),
                             ],
                           ),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                'Resources',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue.shade900,
+                              Container(
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade300,
+                                  borderRadius: BorderRadius.circular(2),
                                 ),
                               ),
                               const SizedBox(height: 20),
-                              // 2x2 Grid Layout for uniformity
+                              Text(
+                                'Resources',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF1E3A8A),
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
                               GridView.count(
-                                crossAxisCount: 2, // 2 columns
+                                crossAxisCount: 2,
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
-                                mainAxisSpacing: 20,
-                                crossAxisSpacing: 20,
-                                childAspectRatio: 1.0, // Square items
+                                mainAxisSpacing: 16,
+                                crossAxisSpacing: 16,
+                                childAspectRatio: 1.1,
                                 children: [
                                   _buildAnimatedMenuItem(
                                     context,
                                     'Catechism',
                                     Icons.auto_stories_rounded,
-                                    Colors.purple,
+                                    const Color(0xFF6366F1),
                                     () => Navigator.push(
                                       context,
                                       CustomPageRoute(
@@ -986,7 +1138,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     context,
                                     'Bible',
                                     Icons.menu_book_rounded,
-                                    Colors.orange,
+                                    const Color(0xFFF59E0B),
                                     () => Navigator.push(
                                       context,
                                       CustomPageRoute(
@@ -998,7 +1150,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     context,
                                     'Japamala',
                                     Icons.volunteer_activism_rounded,
-                                    Colors.pink,
+                                    const Color(0xFFEC4899),
                                     () => Navigator.push(
                                       context,
                                       CustomPageRoute(
@@ -1008,9 +1160,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                   _buildAnimatedMenuItem(
                                     context,
-                                    'Yamaprarthana',
-                                    FontAwesomeIcons.bookOpen,
-                                    const Color(0xFF3A5B9A),
+                                    'Prayers',
+                                    FontAwesomeIcons.handsPraying,
+                                    const Color(0xFF0EA5E9),
                                     () => openYamaprarthanakalApp(context),
                                   ),
                                 ],
@@ -1047,23 +1199,24 @@ class _LoginScreenState extends State<LoginScreen> {
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               shape: BoxShape.circle,
               border: Border.all(color: color.withOpacity(0.3), width: 1),
             ),
-            child: Icon(icon, color: color, size: 28),
+            child: Icon(icon, color: color, size: 24),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             title,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1E293B),
             ),
           ),
         ],

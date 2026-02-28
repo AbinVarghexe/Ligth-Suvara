@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sundayschool_app/event_detail_screen_from_home.dart';
+import 'package:sundayschool_app/homescreen.dart';
 
 class HomeEventsScreen extends StatelessWidget {
   const HomeEventsScreen({super.key});
@@ -134,67 +135,94 @@ class HomeEventsScreen extends StatelessWidget {
               ),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (imageUrl.isNotEmpty)
-                      Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stack) => Container(
-                          color: Colors.grey.shade100,
-                          child: Icon(
-                            Icons.image_not_supported_outlined,
-                            color: Colors.grey.shade400,
-                            size: 40,
-                          ),
-                        ),
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            color: Colors.grey.shade100,
+                child: Hero(
+                  tag: imageUrl.isNotEmpty
+                      ? 'event_image_${doc.id}'
+                      : 'event_icon_${doc.id}',
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (imageUrl.isNotEmpty)
+                        Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stack) => Container(
+                            decoration: BoxDecoration(
+                              gradient:
+                                  HomeScreen.getEventPlaceholderData(
+                                        data['category'] ?? '',
+                                      )['gradient']
+                                      as LinearGradient?,
+                            ),
                             child: Center(
-                              child: CircularProgressIndicator(
-                                value:
-                                    loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
-                                    : null,
-                                color: Colors.blue.shade100,
+                              child: Icon(
+                                HomeScreen.getEventPlaceholderData(
+                                      data['category'] ?? '',
+                                    )['icon']
+                                    as IconData?,
+                                color: Colors.white,
+                                size: 40,
                               ),
                             ),
-                          );
-                        },
-                      )
-                    else
-                      Container(
-                        color: Colors.blue.shade50,
-                        child: Icon(
-                          Icons.event_available,
-                          color: Colors.blue.shade200,
-                          size: 50,
+                          ),
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              color: Colors.grey.shade50,
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  value:
+                                      loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                            loadingProgress.expectedTotalBytes!
+                                      : null,
+                                  color: Colors.blue.shade100,
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                      else
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient:
+                                HomeScreen.getEventPlaceholderData(
+                                      data['category'] ?? '',
+                                    )['gradient']
+                                    as LinearGradient?,
+                          ),
+                          child: Center(
+                            child: Icon(
+                              HomeScreen.getEventPlaceholderData(
+                                    data['category'] ?? '',
+                                  )['icon']
+                                  as IconData?,
+                              color: Colors.white,
+                              size: 50,
+                            ),
+                          ),
                         ),
-                      ),
-                    // Optional: Gradient Overlay on Image bottom for verified look
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        height: 50,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              Colors.black.withOpacity(0.3),
-                              Colors.transparent,
-                            ],
+                      // Optional: Gradient Overlay on Image bottom for verified look
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          height: 50,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [
+                                Colors.black.withOpacity(0.3),
+                                Colors.transparent,
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
