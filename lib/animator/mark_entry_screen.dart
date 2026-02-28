@@ -30,7 +30,8 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final _formKey = GlobalKey<FormState>();
 
-  final Map<String, int> _marks = {};
+  final Map<String, int?> _marks = {};
+  final Map<String, String> _textValues = {};
   String _remarks = '';
   bool _isLoading = true;
   bool _isSubmitting = false;
@@ -75,6 +76,7 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
   }
 
   Future<void> _fetchData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final questionsSnapshot = await _firestore
@@ -82,7 +84,6 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
           .orderBy('order')
           .get();
       _questions = questionsSnapshot.docs;
-
 
       // Use class variables initialized in initState
       final markDoc = await _firestore.collection('marks').doc(_docId).get();
@@ -96,6 +97,14 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
             savedMarks.forEach((key, value) {
               if (value is int) {
                 _marks[key] = value;
+              }
+            });
+          }
+          final savedTextValues = data['textValues'] as Map<String, dynamic>?;
+          if (savedTextValues != null) {
+            savedTextValues.forEach((key, value) {
+              if (value is String) {
+                _textValues[key] = value;
               }
             });
           }
@@ -118,6 +127,67 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
     }
   }
 
+  Map<String, Map<String, dynamic>> _groupQuestionsByPart(
+    List<QueryDocumentSnapshot> questions,
+  ) {
+    final Map<String, Map<String, dynamic>> grouped = {};
+    for (var doc in questions) {
+      final data = doc.data() as Map<String, dynamic>;
+      final part = data['part']?.toString() ?? '';
+      final partTitle = data['partTitle']?.toString() ?? '';
+
+      if (!grouped.containsKey(part)) {
+        grouped[part] = {
+          'title': partTitle,
+          'questions': <QueryDocumentSnapshot>[],
+        };
+      } else if ((grouped[part]!['title'] as String).isEmpty &&
+          partTitle.isNotEmpty) {
+        grouped[part]!['title'] = partTitle;
+      }
+      (grouped[part]!['questions'] as List<QueryDocumentSnapshot>).add(doc);
+    }
+
+    // Sort parts (I, II, III, IV, V, VI, VII, VIII, IX, X, XI, XII, XIII, XIV, XV, XVI, XVII, XVIII, XIX, XX)
+    final List<String> partOrder = [
+      'I',
+      'II',
+      'III',
+      'IV',
+      'V',
+      'VI',
+      'VII',
+      'VIII',
+      'IX',
+      'X',
+      'XI',
+      'XII',
+      'XIII',
+      'XIV',
+      'XV',
+      'XVI',
+      'XVII',
+      'XVIII',
+      'XIX',
+      'XX',
+    ];
+    final sortedKeys = grouped.keys.toList()
+      ..sort((a, b) {
+        int idxA = partOrder.indexOf(a);
+        int idxB = partOrder.indexOf(b);
+        if (idxA == -1 && idxB == -1) return a.compareTo(b);
+        if (idxA == -1) return 1;
+        if (idxB == -1) return -1;
+        return idxA.compareTo(idxB);
+      });
+
+    final Map<String, Map<String, dynamic>> sortedGrouped = {};
+    for (var key in sortedKeys) {
+      sortedGrouped[key] = grouped[key]!;
+    }
+    return sortedGrouped;
+  }
+
   Future<void> _submitMarks() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -135,11 +205,12 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
         'animatorName': _animatorName,
         'year': _currentYear,
         'marks': _marks,
+        'textValues': _textValues,
         'remarks': _remarks,
         'pdfUrl': _pdfUrl,
         'locked': true,
         'submittedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      });
 
       setState(() => _isLocked = true);
 
@@ -374,128 +445,449 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    ..._questions.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final doc = entry.value;
-                      final data = doc.data() as Map<String, dynamic>;
-                      final questionText = data['text'] ?? 'Question';
-                      final maxMark = data['maxMark'] ?? 10;
-                      final qId = doc.id;
+                    ..._groupQuestionsByPart(_questions).entries.map((
+                      partEntry,
+                    ) {
+                      final part = partEntry.key;
+                      final partData = partEntry.value;
+                      final partTitle = partData['title'] as String;
+                      final questions =
+                          partData['questions'] as List<QueryDocumentSnapshot>;
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 15,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 32,
-                                  height: 32,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.shade50,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    '${index + 1}',
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.blue.shade800,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Text(
-                                    questionText,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.grey.shade800,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            TextFormField(
-                              initialValue: _marks[qId]?.toString(),
-                              style: GoogleFonts.inter(fontSize: 16),
-                              decoration: InputDecoration(
-                                labelText: 'Mark (Max: $maxMark)',
-                                labelStyle: GoogleFonts.inter(
-                                  color: Colors.grey.shade600,
-                                ),
-                                hintText: '0',
-                                prefixIcon: Icon(
-                                  Icons.grade_rounded,
-                                  color: Colors.blue.shade700,
-                                  size: 20,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide.none,
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey.shade50,
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide(
-                                    color: Colors.grey.shade200,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide(
-                                    color: Colors.blue.shade700,
-                                    width: 2,
-                                  ),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                  horizontal: 20,
-                                ),
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (part.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: 8,
+                                bottom: 16,
+                                left: 4,
                               ),
-                              keyboardType: TextInputType.number,
-                              readOnly: _isLocked,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter a mark';
-                                }
-                                final mark = int.tryParse(value);
-                                if (mark == null) {
-                                  return 'Invalid number';
-                                }
-                                if (mark < 0 || mark > maxMark) {
-                                  return 'Max mark is $maxMark';
-                                }
-                                return null;
-                              },
-                              onChanged: (value) {
-                                final mark = int.tryParse(value);
-                                if (mark != null) {
-                                  _marks[qId] = mark;
-                                }
-                              },
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.shade900,
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.blue.shade900
+                                              .withOpacity(0.2),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      'Part $part',
+                                      style: GoogleFonts.poppins(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                  if (partTitle.isNotEmpty) ...[
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        partTitle,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue.shade900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
-                          ],
-                        ),
+                          ...questions.asMap().entries.map((qEntry) {
+                            final doc = qEntry.value;
+                            // Find original index for question numbering if needed,
+                            // or just use 1, 2, 3... within the part.
+                            // The image shows 1, 2, 3... within each part.
+                            final index = qEntry.key;
+                            final data = doc.data() as Map<String, dynamic>;
+                            final questionText = data['text'] ?? 'Question';
+                            final int? maxMark = data['maxMark'];
+                            final qId = doc.id;
+                            final bool isMandatory =
+                                data['isMandatory'] ?? true;
+                            final bool isReadOnly = data['isReadOnly'] ?? false;
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 32,
+                                        height: 32,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.shade50,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '${index + 1}',
+                                          style: GoogleFonts.poppins(
+                                            color: Colors.blue.shade800,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              questionText,
+                                              style: GoogleFonts.inter(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                                color: Colors.grey.shade800,
+                                                height: 1.4,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: isMandatory == false
+                                                    ? Colors.orange.shade50
+                                                    : Colors.blue.shade50,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                isMandatory == false
+                                                    ? 'Optional'
+                                                    : 'Mandatory',
+                                                style: GoogleFonts.inter(
+                                                  color: isMandatory == false
+                                                      ? Colors.orange.shade800
+                                                      : Colors.blue.shade800,
+                                                  fontWeight: FontWeight.w500,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (data['subFields'] == null ||
+                                      (data['subFields'] as List).isEmpty) ...[
+                                    const SizedBox(height: 20),
+                                    TextFormField(
+                                      key: ValueKey(qId),
+                                      initialValue: _marks[qId]?.toString(),
+                                      style: GoogleFonts.inter(fontSize: 16),
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                        labelText: isMandatory
+                                            ? 'Mark ${maxMark != null ? '(Max: $maxMark)' : ''} *'
+                                            : 'Mark ${maxMark != null ? '(Max: $maxMark)' : ''}',
+                                        labelStyle: GoogleFonts.inter(
+                                          color: Colors.grey.shade600,
+                                        ),
+                                        hintText: '0',
+                                        prefixIcon: Icon(
+                                          Icons.grade_rounded,
+                                          color: Colors.blue.shade700,
+                                          size: 20,
+                                        ),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        filled: true,
+                                        fillColor: Colors.grey.shade50,
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                          borderSide: BorderSide(
+                                            color: Colors.grey.shade200,
+                                          ),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                          borderSide: BorderSide(
+                                            color: Colors.blue.shade700,
+                                            width: 2,
+                                          ),
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              vertical: 16,
+                                              horizontal: 20,
+                                            ),
+                                      ),
+                                      enabled: !_isLocked,
+                                      validator: (value) {
+                                        if (isMandatory &&
+                                            (value == null || value.isEmpty)) {
+                                          return 'Please enter a mark';
+                                        }
+                                        if (value == null || value.isEmpty)
+                                          return null;
+                                        final mark = int.tryParse(value);
+                                        if (mark == null) {
+                                          return 'Invalid number';
+                                        }
+                                        if (maxMark != null &&
+                                            (mark < 0 || mark > maxMark)) {
+                                          return 'Max mark is $maxMark';
+                                        }
+                                        return null;
+                                      },
+                                      onChanged: (value) {
+                                        final mark = int.tryParse(value);
+                                        if (mark != null) {
+                                          _marks[qId] = mark;
+                                        } else if (value.isEmpty) {
+                                          _marks.remove(qId);
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                  if (data['subFields'] != null &&
+                                      (data['subFields'] as List)
+                                          .isNotEmpty) ...[
+                                    const SizedBox(height: 16),
+                                    ...(data['subFields'] as List).asMap().entries.map((
+                                      subEntry,
+                                    ) {
+                                      final subIndex = subEntry.key;
+                                      final subField =
+                                          subEntry.value
+                                              as Map<String, dynamic>;
+                                      final subText = subField['text'] ?? '';
+                                      final subMaxMark =
+                                          subField['maxMark'] ?? 0;
+                                      final String subAdminText =
+                                          (subField['adminText'] ?? '')
+                                              .toString();
+                                      final subId = '${qId}_sub_$subIndex';
+
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: 8,
+                                          left: 16,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            if (subAdminText.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: 8,
+                                                  left: 8,
+                                                ),
+                                                child: Text(
+                                                  subAdminText,
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 13,
+                                                    color: Colors.blue.shade700,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            if (isReadOnly == false) ...[
+                                              TextFormField(
+                                                initialValue:
+                                                    _textValues[subId],
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 13,
+                                                ),
+                                                decoration: InputDecoration(
+                                                  labelText: subText.isNotEmpty
+                                                      ? 'Details $subText'
+                                                      : 'Details',
+                                                  prefixIcon: Icon(
+                                                    Icons.info_outline,
+                                                    color: Colors.blue.shade300,
+                                                    size: 16,
+                                                  ),
+                                                  border: OutlineInputBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                    borderSide: BorderSide.none,
+                                                  ),
+                                                  filled: true,
+                                                  fillColor:
+                                                      Colors.grey.shade50,
+                                                  enabledBorder:
+                                                      OutlineInputBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                        borderSide: BorderSide(
+                                                          color: Colors
+                                                              .grey
+                                                              .shade200,
+                                                        ),
+                                                      ),
+                                                ),
+                                                enabled: !_isLocked,
+                                                onChanged: (value) {
+                                                  if (value.trim().isEmpty) {
+                                                    _textValues.remove(subId);
+                                                  } else {
+                                                    _textValues[subId] = value;
+                                                  }
+                                                },
+                                              ),
+                                              const SizedBox(height: 8),
+                                            ],
+                                            TextFormField(
+                                              key: ValueKey(subId),
+                                              initialValue: _marks[subId]
+                                                  ?.toString(),
+                                              style: GoogleFonts.inter(
+                                                fontSize: 14,
+                                              ),
+                                              decoration: InputDecoration(
+                                                labelText: isMandatory
+                                                    ? 'Mark ${subMaxMark != null && subMaxMark > 0 ? '(Max: $subMaxMark)' : '(Unlimited)'} *'
+                                                    : 'Mark ${subMaxMark != null && subMaxMark > 0 ? '(Max: $subMaxMark)' : '(Unlimited)'}',
+                                                labelStyle: GoogleFonts.inter(
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                                hintText: '0',
+                                                prefixIcon: Icon(
+                                                  Icons
+                                                      .subdirectory_arrow_right,
+                                                  color: Colors.blue.shade300,
+                                                  size: 18,
+                                                ),
+                                                border: OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  borderSide: BorderSide(
+                                                    color: Colors.grey.shade200,
+                                                  ),
+                                                ),
+                                                enabledBorder:
+                                                    OutlineInputBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                      borderSide: BorderSide(
+                                                        color: Colors
+                                                            .grey
+                                                            .shade200,
+                                                      ),
+                                                    ),
+                                                focusedBorder:
+                                                    OutlineInputBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                      borderSide: BorderSide(
+                                                        color: Colors
+                                                            .blue
+                                                            .shade700,
+                                                        width: 1.5,
+                                                      ),
+                                                    ),
+                                                filled: true,
+                                                fillColor: Colors.grey.shade50,
+                                                contentPadding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 12,
+                                                      horizontal: 16,
+                                                    ),
+                                              ),
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              enabled: !_isLocked,
+                                              validator: (value) {
+                                                if (isMandatory &&
+                                                    (value == null ||
+                                                        value.isEmpty)) {
+                                                  return 'Required';
+                                                }
+                                                if (value == null ||
+                                                    value.isEmpty)
+                                                  return null;
+                                                final mark = int.tryParse(
+                                                  value,
+                                                );
+                                                if (mark == null)
+                                                  return 'Invalid';
+                                                if (subMaxMark != null &&
+                                                    (mark < 0 ||
+                                                        mark > subMaxMark)) {
+                                                  return 'Max $subMaxMark';
+                                                }
+                                                return null;
+                                              },
+                                              onChanged: (value) {
+                                                final mark = int.tryParse(
+                                                  value,
+                                                );
+                                                if (mark != null) {
+                                                  _marks[subId] = mark;
+                                                } else if (value.isEmpty) {
+                                                  _marks.remove(subId);
+                                                }
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ],
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
                       );
                     }),
 
@@ -570,7 +962,7 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
                               fillColor: Colors.grey.shade50,
                               contentPadding: const EdgeInsets.all(20),
                             ),
-                            readOnly: _isLocked,
+                            enabled: !_isLocked,
                             onChanged: (value) {
                               _remarks = value;
                             },

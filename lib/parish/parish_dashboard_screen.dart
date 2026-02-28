@@ -10,7 +10,9 @@ import 'package:sundayschool_app/event_detail_screen_from_home.dart';
 import 'package:sundayschool_app/parish/parish_program_list_screen.dart';
 import 'package:sundayschool_app/services/notification_service.dart'; // Added Import
 import 'package:sundayschool_app/notification_screen.dart';
-import 'package:rxdart/rxdart.dart'; // Added Import
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:rxdart/rxdart.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ParishDashboardScreen extends StatefulWidget {
   const ParishDashboardScreen({super.key});
@@ -29,19 +31,53 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
   String? _parishName;
   int _selectedIndex = 0; // 0: Events, 1: Registrations
   bool _isLoading = true;
+  bool _isObserverMinimized = false;
+  bool _isObserverCollapsed = false;
 
   // Streams for registrations
   Stream<QuerySnapshot>? _pendingStream;
   Stream<QuerySnapshot>? _approvedStream;
 
-  // Stream for notifications
-  Stream<List<QuerySnapshot>>? _notificationStream;
+  // Streams for notifications
+  Stream<QuerySnapshot>? _userNotificationsStream;
+  Stream<QuerySnapshot>? _broadcastsStream;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _initializeData();
+    _loadObserverPreference();
+  }
+
+  Future<void> _loadObserverPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _isObserverMinimized =
+            prefs.getBool('observer_minimized_parish') ?? false;
+        _isObserverCollapsed =
+            prefs.getBool('observer_collapsed_parish') ?? false;
+      });
+    }
+  }
+
+  Future<void> _toggleObserverMinimized() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isObserverMinimized = !_isObserverMinimized;
+      prefs.setBool('observer_minimized_parish', _isObserverMinimized);
+    });
+    HapticFeedback.mediumImpact();
+  }
+
+  Future<void> _toggleObserverCollapsed() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isObserverCollapsed = !_isObserverCollapsed;
+      prefs.setBool('observer_collapsed_parish', _isObserverCollapsed);
+    });
+    HapticFeedback.mediumImpact();
   }
 
   @override
@@ -88,18 +124,22 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
             NotificationService().subscribeToUserTopic(schoolId);
             NotificationService().subscribeToRoleTopic('school');
 
-            // Setup notification stream
-            _notificationStream = Rx.combineLatest2(
-              FirebaseFirestore.instance
-                  .collection('notifications')
-                  .where(
-                    'recipientId',
-                    whereIn: [schoolId, 'school_$schoolId', 'role_school'],
-                  )
-                  .snapshots(),
-              FirebaseFirestore.instance.collection('broadcasts').snapshots(),
-              (QuerySnapshot a, QuerySnapshot b) => [a, b],
-            );
+            // Setup notification streams
+            _userNotificationsStream = FirebaseFirestore.instance
+                .collection('notifications')
+                .where(
+                  'recipientId',
+                  whereIn: [
+                    user.uid,
+                    schoolId,
+                    'school_$schoolId',
+                    'role_school',
+                  ],
+                )
+                .snapshots();
+            _broadcastsStream = FirebaseFirestore.instance
+                .collection('broadcasts')
+                .snapshots();
           } else {
             debugPrint("Parish User has no linked schoolId.");
           }
@@ -193,9 +233,16 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      body: _selectedIndex == 0
-          ? _buildSchoolEventsView()
-          : _buildRegistrationsView(),
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _selectedIndex,
+            children: [_buildSchoolEventsView(), _buildRegistrationsView()],
+          ),
+          if (_selectedIndex == 0 && _isObserverMinimized)
+            _buildFloatingObserverButton(),
+        ],
+      ),
       extendBody: true, // Needed for floating nav bar to overlay body
       bottomNavigationBar: SafeArea(
         child: Container(
@@ -375,7 +422,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                 Text(
                   title,
                   style: GoogleFonts.poppins(
-                    fontSize: 24,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: Colors.black87,
                     height: 1.2,
@@ -399,102 +446,105 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
   }
 
   Widget _buildNotificationBell() {
-    return StreamBuilder<List<QuerySnapshot>>(
+    return StreamBuilder<QuerySnapshot>(
       stream:
-          _notificationStream ??
-          Rx.combineLatest2(
-            FirebaseFirestore.instance
-                .collection('notifications')
-                .where(
-                  'recipientId',
-                  isEqualTo: _auth.currentUser?.uid ?? 'INVALID',
-                )
-                .snapshots(),
-            FirebaseFirestore.instance.collection('broadcasts').snapshots(),
-            (QuerySnapshot a, QuerySnapshot b) => [a, b],
-          ),
-      builder: (context, snapshot) {
-        int unreadCount = 0;
-        if (snapshot.hasData && snapshot.data != null) {
-          final user = _auth.currentUser;
-          if (user != null) {
-            final allDocs = [
-              ...snapshot.data![0].docs,
-              ...snapshot.data![1].docs,
-            ];
-            unreadCount = allDocs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>?;
-              final readBy = data?['readBy'] as List<dynamic>? ?? [];
-              return !readBy.contains(user.uid);
-            }).length;
-          }
-        }
+          _userNotificationsStream ??
+          FirebaseFirestore.instance
+              .collection('notifications')
+              .where(
+                'recipientId',
+                isEqualTo: _auth.currentUser?.uid ?? 'INVALID',
+              )
+              .snapshots(),
+      builder: (context, notifSnapshot) {
+        return StreamBuilder<QuerySnapshot>(
+          stream:
+              _broadcastsStream ??
+              FirebaseFirestore.instance.collection('broadcasts').snapshots(),
+          builder: (context, broadSnapshot) {
+            int unreadCount = 0;
+            if (notifSnapshot.hasData && broadSnapshot.hasData) {
+              final user = _auth.currentUser;
+              if (user != null) {
+                final allDocs = [
+                  ...notifSnapshot.data!.docs,
+                  ...broadSnapshot.data!.docs,
+                ];
+                unreadCount = allDocs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>?;
+                  final readBy = data?['readBy'] as List<dynamic>? ?? [];
+                  return !readBy.contains(user.uid);
+                }).length;
+              }
+            }
 
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.shade900.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: IconButton(
-                icon: Icon(
-                  Icons.notifications_outlined,
-                  color: Colors.blue.shade900,
-                ),
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const NotificationsScreen(),
-                    ),
-                  );
-                },
-              ),
-            ),
-            if (unreadCount > 0)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
                   decoration: BoxDecoration(
-                    color: Colors.red.shade600,
+                    color: Colors.white,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.red.withOpacity(0.4),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                        color: Colors.blue.shade900.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                  constraints: const BoxConstraints(
-                    minWidth: 20,
-                    minHeight: 20,
-                  ),
-                  child: Text(
-                    unreadCount > 9 ? '9+' : '$unreadCount',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.notifications_outlined,
+                      color: Colors.blue.shade900,
                     ),
-                    textAlign: TextAlign.center,
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              ),
-          ],
+                if (unreadCount > 0)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade600,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withOpacity(0.4),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 20,
+                        minHeight: 20,
+                      ),
+                      child: Text(
+                        unreadCount > 9 ? '9+' : '$unreadCount',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         );
       },
     );
@@ -589,10 +639,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
-            child: _buildModernHeader(
-              title: _parishName ?? 'Dashboard',
-              subtitle: 'WELCOME BACK',
-            ),
+            child: _buildModernHeader(title: _parishName ?? 'Dashboard'),
           ),
           SliverToBoxAdapter(
             child: Padding(
@@ -600,6 +647,10 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
               child: _buildHighlightSection(),
             ),
           ),
+          if (!_isObserverMinimized) ...[
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            SliverToBoxAdapter(child: _buildObserverSection()),
+          ],
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
             sliver: SliverToBoxAdapter(
@@ -643,6 +694,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
             stream: FirebaseFirestore.instance
                 .collection('events')
                 .where('creatorId', isEqualTo: _linkedSchoolId)
+                .where('isPublic', isEqualTo: true)
                 .orderBy('timestamp', descending: true)
                 .snapshots(),
             builder: (context, snapshot) {
@@ -872,6 +924,551 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
               );
             },
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildObserverSection() {
+    return StreamBuilder<List<QuerySnapshot>>(
+      stream: CombineLatestStream.list([
+        FirebaseFirestore.instance
+            .collection('assignments')
+            .where('type', isEqualTo: 'Observer')
+            .snapshots(),
+        FirebaseFirestore.instance
+            .collection('settings')
+            .doc('observer_dates')
+            .collection('years')
+            .snapshots(),
+      ]),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+
+        final assignmentsData = snapshot.data![0];
+        final settingsData = snapshot.data![1];
+
+        if (assignmentsData.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final now = DateTime.now();
+        final todayMidnight = DateTime(now.year, now.month, now.day);
+
+        final Map<String, DateTime> expirationDates = {};
+        for (var doc in settingsData.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['expirationDate'] != null) {
+            expirationDates[doc.id] = (data['expirationDate'] as Timestamp)
+                .toDate();
+          }
+        }
+
+        bool isExpired(String? academicYear) {
+          if (academicYear == null ||
+              !expirationDates.containsKey(academicYear))
+            return false;
+          return expirationDates[academicYear]!.isBefore(todayMidnight);
+        }
+
+        final incoming = assignmentsData.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['targetSchoolId'] != _linkedSchoolId) return false;
+          if (isExpired(data['academicYear'])) return false;
+          return true;
+        }).toList();
+
+        final outgoing = assignmentsData.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['sourceSchoolId'] != _linkedSchoolId) return false;
+          if (isExpired(data['academicYear'])) return false;
+          return true;
+        }).toList();
+
+        if (incoming.isEmpty && outgoing.isEmpty)
+          return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.indigo.shade400,
+                                Colors.indigo.shade600,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.indigo.shade400.withAlpha(77),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.assignment_ind_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: Text(
+                            'Observer Assignments',
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade900,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: _toggleObserverCollapsed,
+                        icon: AnimatedRotation(
+                          turns: _isObserverCollapsed ? 0 : 0.5,
+                          duration: const Duration(milliseconds: 300),
+                          child: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: Colors.grey.shade400,
+                            size: 24,
+                          ),
+                        ),
+                        tooltip: _isObserverCollapsed ? 'Expand' : 'Collapse',
+                      ),
+                      IconButton(
+                        onPressed: _toggleObserverMinimized,
+                        icon: Icon(
+                          Icons.close_fullscreen_rounded,
+                          color: Colors.grey.shade400,
+                          size: 20,
+                        ),
+                        tooltip: 'Minimize to floating button',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              AnimatedCrossFade(
+                firstChild: const SizedBox.shrink(),
+                secondChild: Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    if (incoming.isNotEmpty)
+                      _buildObserverCard(
+                        title: 'Incoming Observer (at your school)',
+                        observerName:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['teacherName'] ??
+                            'Unknown',
+                        schoolName:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['sourceSchoolName'] ??
+                            'Unknown',
+                        isIncoming: true,
+                        phone:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['teacherPhone'],
+                      ),
+                    if (incoming.isNotEmpty && outgoing.isNotEmpty)
+                      const SizedBox(height: 12),
+                    if (outgoing.isNotEmpty)
+                      ...outgoing.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildObserverCard(
+                            title: 'Outgoing Observer (from your school)',
+                            observerName: data['teacherName'] ?? 'Unknown',
+                            schoolName: data['targetSchoolName'] ?? 'Unknown',
+                            isIncoming: false,
+                            phone: data['teacherPhone'],
+                          ),
+                        );
+                      }),
+                  ],
+                ),
+                crossFadeState: _isObserverCollapsed
+                    ? CrossFadeState.showFirst
+                    : CrossFadeState.showSecond,
+                duration: const Duration(milliseconds: 300),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFloatingObserverButton() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('assignments')
+          .where('type', isEqualTo: 'Observer')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final incoming = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['targetSchoolId'] != _linkedSchoolId) return false;
+          return true;
+        }).toList();
+
+        final outgoing = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['sourceSchoolId'] != _linkedSchoolId) return false;
+          return true;
+        }).toList();
+
+        if (incoming.isEmpty && outgoing.isEmpty)
+          return const SizedBox.shrink();
+
+        return Positioned(
+          right: 20,
+          bottom: 110, // Above the floating bottom nav
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.elasticOut,
+            builder: (context, value, child) {
+              return Transform.scale(scale: value, child: child);
+            },
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                _showObserverDetailsModal(incoming, outgoing);
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.indigo.shade900.withValues(
+                              alpha: 0.8,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.assignment_ind_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Observers',
+                          style: GoogleFonts.poppins(
+                            color: Colors.indigo.shade900,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showObserverDetailsModal(
+    List<DocumentSnapshot> incoming,
+    List<DocumentSnapshot> outgoing,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.9),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(30),
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.5),
+                width: 1.5,
+              ),
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.assignment_ind_rounded,
+                          color: Colors.indigo.shade900,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Observer Details',
+                            style: GoogleFonts.poppins(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo.shade900,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _toggleObserverMinimized();
+                          },
+                          icon: const Icon(
+                            Icons.open_in_full_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            'Expand',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.indigo.shade700,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    if (incoming.isNotEmpty) ...[
+                      _buildObserverCard(
+                        title: 'Incoming Observer',
+                        observerName:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['teacherName'] ??
+                            'Unknown',
+                        schoolName:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['sourceSchoolName'] ??
+                            'Unknown',
+                        isIncoming: true,
+                        phone:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['teacherPhone'],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    if (outgoing.isNotEmpty)
+                      ...outgoing.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildObserverCard(
+                            title: 'Outgoing Observer',
+                            observerName: data['teacherName'] ?? 'Unknown',
+                            schoolName: data['targetSchoolName'] ?? 'Unknown',
+                            isIncoming: false,
+                            phone: data['teacherPhone'],
+                          ),
+                        );
+                      }).toList(),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildObserverCard({
+    required String title,
+    required String observerName,
+    required String schoolName,
+    required bool isIncoming,
+    String? phone,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isIncoming ? Colors.indigo.shade100 : Colors.orange.shade100,
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isIncoming ? Colors.indigo.shade50 : Colors.orange.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isIncoming ? Icons.login_rounded : Icons.logout_rounded,
+              color: isIncoming
+                  ? Colors.indigo.shade700
+                  : Colors.orange.shade700,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  observerName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade900,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  isIncoming ? 'From: $schoolName' : 'Going to: $schoolName',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey.shade500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (phone != null && phone.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.phone,
+                          size: 14,
+                          color: Colors.grey.shade500,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            phone,
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: Colors.grey.shade500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (phone != null && phone.isNotEmpty)
+            IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.call, color: Colors.green.shade700, size: 20),
+              ),
+              onPressed: () async {
+                final url = Uri.parse('tel:$phone');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url);
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Could not launch dialer')),
+                    );
+                  }
+                }
+              },
+            ),
         ],
       ),
     );
@@ -1107,6 +1704,7 @@ class HighlightEventCard extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('events')
           .where('creatorId', isEqualTo: schoolId)
+          .where('isPublic', isEqualTo: true)
           .orderBy('timestamp', descending: true)
           .limit(1)
           .snapshots(),

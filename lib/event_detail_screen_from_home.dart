@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:sundayschool_app/homescreen.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:sundayschool_app/widgets/full_screen_image_viewer.dart';
 
 // This is the dedicated screen to show the full details of a single event.
 class EventDetailScreenFromHome extends StatefulWidget {
@@ -47,7 +49,9 @@ class _EventDetailScreenState extends State<EventDetailScreenFromHome> {
           }
 
           // 2. If there's an error or the event doesn't exist, show a message.
-          if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
+          if (snapshot.hasError ||
+              !snapshot.hasData ||
+              !snapshot.data!.exists) {
             return Center(
               child: Text(
                 snapshot.hasError ? 'An error occurred.' : 'Event not found.',
@@ -90,7 +94,8 @@ class _EventDetailScreenState extends State<EventDetailScreenFromHome> {
   // Builds the main scrollable content area.
   Widget _buildSliverContent(Map<String, dynamic> data) {
     // Safely extract data from the map, providing default values.
-    final String description = data['description'] ?? 'No description provided.';
+    final String description =
+        data['description'] ?? 'No description provided.';
     final String place = data['place'] ?? 'Location not specified';
     final String title = data['title'] ?? 'Event Title';
     final Timestamp? dateTimestamp = data['timestamp'] as Timestamp?;
@@ -102,56 +107,133 @@ class _EventDetailScreenState extends State<EventDetailScreenFromHome> {
     return SliverPadding(
       padding: const EdgeInsets.all(20.0),
       sliver: SliverList(
-        delegate: SliverChildListDelegate(
-          [
-            // --- Event Image ---
-            if (imageUrl.isNotEmpty)
-              ClipRRect(
+        delegate: SliverChildListDelegate([
+          // --- Event Image ---
+          GestureDetector(
+            onTap: imageUrl.isNotEmpty
+                ? () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FullScreenImageViewer(
+                          imageUrl: imageUrl,
+                          heroTag: 'event_image_${widget.eventId}',
+                        ),
+                      ),
+                    );
+                  }
+                : null,
+            child: Hero(
+              tag: imageUrl.isNotEmpty
+                  ? 'event_image_${widget.eventId}'
+                  : 'event_icon_${widget.eventId}',
+              child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  height: 220,
-                  // Shows a placeholder if the image fails to load
-                  errorBuilder: (c, o, s) => Container(
-                    height: 220,
-                    color: Colors.grey.shade200,
-                    child: const Icon(Icons.image_not_supported, size: 60, color: Colors.grey),
-                  ),
-                ),
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        height: 220,
+                        width: double.infinity,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            height: 220,
+                            width: double.infinity,
+                            color: Colors.grey.shade100,
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        },
+                        errorBuilder: (c, o, s) => Container(
+                          height: 220,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            gradient:
+                                HomeScreen.getEventPlaceholderData(
+                                      data['category'] ?? '',
+                                    )['gradient']
+                                    as LinearGradient?,
+                          ),
+                          child: Center(
+                            child: Icon(
+                              HomeScreen.getEventPlaceholderData(
+                                    data['category'] ?? '',
+                                  )['icon']
+                                  as IconData?,
+                              size: 60,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        height: 220,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient:
+                              HomeScreen.getEventPlaceholderData(
+                                    data['category'] ?? '',
+                                  )['gradient']
+                                  as LinearGradient?,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            HomeScreen.getEventPlaceholderData(
+                                  data['category'] ?? '',
+                                )['icon']
+                                as IconData?,
+                            size: 80,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
               ),
-            const SizedBox(height: 24),
-
-            // --- Event Title ---
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF1E40AF),
-              ),
             ),
-            const SizedBox(height: 16),
+          ),
+          const SizedBox(height: 24),
 
-            // --- Info Rows (Date & Place) ---
-            _buildInfoRow(Icons.calendar_today_outlined, "Date & Time", dateTimeString),
-            const SizedBox(height: 12),
-            _buildInfoRow(Icons.location_on_outlined, "Place", place),
-            const Divider(height: 48, thickness: 1),
+          // --- Event Title ---
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF1E40AF),
+            ),
+          ),
+          const SizedBox(height: 16),
 
-            // --- Description Section ---
-            Text(
-              "About this Event",
-              style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
+          // --- Info Rows (Date & Place) ---
+          _buildInfoRow(
+            Icons.calendar_today_outlined,
+            "Date & Time",
+            dateTimeString,
+          ),
+          const SizedBox(height: 12),
+          _buildInfoRow(Icons.location_on_outlined, "Place", place),
+          const Divider(height: 48, thickness: 1),
+
+          // --- Description Section ---
+          Text(
+            "About this Event",
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 12),
-            Text(
-              description,
-              style: GoogleFonts.poppins(fontSize: 16, height: 1.7, color: Colors.blue.shade900.withOpacity(0.7)),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            description,
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              height: 1.7,
+              color: Colors.blue.shade900.withOpacity(0.7),
             ),
-            const SizedBox(height: 40), // Final padding at the bottom
-          ],
-        ),
+          ),
+          const SizedBox(height: 40), // Final padding at the bottom
+        ]),
       ),
     );
   }
@@ -169,12 +251,19 @@ class _EventDetailScreenState extends State<EventDetailScreenFromHome> {
             children: [
               Text(
                 label,
-                style: GoogleFonts.poppins(fontSize: 14, color: Colors.blue.shade900, fontWeight: FontWeight.w500),
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.blue.shade900,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
                 value,
-                style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -191,7 +280,11 @@ class EventDetailSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Helper to build a single shimmer block
-    Widget buildShimmerBlock({required double height, double width = double.infinity, double radius = 8}) {
+    Widget buildShimmerBlock({
+      required double height,
+      double width = double.infinity,
+      double radius = 8,
+    }) {
       return Container(
         height: height,
         width: width,
@@ -206,7 +299,8 @@ class EventDetailSkeleton extends StatelessWidget {
       baseColor: Colors.grey.shade300,
       highlightColor: Colors.grey.shade100,
       child: SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(), // Disable scrolling during load
+        physics:
+            const NeverScrollableScrollPhysics(), // Disable scrolling during load
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

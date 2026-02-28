@@ -113,7 +113,10 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
     final assignment = {
       'unitId': const Uuid().v4().substring(0, 8),
       'schoolUserId': _selectedSchoolId,
-      'schoolname': schoolData['schoolname'] ?? 'Unknown School',
+      'schoolName':
+          schoolData['schoolname'] ??
+          schoolData['sundaySchool'] ??
+          'Unknown School',
       'parish': schoolData['parish'] ?? 'Unknown Parish',
       'forane': schoolData['forane'] ?? 'Unknown Forane',
     };
@@ -130,14 +133,14 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
           assignments = snapshot.data()?['assignments'] ?? [];
         }
 
-        if (assignments.length >= 2) {
-          throw Exception('Animator already has 2 schools assigned.');
+        if (assignments.length >= 7) {
+          throw Exception('Animator already has 7 schools assigned.');
         }
 
         assignments.add({
           'unitId': assignment['unitId'],
           'schoolUserId': assignment['schoolUserId'],
-          'sundaySchool': assignment['schoolname'],
+          'schoolName': assignment['schoolName'],
           'parish': assignment['parish'], // Actually Parish
           'forane': assignment['forane'], // Actually Forane
           'year': _selectedYear,
@@ -304,7 +307,10 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
       final newAssignment = {
         'unitId': const Uuid().v4().substring(0, 8),
         'schoolUserId': newSchoolId,
-        'sundaySchool': schoolData['schoolname'],
+        'schoolName':
+            schoolData['schoolname'] ??
+            schoolData['sundaySchool'] ??
+            'Unknown School',
         'parish': schoolData['parish'] ?? 'Unknown Parish',
         'forane': schoolData['forane'] ?? 'Unknown Forane',
         'year': oldAssignment['year'] ?? DateTime.now().year.toString(),
@@ -803,7 +809,9 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
                                               vertical: 8,
                                             ),
                                         title: Text(
-                                          map['schoolname'] ??
+                                          map['schoolName'] ??
+                                              map['sundaySchool'] ??
+                                              map['schoolname'] ??
                                               'Unknown School',
                                           style: GoogleFonts.poppins(
                                             fontWeight: FontWeight.w600,

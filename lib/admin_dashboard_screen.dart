@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:sundayschool_app/admin_notification_screen.dart';
 import 'package:sundayschool_app/event_detail_screen.dart';
+import 'package:sundayschool_app/homescreen.dart';
 
 import 'package:sundayschool_app/login_screen.dart';
 import 'package:sundayschool_app/services/notification_service.dart';
@@ -22,6 +23,7 @@ import 'package:sundayschool_app/services/notification_service.dart';
 import 'package:sundayschool_app/admin/admin_animator_menu.dart';
 import 'package:sundayschool_app/admin/admin_program_menu.dart';
 import 'package:sundayschool_app/admin/admin_parish_menu.dart';
+import 'package:sundayschool_app/admin/admin_school_menu.dart';
 import 'package:sundayschool_app/admin/admin_all_events_screen.dart';
 
 enum SortOption { newestFirst, alphabetical }
@@ -648,6 +650,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       if (_selectedIndex == 1) title = 'Animator Management';
       if (_selectedIndex == 2) title = 'Program Management';
       if (_selectedIndex == 3) title = 'Parish Management';
+      if (_selectedIndex == 4) title = 'School Management';
 
       appBar = AppBar(
         flexibleSpace: Container(
@@ -757,6 +760,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   ),
                   label: 'Parish',
                 ),
+                NavigationDestination(
+                  icon: Icon(
+                    Icons.school_outlined,
+                    color: Colors.grey.shade600,
+                  ),
+                  selectedIcon: Icon(
+                    Icons.school_rounded,
+                    color: Colors.blue.shade700,
+                  ),
+                  label: 'School',
+                ),
               ],
             ),
           ),
@@ -766,14 +780,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildBody() {
-    if (_selectedIndex == 1) {
-      return const AdminAnimatorMenu();
-    } else if (_selectedIndex == 2) {
-      return const AdminProgramMenu();
-    } else if (_selectedIndex == 3) {
-      return const AdminParishMenu();
-    }
+    return IndexedStack(
+      index: _selectedIndex,
+      children: [
+        _buildHomeTabContent(),
+        const AdminAnimatorMenu(),
+        const AdminProgramMenu(),
+        const AdminParishMenu(),
+        const AdminSchoolMenu(),
+      ],
+    );
+  }
 
+  Widget _buildHomeTabContent() {
     final Color themeColor = Colors.blue.shade900;
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -951,23 +970,76 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                             child: Row(
                               children: [
                                 // Thumbnail
-                                Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(16),
-                                    color: Colors.grey.shade200,
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: data['imageUrl'] != null
-                                        ? Image.network(
-                                            data['imageUrl'],
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) =>
-                                                Icon(Icons.broken_image),
-                                          )
-                                        : Icon(Icons.image),
+                                Hero(
+                                  tag:
+                                      data['imageUrl'] != null &&
+                                          (data['imageUrl'] as String)
+                                              .isNotEmpty
+                                      ? 'event_image_${eventDoc.id}'
+                                      : 'event_icon_${eventDoc.id}',
+                                  child: Container(
+                                    width: 80,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      gradient:
+                                          data['imageUrl'] == null ||
+                                              (data['imageUrl'] as String)
+                                                  .isEmpty
+                                          ? HomeScreen.getEventPlaceholderData(
+                                                  data['category'] ?? '',
+                                                )['gradient']
+                                                as LinearGradient?
+                                          : null,
+                                      color:
+                                          data['imageUrl'] != null &&
+                                              (data['imageUrl'] as String)
+                                                  .isNotEmpty
+                                          ? Colors.grey.shade100
+                                          : null,
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(16),
+                                      child:
+                                          data['imageUrl'] != null &&
+                                              (data['imageUrl'] as String)
+                                                  .isNotEmpty
+                                          ? Image.network(
+                                              data['imageUrl'],
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => Container(
+                                                decoration: BoxDecoration(
+                                                  gradient:
+                                                      HomeScreen.getEventPlaceholderData(
+                                                            data['category'] ??
+                                                                '',
+                                                          )['gradient']
+                                                          as LinearGradient?,
+                                                ),
+                                                child: Center(
+                                                  child: Icon(
+                                                    HomeScreen.getEventPlaceholderData(
+                                                          data['category'] ??
+                                                              '',
+                                                        )['icon']
+                                                        as IconData?,
+                                                    color: Colors.white,
+                                                    size: 32,
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                          : Center(
+                                              child: Icon(
+                                                HomeScreen.getEventPlaceholderData(
+                                                      data['category'] ?? '',
+                                                    )['icon']
+                                                    as IconData?,
+                                                color: Colors.white,
+                                                size: 32,
+                                              ),
+                                            ),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 16),

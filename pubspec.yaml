@@ -1,7 +1,7 @@
 name: sundayschool_app
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.0.0+34
+version: 1.0.0+36
 
 environment:
   sdk: '>=3.8.1 <4.0.0' # Use range for better compatibility
@@ -45,6 +45,7 @@ dependencies:
   flutter_local_notifications: ^20.0.0
   loading_animation_widget: ^1.2.1
   liquid_pull_to_refresh: ^3.0.1
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:

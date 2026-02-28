@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:sundayschool_app/custom_app_bar.dart';
 import 'package:flutter/cupertino.dart'; // Core: for modern picker
 import 'package:sundayschool_app/utils/image_optimizer.dart';
+import 'package:sundayschool_app/homescreen.dart';
 
 class EditEventScreen extends StatefulWidget {
   final DocumentSnapshot eventDoc;
@@ -33,7 +34,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
   bool _isLoading = false;
 
   String? _selectedCategory;
-  final List<String> _categories = ['cml', 'suvara'];
+  final List<String> _categories = ['CML', 'SUVARA'];
 
   // CORE CHANGE: Field to hold existing isPublic status
   bool _currentIsPublic = false;
@@ -59,8 +60,14 @@ class _EditEventScreenState extends State<EditEventScreen> {
       _selectedTime = TimeOfDay.fromDateTime(loadedDateTime);
     }
 
-    if (data['category'] != null && _categories.contains(data['category'])) {
-      _selectedCategory = data['category'];
+    // Case-insensitive match so stored values like 'cml' or 'CML' both work
+    final storedCategory = data['category'] as String?;
+    if (storedCategory != null) {
+      final match = _categories.firstWhere(
+        (c) => c.toLowerCase() == storedCategory.toLowerCase(),
+        orElse: () => '',
+      );
+      if (match.isNotEmpty) _selectedCategory = match;
     }
   }
 
@@ -292,7 +299,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
         _selectedTime!.minute,
       );
 
-      final updatedData = {
+      final Map<String, dynamic> updatedData = {
         'title': _titleController.text.trim(),
         'place': _placeController.text.trim(),
         'description': _descriptionController.text.trim(),
@@ -300,8 +307,9 @@ class _EditEventScreenState extends State<EditEventScreen> {
         'imageUrl': imageUrl,
         'category': _selectedCategory,
         'title_lowercase': _titleController.text.trim().toLowerCase(),
-        // CORE CHANGE: Preserve the original isPublic status
         'isPublic': _currentIsPublic,
+        // Always refresh updatedAt to record the actual time of this edit
+        'updatedAt': FieldValue.serverTimestamp(),
       };
 
       await FirebaseFirestore.instance
@@ -429,48 +437,64 @@ class _EditEventScreenState extends State<EditEventScreen> {
       child: Container(
         height: 180,
         width: double.infinity,
-        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: Colors.blue.shade50,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: themeColor, width: 1.5),
+          gradient: displayImage == null
+              ? HomeScreen.getEventPlaceholderData(
+                      _selectedCategory ?? '',
+                    )['gradient']
+                    as LinearGradient?
+              : null,
           image: displayImage != null
               ? DecorationImage(image: displayImage, fit: BoxFit.cover)
               : null,
         ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (displayImage != null)
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.45),
+        child: displayImage == null
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _selectedCategory != null
+                          ? HomeScreen.getEventPlaceholderData(
+                              _selectedCategory!,
+                            )['icon']
+                          : Icons.add_a_photo_outlined,
+                      size: 40,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap to change event image',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                        shadows: [
+                          const Shadow(
+                            blurRadius: 4,
+                            color: Colors.black26,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : Align(
+                alignment: Alignment.bottomRight,
+                child: Container(
+                  margin: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.edit, color: Colors.white, size: 20),
                 ),
               ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  displayImage != null
-                      ? Icons.edit
-                      : Icons.add_a_photo_outlined,
-                  color: displayImage != null ? Colors.white : themeColor,
-                  size: 40,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  displayImage != null
-                      ? 'Tap to Change Image'
-                      : 'Tap to Select Image',
-                  style: GoogleFonts.poppins(
-                    color: displayImage != null ? Colors.white : themeColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }

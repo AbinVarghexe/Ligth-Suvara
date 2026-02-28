@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sundayschool_app/auth_screen.dart';
@@ -18,11 +19,47 @@ import 'package:rxdart/rxdart.dart';
 
 import 'package:sundayschool_app/animator/registration_dashboard.dart';
 import 'package:sundayschool_app/animator/school_my_registrations_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 enum SortOption { newestFirst, alphabetical }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  static Map<String, dynamic> getEventPlaceholderData(String category) {
+    final cat = category.toUpperCase();
+    if (cat == 'CML') {
+      return {
+        'icon': Icons.celebration_rounded,
+        'color': const Color(0xFF5C35B3), // Deep violet
+        'gradient': const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF7C4DDB), Color(0xFF3D1A8E)], // Rich violet-indigo
+        ),
+      };
+    } else if (cat == 'SUVARA') {
+      return {
+        'icon': Icons.star_rounded,
+        'color': const Color(0xFFBF8A00), // Deep gold
+        'gradient': const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFCA28), Color(0xFFE67E00)], // Golden amber
+        ),
+      };
+    }
+    return {
+      'icon': Icons.event_rounded,
+      'color': Color(0xFF1565C0),
+      'gradient': LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Colors.blue.shade400, Colors.blue.shade800],
+      ),
+    };
+  }
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -168,6 +205,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _schoolDisplayName = 'Loading...';
   String? _profileImageUrl;
   bool _isAdmin = false;
+  bool _isObserverMinimized = false;
+  bool _isObserverCollapsed = false;
 
   late AnimationController _headerAnimationController;
   late AnimationController _fabAnimationController;
@@ -217,6 +256,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Stream<QuerySnapshot>? _activeProgramsStream;
+  Stream<List<QuerySnapshot>>? _observerAssignmentsStream;
+
+  void _setupObserverStream() {
+    _observerAssignmentsStream = Rx.combineLatest2(
+      FirebaseFirestore.instance
+          .collection('assignments')
+          .where('type', isEqualTo: 'Observer')
+          .snapshots(),
+      FirebaseFirestore.instance
+          .collection('settings')
+          .doc('observer_dates')
+          .collection('years')
+          .snapshots(),
+      (QuerySnapshot assignments, QuerySnapshot settings) => [
+        assignments,
+        settings,
+      ],
+    ).asBroadcastStream();
+  }
 
   void _setupActiveProgramsStream() {
     _activeProgramsStream = FirebaseFirestore.instance
@@ -231,7 +289,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.initState();
     _setupEventsStream(); // Initial setup
     _setupActiveProgramsStream(); // Initial setup for banner
+    _setupObserverStream(); // Setup observer stream out of build
     _loadUserData();
+    _loadObserverPreference();
     _searchController.addListener(_onSearchChanged);
 
     _headerAnimationController = AnimationController(
@@ -266,6 +326,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     Future.delayed(const Duration(milliseconds: 600), () {
       if (mounted) _fabAnimationController.forward();
     });
+  }
+
+  Future<void> _loadObserverPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _isObserverMinimized =
+            prefs.getBool('observer_minimized_school') ?? false;
+        _isObserverCollapsed =
+            prefs.getBool('observer_collapsed_school') ?? false;
+      });
+    }
+  }
+
+  Future<void> _toggleObserverMinimized() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isObserverMinimized = !_isObserverMinimized;
+      prefs.setBool('observer_minimized_school', _isObserverMinimized);
+    });
+    HapticFeedback.mediumImpact();
+  }
+
+  Future<void> _toggleObserverCollapsed() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isObserverCollapsed = !_isObserverCollapsed;
+      prefs.setBool('observer_collapsed_school', _isObserverCollapsed);
+    });
+    HapticFeedback.mediumImpact();
   }
 
   @override
@@ -511,15 +601,44 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               .get();
 
           String? role;
+          String? schoolId;
           if (userDoc.exists) {
             role = userDoc.data()?['role']?.toString();
+            schoolId = userDoc.data()?['schoolId']?.toString();
           }
 
-          // Complete cleanup: Unsubscribe from ALL topics (user, role, AND broadcasts)
-          // Fire-and-forget: Don't await this, let it happen in background to speed up logout
-          NotificationService().unsubscribeAll(user.uid, role).catchError((e) {
-            debugPrint('Error unsubscribing from topics: $e');
+          // Unsubscribe from user-specific topic first
+          NotificationService().unsubscribeFromUserTopic(user.uid).catchError((
+            e,
+          ) {
+            debugPrint('Error unsubscribing from user topic: $e');
           });
+
+          // Unsubscribe from role topic if exists
+          if (role != null && role.isNotEmpty) {
+            NotificationService().unsubscribeFromRoleTopic(role).catchError((
+              e,
+            ) {
+              debugPrint('Error unsubscribing from role topic: $e');
+            });
+          }
+
+          // Unsubscribe from specific school topics if present
+          if (schoolId != null && schoolId.isNotEmpty) {
+            NotificationService().unsubscribeFromUserTopic(schoolId).catchError(
+              (e) {
+                debugPrint('Error unsubscribing from linked school topic: $e');
+              },
+            );
+          }
+
+          if (role == 'parish' || role == 'school') {
+            NotificationService().unsubscribeFromRoleTopic('school').catchError(
+              (e) {
+                debugPrint('Error unsubscribing from school role topic: $e');
+              },
+            );
+          }
         } catch (e) {
           debugPrint('Error getting user role for unsubscribe: $e');
         }
@@ -540,21 +659,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       extendBodyBehindAppBar: true,
-      body: CustomScrollView(
-        slivers: [
-          _buildModernAppBar(),
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-                _buildActiveProgramsBanner(),
-                _buildHighlightSection(),
-                const SizedBox(height: 32),
-                _buildRecentEventsSection(),
-              ],
-            ),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              _buildModernAppBar(),
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    _buildActiveProgramsBanner(),
+                    if (!_isObserverMinimized) ...[
+                      _buildObserverSection(),
+                      const SizedBox(height: 24),
+                    ],
+                    _buildHighlightSection(),
+                    const SizedBox(height: 32),
+                    _buildRecentEventsSection(),
+                  ],
+                ),
+              ),
+            ],
           ),
+          // Floating Observer button removed from Stack, will be moved to FAB Column
         ],
       ),
       floatingActionButton: Column(
@@ -613,6 +741,135 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 16),
           ],
+          // Integrated Observer Button
+          if (_isObserverMinimized)
+            ScaleTransition(
+              scale: CurvedAnimation(
+                parent: _fabAnimationController,
+                curve: Curves.easeOut,
+              ),
+              child: Padding(
+                padding: EdgeInsets.only(bottom: _isFabExpanded ? 16 : 0),
+                child: StreamBuilder<List<QuerySnapshot>>(
+                  stream: _observerAssignmentsStream,
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final assignmentsData = snapshot.data![0];
+                    final settingsData = snapshot.data![1];
+
+                    if (assignmentsData.docs.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user == null) return const SizedBox.shrink();
+
+                    final now = DateTime.now();
+                    final todayMidnight = DateTime(
+                      now.year,
+                      now.month,
+                      now.day,
+                    );
+
+                    final Map<String, DateTime> expirationDates = {};
+                    for (var doc in settingsData.docs) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      if (data['expirationDate'] != null) {
+                        expirationDates[doc.id] =
+                            (data['expirationDate'] as Timestamp).toDate();
+                      }
+                    }
+
+                    bool isExpired(String? academicYear) {
+                      if (academicYear == null ||
+                          !expirationDates.containsKey(academicYear))
+                        return false;
+                      return expirationDates[academicYear]!.isBefore(
+                        todayMidnight,
+                      );
+                    }
+
+                    final incoming = assignmentsData.docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      if (data['targetSchoolId'] != user.uid) return false;
+                      if (isExpired(data['academicYear'])) return false;
+                      return true;
+                    }).toList();
+
+                    final outgoing = assignmentsData.docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      if (data['sourceSchoolId'] != user.uid) return false;
+                      if (isExpired(data['academicYear'])) return false;
+                      return true;
+                    }).toList();
+
+                    if (incoming.isEmpty && outgoing.isEmpty)
+                      return const SizedBox.shrink();
+
+                    return Transform.translate(
+                      offset: Offset(
+                        _isFabExpanded ? -20 : 0,
+                        0,
+                      ), // Moves slightly left when expanded
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.mediumImpact();
+                          _showObserverDetailsModal(incoming, outgoing);
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.indigo.shade900.withOpacity(0.8),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.assignment_ind_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Observer',
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          if (_isObserverMinimized && !_isFabExpanded)
+            const SizedBox(height: 16),
           ScaleTransition(
             scale: _fabAnimation,
             child: FloatingActionButton(
@@ -631,6 +888,444 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildObserverSection() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const SizedBox.shrink();
+
+    return StreamBuilder<List<QuerySnapshot>>(
+      stream: _observerAssignmentsStream,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+
+        final assignmentsData = snapshot.data![0];
+        final settingsData = snapshot.data![1];
+
+        if (assignmentsData.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final now = DateTime.now();
+        final todayMidnight = DateTime(now.year, now.month, now.day);
+
+        final Map<String, DateTime> expirationDates = {};
+        for (var doc in settingsData.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['expirationDate'] != null) {
+            expirationDates[doc.id] = (data['expirationDate'] as Timestamp)
+                .toDate();
+          }
+        }
+
+        bool isExpired(String? academicYear) {
+          if (academicYear == null ||
+              !expirationDates.containsKey(academicYear))
+            return false;
+          return expirationDates[academicYear]!.isBefore(todayMidnight);
+        }
+
+        final incoming = assignmentsData.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['targetSchoolId'] != user.uid) return false;
+          if (isExpired(data['academicYear'])) return false;
+          return true;
+        }).toList();
+
+        final outgoing = assignmentsData.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['sourceSchoolId'] != user.uid) return false;
+          if (isExpired(data['academicYear'])) return false;
+          return true;
+        }).toList();
+
+        if (incoming.isEmpty && outgoing.isEmpty)
+          return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.indigo.shade400,
+                                Colors.indigo.shade600,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.indigo.shade400.withAlpha(77),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.assignment_ind_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: Text(
+                            'Observer Assignments',
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade900,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: _toggleObserverCollapsed,
+                        icon: AnimatedRotation(
+                          turns: _isObserverCollapsed ? 0 : 0.5,
+                          duration: const Duration(milliseconds: 300),
+                          child: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: Colors.grey.shade400,
+                            size: 24,
+                          ),
+                        ),
+                        tooltip: _isObserverCollapsed ? 'Expand' : 'Collapse',
+                      ),
+                      IconButton(
+                        onPressed: _toggleObserverMinimized,
+                        icon: Icon(
+                          Icons.close_fullscreen_rounded,
+                          color: Colors.grey.shade400,
+                          size: 20,
+                        ),
+                        tooltip: 'Minimize to floating button',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              AnimatedCrossFade(
+                firstChild: const SizedBox.shrink(),
+                secondChild: Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    if (incoming.isNotEmpty)
+                      _buildObserverCard(
+                        title: 'Incoming Observer (at your school)',
+                        observerName:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['teacherName'] ??
+                            'Unknown',
+                        schoolName:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['sourceSchoolName'] ??
+                            'Unknown',
+                        isIncoming: true,
+                        phone:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['teacherPhone'],
+                      ),
+                    if (incoming.isNotEmpty && outgoing.isNotEmpty)
+                      const SizedBox(height: 12),
+                    if (outgoing.isNotEmpty)
+                      ...outgoing.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildObserverCard(
+                            title: 'Outgoing Observer (from your school)',
+                            observerName: data['teacherName'] ?? 'Unknown',
+                            schoolName: data['targetSchoolName'] ?? 'Unknown',
+                            isIncoming: false,
+                            phone: data['teacherPhone'],
+                          ),
+                        );
+                      }),
+                  ],
+                ),
+                crossFadeState: _isObserverCollapsed
+                    ? CrossFadeState.showFirst
+                    : CrossFadeState.showSecond,
+                duration: const Duration(milliseconds: 300),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // _buildFloatingObserverButton removed as it's now integrated into the FAB stack
+
+  void _showObserverDetailsModal(
+    List<DocumentSnapshot> incoming,
+    List<DocumentSnapshot> outgoing,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.96),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(30),
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.5),
+                width: 1.5,
+              ),
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.assignment_ind_rounded,
+                          color: Colors.indigo.shade900,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Observer Details',
+                            style: GoogleFonts.poppins(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo.shade900,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _toggleObserverMinimized();
+                          },
+                          icon: const Icon(
+                            Icons.open_in_full_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            'Expand',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.indigo.shade700,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    if (incoming.isNotEmpty) ...[
+                      _buildObserverCard(
+                        title: 'Incoming Observer',
+                        observerName:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['teacherName'] ??
+                            'Unknown',
+                        schoolName:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['sourceSchoolName'] ??
+                            'Unknown',
+                        isIncoming: true,
+                        phone:
+                            (incoming.first.data()
+                                as Map<String, dynamic>)['teacherPhone'],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    if (outgoing.isNotEmpty)
+                      ...outgoing.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildObserverCard(
+                            title: 'Outgoing Observer',
+                            observerName: data['teacherName'] ?? 'Unknown',
+                            schoolName: data['targetSchoolName'] ?? 'Unknown',
+                            isIncoming: false,
+                            phone: data['teacherPhone'],
+                          ),
+                        );
+                      }).toList(),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildObserverCard({
+    required String title,
+    required String observerName,
+    required String schoolName,
+    required bool isIncoming,
+    String? phone,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isIncoming ? Colors.indigo.shade100 : Colors.orange.shade100,
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isIncoming ? Colors.indigo.shade50 : Colors.orange.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isIncoming ? Icons.login_rounded : Icons.logout_rounded,
+              color: isIncoming
+                  ? Colors.indigo.shade700
+                  : Colors.orange.shade700,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  observerName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade900,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  isIncoming ? 'From: $schoolName' : 'Going to: $schoolName',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey.shade500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (phone != null && phone.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.phone,
+                          size: 14,
+                          color: Colors.grey.shade500,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            phone,
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: Colors.grey.shade500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (phone != null && phone.isNotEmpty)
+            IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.call, color: Colors.green.shade700, size: 20),
+              ),
+              onPressed: () async {
+                final url = Uri.parse('tel:$phone');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url);
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Could not launch dialer')),
+                    );
+                  }
+                }
+              },
+            ),
         ],
       ),
     );
@@ -1022,28 +1717,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.blue.shade700, Colors.blue.shade900],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue.shade900.withAlpha(77),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.event_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
                   Text(
                     'Recent Events',
                     style: GoogleFonts.poppins(
@@ -1394,45 +2067,68 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: Row(
                 children: [
                   Hero(
-                    tag: 'event_${eventDoc.id}',
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Colors.blue.shade100, Colors.blue.shade200],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.blue.shade900.withAlpha(51),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: data['imageUrl'] != null
-                            ? Image.network(
-                                data['imageUrl'],
-                                fit: BoxFit.cover,
-                                cacheWidth: 160,
-                                cacheHeight: 160,
-                                errorBuilder: (ctx, err, st) => Icon(
-                                  Icons.image_rounded,
-                                  color: Colors.blue.shade900,
-                                  size: 32,
-                                ),
-                              )
-                            : Icon(
-                                Icons.image_rounded,
-                                color: Colors.blue.shade900,
-                                size: 32,
+                    tag: data['imageUrl'] != null
+                        ? 'event_image_${eventDoc.id}'
+                        : 'event_icon_${eventDoc.id}',
+                    child: Builder(
+                      builder: (context) {
+                        final placeholder = HomeScreen.getEventPlaceholderData(
+                          data['category'] ?? '',
+                        );
+                        final hasImage =
+                            data['imageUrl'] != null &&
+                            (data['imageUrl'] as String).isNotEmpty;
+                        return Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: hasImage
+                                ? null
+                                : placeholder['gradient'] as LinearGradient?,
+                            color: hasImage ? Colors.grey.shade100 : null,
+                            boxShadow: [
+                              BoxShadow(
+                                color: (placeholder['color'] as Color)
+                                    .withAlpha(80),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
                               ),
-                      ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: hasImage
+                                ? Image.network(
+                                    data['imageUrl'],
+                                    fit: BoxFit.cover,
+                                    cacheWidth: 160,
+                                    cacheHeight: 160,
+                                    errorBuilder: (ctx, err, st) => Container(
+                                      decoration: BoxDecoration(
+                                        gradient:
+                                            placeholder['gradient']
+                                                as LinearGradient?,
+                                      ),
+                                      child: Center(
+                                        child: Icon(
+                                          placeholder['icon'] as IconData?,
+                                          color: Colors.white,
+                                          size: 32,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Center(
+                                    child: Icon(
+                                      placeholder['icon'] as IconData?,
+                                      color: Colors.white,
+                                      size: 32,
+                                    ),
+                                  ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -1455,46 +2151,54 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ),
                             ),
                             if (data['category'] != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color:
+                              Builder(
+                                builder: (context) {
+                                  final isCml =
                                       data['category']
-                                              ?.toString()
-                                              .toUpperCase() ==
-                                          'CML'
-                                      ? Colors.purple.shade50
-                                      : Colors.orange.shade50,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color:
+                                          ?.toString()
+                                          .toUpperCase() ==
+                                      'CML';
+                                  // CML = deep violet, SUVARA = golden amber
+                                  final badgeBg = isCml
+                                      ? const Color(0xFFF0EBFF)
+                                      : const Color(0xFFFFF8E1);
+                                  final badgeBorder = isCml
+                                      ? const Color(0xFFB39DDB)
+                                      : const Color(0xFFFFCC02);
+                                  final badgeText = isCml
+                                      ? const Color(0xFF4527A0)
+                                      : const Color(0xFF8D6200);
+                                  return IntrinsicWidth(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: badgeBg,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: badgeBorder,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Text(
                                         data['category']
                                                 ?.toString()
-                                                .toUpperCase() ==
-                                            'CML'
-                                        ? Colors.purple.shade200
-                                        : Colors.orange.shade200,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Text(
-                                  data['category']?.toString().toUpperCase() ??
-                                      '',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color:
-                                        data['category']
-                                                ?.toString()
-                                                .toUpperCase() ==
-                                            'CML'
-                                        ? Colors.purple.shade700
-                                        : Colors.orange.shade700,
-                                  ),
-                                ),
+                                                .toUpperCase() ??
+                                            '',
+                                        softWrap: false,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.visible,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: badgeText,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                           ],
                         ),
@@ -1733,32 +2437,52 @@ class _HighlightEventCardState extends State<HighlightEventCard> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Image.network(
-                      data['imageUrl'] ??
-                          'https://via.placeholder.com/400x220?text=No+Image',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.blue.shade300,
-                                Colors.blue.shade500,
-                              ],
+                    if (data['imageUrl'] != null)
+                      Image.network(
+                        data['imageUrl']!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          final placeholder =
+                              HomeScreen.getEventPlaceholderData(
+                                data['category'] ?? '',
+                              );
+                          return Container(
+                            decoration: BoxDecoration(
+                              gradient:
+                                  placeholder['gradient'] as LinearGradient?,
                             ),
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.image_rounded,
-                              size: 64,
-                              color: Colors.white,
+                            child: Center(
+                              child: Icon(
+                                placeholder['icon'] as IconData?,
+                                size: 64,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                          );
+                        },
+                      )
+                    else
+                      Builder(
+                        builder: (context) {
+                          final placeholder =
+                              HomeScreen.getEventPlaceholderData(
+                                data['category'] ?? '',
+                              );
+                          return Container(
+                            decoration: BoxDecoration(
+                              gradient:
+                                  placeholder['gradient'] as LinearGradient?,
+                            ),
+                            child: Center(
+                              child: Icon(
+                                placeholder['icon'] as IconData?,
+                                size: 64,
+                                color: Colors.white,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(

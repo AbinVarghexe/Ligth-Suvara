@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:sundayschool_app/admin/admin_program_manager.dart';
-import 'package:sundayschool_app/admin/admin_school_registrations.dart';
-import 'package:sundayschool_app/admin/admin_program_analytics.dart';
-import 'package:sundayschool_app/admin/admin_theme_programs_manager.dart';
 
-class AdminProgramMenu extends StatelessWidget {
-  const AdminProgramMenu({super.key});
+// Import screens to be implemented next
+import 'package:sundayschool_app/admin/admin_teacher_management.dart';
+import 'package:sundayschool_app/admin/admin_observer_management.dart';
+
+class AdminSchoolMenu extends StatelessWidget {
+  const AdminSchoolMenu({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -21,51 +21,31 @@ class AdminProgramMenu extends StatelessWidget {
         children: [
           _buildMenuCard(
             context,
-            'Analytics',
-            Icons.bar_chart_rounded,
-            Colors.green,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AdminProgramAnalytics(),
-              ),
-            ),
+            'Teacher Management',
+            Icons.cast_for_education_rounded,
+            Colors.teal,
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdminTeacherManagementScreen(),
+                ),
+              );
+            },
           ),
           _buildMenuCard(
             context,
-            'Manage Programs',
-            Icons.event_available_rounded,
-            Colors.purpleAccent,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AdminProgramManager(),
-              ),
-            ),
-          ),
-          _buildMenuCard(
-            context,
-            'See Registrations',
-            Icons.school_rounded,
+            'Observer Management',
+            Icons.visibility_rounded,
             Colors.indigo,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AdminSchoolRegistrations(),
-              ),
-            ),
-          ),
-          _buildMenuCard(
-            context,
-            'Theme & Info',
-            Icons.edit_note_rounded,
-            Colors.orange,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AdminThemeProgramsManager(),
-              ),
-            ),
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdminObserverManagementScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),

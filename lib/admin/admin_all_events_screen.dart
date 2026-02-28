@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:sundayschool_app/event_detail_screen.dart';
+import 'package:sundayschool_app/homescreen.dart';
 
 // Reusing SortOption from Dashboard or redefining if private
 enum SortOption { newestFirst, alphabetical }
@@ -627,27 +628,54 @@ class _AdminAllEventsScreenState extends State<AdminAllEventsScreen> {
                               padding: const EdgeInsets.all(16),
                               child: Row(
                                 children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Container(
-                                      width: 80,
-                                      height: 80,
-                                      color: Colors.grey.shade100,
-                                      child: data['imageUrl'] != null
-                                          ? Image.network(
-                                              data['imageUrl'],
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) => Icon(
-                                                Icons
-                                                    .image_not_supported_rounded,
-                                                color: Colors.grey.shade400,
+                                  Hero(
+                                    tag: data['imageUrl'] != null
+                                        ? 'event_image_${doc.id}'
+                                        : 'event_icon_${doc.id}',
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          gradient: data['imageUrl'] == null
+                                              ? HomeScreen.getEventPlaceholderData(
+                                                      data['category'] ?? '',
+                                                    )['gradient']
+                                                    as LinearGradient?
+                                              : null,
+                                          color: data['imageUrl'] != null
+                                              ? Colors.grey.shade100
+                                              : null,
+                                        ),
+                                        child: data['imageUrl'] != null
+                                            ? Image.network(
+                                                data['imageUrl'],
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) =>
+                                                    Container(
+                                                      color:
+                                                          Colors.grey.shade200,
+                                                      child: Icon(
+                                                        Icons
+                                                            .broken_image_rounded,
+                                                        color: Colors
+                                                            .grey
+                                                            .shade400,
+                                                      ),
+                                                    ),
+                                              )
+                                            : Center(
+                                                child: Icon(
+                                                  HomeScreen.getEventPlaceholderData(
+                                                        data['category'] ?? '',
+                                                      )['icon']
+                                                      as IconData?,
+                                                  color: Colors.white,
+                                                  size: 32,
+                                                ),
                                               ),
-                                            )
-                                          : Icon(
-                                              Icons.image_rounded,
-                                              color: Colors.grey.shade300,
-                                              size: 32,
-                                            ),
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 16),

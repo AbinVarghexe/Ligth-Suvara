@@ -8,7 +8,8 @@ import 'package:sundayschool_app/admin_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sundayschool_app/login_screen.dart';
 import 'package:sundayschool_app/animator/animator_dashboard_screen.dart';
-import 'package:sundayschool_app/parish/parish_dashboard_screen.dart'; // Added import for routing
+import 'package:sundayschool_app/parish/parish_dashboard_screen.dart';
+import 'package:sundayschool_app/admin/observer_remarks_login.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 import 'package:sundayschool_app/services/notification_service.dart'; // Import NotificationService
@@ -222,28 +223,44 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         final isUserAdmin = role == 'admin';
         final isAnimator = role == 'animator';
         final isParish = role == 'parish';
+        final isObserver = role == 'observer';
 
         if (mounted) {
           Widget destination;
           if (isUserAdmin) {
             destination = const AdminDashboardScreen();
           } else if (isParish) {
-            destination =
-                const ParishDashboardScreen(); // Added routing for Parish
+            destination = const ParishDashboardScreen();
           } else if (isAnimator) {
             destination = const AnimatorDashboardScreen();
+          } else if (isObserver) {
+            destination = const ObserverRemarksLoginScreen();
           } else {
             destination = const HomeScreen();
           }
 
           // --- Subscribe to all necessary topics ---
 
-          // 1. Subscribe to user-specific topic (for individual messages)
-          NotificationService().subscribeToUserTopic(user.uid);
+          if (!isParish) {
+            // 1. Subscribe to user-specific topic (for individual messages)
+            NotificationService().subscribeToUserTopic(user.uid);
 
-          // 3. Subscribe to role-specific topic (e.g., 'role_school')
-          if (role != null && role.isNotEmpty) {
-            NotificationService().subscribeToRoleTopic(role);
+            // 3. Subscribe to role-specific topic (e.g., 'role_school')
+            if (role != null && role.isNotEmpty) {
+              NotificationService().subscribeToRoleTopic(role);
+            }
+          } else {
+            // 4. NEW: Subscribe Parish to linked school's topics
+            if (userDoc.exists) {
+              final data = userDoc.data();
+              if (data != null) {
+                final String? linkedSchoolId = data['schoolId']?.toString();
+                if (linkedSchoolId != null && linkedSchoolId.isNotEmpty) {
+                  NotificationService().subscribeToUserTopic(linkedSchoolId);
+                  NotificationService().subscribeToRoleTopic('school');
+                }
+              }
+            }
           }
 
           debugPrint(

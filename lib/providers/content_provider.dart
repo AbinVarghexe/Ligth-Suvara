@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -16,63 +17,85 @@ class ContentProvider with ChangeNotifier {
   bool _isLoadingEvents = false;
   bool get isLoadingEvents => _isLoadingEvents;
 
+  // Stream Subscriptions
+  StreamSubscription? _broadcastSubscription;
+  StreamSubscription? _eventSubscription;
+
   // Define limits consistent with UI
   static const int _broadcastLimit = 10;
   static const int _eventLimit = 5;
 
   ContentProvider() {
-    // Optionally fetch on initialization
+    // Start listening on initialization
     refreshContent();
   }
 
-  /// Fetches both broadcasts and events
+  /// Initiates stream listeners for both broadcasts and events
   Future<void> refreshContent() async {
-    await Future.wait([fetchBroadcasts(), fetchEvents()]);
+    fetchBroadcasts();
+    fetchEvents();
   }
 
-  Future<void> fetchBroadcasts() async {
-    // If we already have data, we can optionally skip or just refresh silently
-    // For now, we'll set loading to true only if we have NO data to avoid UI flicker
+  void fetchBroadcasts() {
+    // If we're already listening, we don't need to start another listener
+    if (_broadcastSubscription != null) return;
+
     if (_broadcasts.isEmpty) {
       _isLoadingBroadcasts = true;
       notifyListeners();
     }
 
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('broadcasts')
-          .orderBy('timestamp', descending: true)
-          .limit(_broadcastLimit)
-          .get();
-
-      _broadcasts = snapshot.docs;
-    } catch (e) {
-      debugPrint("Error fetching broadcasts: $e");
-    } finally {
-      _isLoadingBroadcasts = false;
-      notifyListeners();
-    }
+    _broadcastSubscription = FirebaseFirestore.instance
+        .collection('broadcasts')
+        .orderBy('timestamp', descending: true)
+        .limit(_broadcastLimit)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            _broadcasts = snapshot.docs;
+            _isLoadingBroadcasts = false;
+            notifyListeners();
+          },
+          onError: (e) {
+            debugPrint("Error fetching broadcasts: $e");
+            _isLoadingBroadcasts = false;
+            notifyListeners();
+          },
+        );
   }
 
-  Future<void> fetchEvents() async {
+  void fetchEvents() {
+    if (_eventSubscription != null) return;
+
     if (_events.isEmpty) {
       _isLoadingEvents = true;
       notifyListeners();
     }
 
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('events')
-          .orderBy('timestamp', descending: true)
-          .limit(_eventLimit)
-          .get();
+    _eventSubscription = FirebaseFirestore.instance
+        .collection('events')
+        .where('isPublic', isEqualTo: true)
+        .orderBy('timestamp', descending: true)
+        .limit(_eventLimit)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            _events = snapshot.docs;
+            _isLoadingEvents = false;
+            notifyListeners();
+          },
+          onError: (e) {
+            debugPrint("Error fetching events: $e");
+            _isLoadingEvents = false;
+            notifyListeners();
+          },
+        );
+  }
 
-      _events = snapshot.docs;
-    } catch (e) {
-      debugPrint("Error fetching events: $e");
-    } finally {
-      _isLoadingEvents = false;
-      notifyListeners();
-    }
+  @override
+  void dispose() {
+    _broadcastSubscription?.cancel();
+    _eventSubscription?.cancel();
+    super.dispose();
   }
 }

@@ -10,6 +10,7 @@ import 'package:sundayschool_app/custom_app_bar.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/cupertino.dart'; // Core: for modern picker
 import 'package:sundayschool_app/utils/image_optimizer.dart';
+import 'package:sundayschool_app/homescreen.dart';
 
 class UploadScreen extends StatefulWidget {
   final String? eventId;
@@ -79,22 +80,30 @@ class _UploadScreenState extends State<UploadScreen> {
         }
 
         _existingImageUrl = data['imageUrl'];
-        // Load existing category for editing
-        if (data['category'] != null &&
-            _categories.contains(data['category'])) {
-          _selectedCategory = data['category'];
-        }
 
-        setState(() {});
+        // Load existing category — case-insensitive match so stored values
+        // like 'cml' or 'CML' both map correctly to the dropdown entries.
+        final storedCategory = data['category'] as String?;
+        if (storedCategory != null) {
+          final match = _categories.firstWhere(
+            (c) => c.toLowerCase() == storedCategory.toLowerCase(),
+            orElse: () => '',
+          );
+          if (match.isNotEmpty) _selectedCategory = match;
+        }
       }
     } catch (e) {
-      _showStatusDialog(
-        context: context,
-        isSuccess: false,
-        title: "Load Failed",
-        message: "Failed to load event data: $e",
-      );
+      if (mounted) {
+        _showStatusDialog(
+          context: context,
+          isSuccess: false,
+          title: "Load Failed",
+          message: "Failed to load event data: $e",
+        );
+      }
     } finally {
+      // Single setState in finally ensures the form always renders with
+      // all pre-filled values (including category) once loading is done.
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -408,19 +417,21 @@ class _UploadScreenState extends State<UploadScreen> {
         }
       }
 
-      final eventData = {
+      final Map<String, dynamic> eventData = {
         'title': _titleController.text.trim(),
         'place': _placeController.text.trim(),
         'description': _descriptionController.text.trim(),
         'timestamp': Timestamp.fromDate(finalDateTime),
         'imageUrl': imageUrl,
         'title_lowercase': _titleController.text.trim().toLowerCase(),
-        // CORE CHANGE 3: Include the selected category
         'category': _selectedCategory,
-        'forane': userForane, // Add Forane
+        'forane': userForane,
         if (!_isEditing) 'creatorId': user!.uid,
-        // CORE CHANGE: Set isPublic to false for all new events (draft mode)
         if (!_isEditing) 'isPublic': false,
+        // createdAt is only written once at creation time
+        if (!_isEditing) 'createdAt': FieldValue.serverTimestamp(),
+        // updatedAt is refreshed on both create AND every subsequent edit
+        'updatedAt': FieldValue.serverTimestamp(),
       };
 
       if (_isEditing) {
@@ -701,6 +712,12 @@ class _UploadScreenState extends State<UploadScreen> {
           color: Colors.blue.shade50,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: themeColor, width: 1.5),
+          gradient: !hasImage
+              ? HomeScreen.getEventPlaceholderData(
+                      _selectedCategory ?? '',
+                    )['gradient']
+                    as LinearGradient?
+              : null,
           image: hasImage
               ? DecorationImage(image: imageProvider!, fit: BoxFit.cover)
               : null,
@@ -711,16 +728,27 @@ class _UploadScreenState extends State<UploadScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      Icons.add_a_photo_outlined,
+                      _selectedCategory != null
+                          ? HomeScreen.getEventPlaceholderData(
+                              _selectedCategory!,
+                            )['icon']
+                          : Icons.add_a_photo_outlined,
                       size: 40,
-                      color: themeColor,
+                      color: Colors.white,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Tap to add event image',
                       style: GoogleFonts.poppins(
-                        color: themeColor,
+                        color: Colors.white,
                         fontWeight: FontWeight.w500,
+                        shadows: [
+                          const Shadow(
+                            blurRadius: 4,
+                            color: Colors.black26,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                       ),
                     ),
                   ],

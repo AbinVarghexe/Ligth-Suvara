@@ -20,6 +20,9 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
     final nameController = TextEditingController(
       text: currentData['name'] ?? '',
     );
+    final phoneController = TextEditingController(
+      text: currentData['phoneNumber'] ?? '',
+    );
     final addressController = TextEditingController(
       text: currentData['address'] ?? '',
     );
@@ -97,6 +100,39 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
                           filled: true,
                           fillColor: Colors.grey.shade50,
                         ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Phone Number Field
+                      TextField(
+                        controller: phoneController,
+                        decoration: InputDecoration(
+                          labelText: 'Phone Number',
+                          labelStyle: TextStyle(color: Colors.indigo.shade700),
+                          prefixIcon: Icon(
+                            Icons.phone_outlined,
+                            color: Colors.indigo.shade700,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Colors.indigo.shade100,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Colors.indigo.shade900,
+                              width: 2,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                        ),
+                        keyboardType: TextInputType.phone,
                       ),
                       const SizedBox(height: 16),
 
@@ -244,6 +280,7 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
                     }
                     Navigator.pop(context, {
                       'name': nameController.text.trim(),
+                      'phoneNumber': phoneController.text.trim(),
                       if (selectedParishId != null)
                         'parishId': selectedParishId,
                       if (selectedParishName != null)
@@ -438,12 +475,30 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
                       color: Colors.grey.shade800,
                     ),
                   ),
-                  subtitle: Text(
-                    email,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: Colors.grey.shade600,
-                    ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        email,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      if (data['phoneNumber'] != null &&
+                          data['phoneNumber'].toString().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            data['phoneNumber'],
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   trailing: Container(
                     decoration: BoxDecoration(
