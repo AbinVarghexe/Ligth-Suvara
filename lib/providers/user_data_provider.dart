@@ -10,6 +10,8 @@ class UserData {
   final bool isAnimator;
   final bool isSchool;
   final bool isParish;
+  final bool isObserver;
+  final bool isTeacher;
   final String? parishId;
   final String? schoolId;
   final String? schoolName;
@@ -21,6 +23,8 @@ class UserData {
     this.isAnimator = false,
     this.isSchool = false,
     this.isParish = false,
+    this.isObserver = false,
+    this.isTeacher = false,
     this.parishId,
     this.schoolId,
     this.schoolName,
@@ -69,6 +73,8 @@ class UserDataProvider with ChangeNotifier {
       bool isAnimator = false;
       bool isSchool = false;
       bool isParish = false;
+      bool isObserver = false;
+      bool isTeacher = false;
       String? parishId;
       String? schoolId;
       String? schoolNameStr;
@@ -88,6 +94,8 @@ class UserDataProvider with ChangeNotifier {
         isAnimator = role == 'animator';
         isSchool = role == 'school';
         isParish = role == 'parish';
+        isObserver = role == 'observer';
+        isTeacher = role == 'teacher';
         // Improved parishId fetching: check both 'parishId' and 'parish' fields
         parishId = data?['parishId'] ?? data?['parish'];
         schoolId = data?['schoolId'];
@@ -101,6 +109,8 @@ class UserDataProvider with ChangeNotifier {
         isAnimator: isAnimator,
         isSchool: isSchool,
         isParish: isParish,
+        isObserver: isObserver,
+        isTeacher: isTeacher,
         parishId: parishId,
         schoolId: schoolId,
         schoolName: schoolNameStr,

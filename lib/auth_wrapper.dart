@@ -7,6 +7,7 @@ import 'package:sundayschool_app/admin_dashboard_screen.dart';
 import 'package:sundayschool_app/providers/user_data_provider.dart';
 import 'package:sundayschool_app/animator/animator_dashboard_screen.dart';
 import 'package:sundayschool_app/parish/parish_dashboard_screen.dart'; // Added import
+import 'package:sundayschool_app/admin/observer_remarks_login.dart';
 
 import 'package:loading_animation_widget/loading_animation_widget.dart'; // Import modern loader
 
@@ -46,6 +47,10 @@ class AuthWrapper extends StatelessWidget {
       return const HomeScreen();
     } else if (userDataProvider.userData.isAnimator) {
       return const AnimatorDashboardScreen();
+    } else if (userDataProvider.userData.isObserver) {
+      return const ObserverRemarksLoginScreen();
+    } else if (userDataProvider.userData.isTeacher) {
+      return const HomeScreen();
     } else {
       return const HomeScreen();
     }

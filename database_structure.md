@@ -12,7 +12,7 @@ Stores profile information and determines system permissions.
   - `name`: String - Display name (User's full name or Sunday School name).
   - `email`: String - Primary login email.
   - `phone`: String - Contact number.
-  - `role`: String - One of: `admin`, `school`, `parish`, `animator`. Determines UI access and notification targeting.
+  - `role`: String - One of: `admin`, `school`, `parish`, `animator`, `observer`, `teacher`. Determines UI access and notification targeting.
   - `forane`: String - Forane name the user belongs to.
   - `parish`: String - Parish name.
   - `address`: String - Physical/postal address.
