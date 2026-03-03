@@ -2,6 +2,44 @@
 
 This document outlines the Firestore collection structure for the Sunday School Management app. It includes detailed field descriptions and logic for targeted features like notifications and registration workflows.
 
+## Firebase Configuration
+
+| Property | Value |
+|---|---|
+| **Project Name** | Sunday-School |
+| **Project ID** | `sunday-school-8cde8` |
+| **Database Type** | Firestore Native |
+| **Database Location** | `nam5` (US Central) |
+
+### Security Rules
+
+> ⚠️ **Current security rules allow unrestricted read and write access:**
+>
+> ```javascript
+> allow read, write: if true;
+> ```
+>
+> This means any user — authenticated or not — can read or modify any document. These rules **must** be replaced with proper role-based rules before production deployment.
+
+## Composite Indexes
+
+The following collection-group indexes are defined in Firestore to support ordered and filtered queries:
+
+| Collection | Index Fields | Order |
+|---|---|---|
+| `events` | `creatorId`, `timestamp`, `__name__` | `creatorId` ASC, `timestamp` DESC, `__name__` DESC |
+| `events` | `category`, `timestamp`, `__name__` | `category` ASC, `timestamp` DESC, `__name__` DESC |
+| `events` | `status`, `timestamp`, `__name__` | `status` ASC, `timestamp` DESC, `__name__` DESC |
+| `events` | `title_lowercase`, `timestamp`, `__name__` | `title_lowercase` ASC, `timestamp` DESC, `__name__` DESC |
+| `events` | `timestamp`, `title`, `__name__` | `timestamp` DESC, `title` DESC, `__name__` DESC |
+| `events` | `isPublic`, `timestamp`, `__name__` | `isPublic` ASC, `timestamp` DESC, `__name__` DESC |
+| `users` | `role`, `schoolname`, `__name__` | all ASC |
+| `notifications` | `recipientId`, `timestamp`, `__name__` | `recipientId` ASC, `timestamp` DESC, `__name__` DESC |
+| `program_registrations` | `parishUserId`, `status`, `submittedAt`, `__name__` | `parishUserId` ASC, `status` ASC, `submittedAt` DESC, `__name__` DESC |
+| `program_registrations` | `parishId`, `status`, `submittedAt`, `__name__` | `parishId` ASC, `status` ASC, `submittedAt` DESC, `__name__` DESC |
+| `programs` | `isActive`, `createdAt`, `__name__` | `isActive` ASC, `createdAt` DESC, `__name__` DESC |
+| `teachers` | `schoolId`, `createdAt`, `__name__` | `schoolId` ASC, `createdAt` DESC, `__name__` DESC |
+
 ## Collections
 
 ### 1. `users`
@@ -13,6 +51,7 @@ Stores profile information and determines system permissions.
   - `email`: String - Primary login email.
   - `phone`: String - Contact number.
   - `role`: String - One of: `admin`, `school`, `parish`, `animator`. Determines UI access and notification targeting.
+  - `schoolname`: String - School display name (used for `school`-role users; indexed alongside `role` for school-selection queries).
   - `forane`: String - Forane name the user belongs to.
   - `parish`: String - Parish name.
   - `address`: String - Physical/postal address.
@@ -35,6 +74,8 @@ School-specific or Admin-posted announcements/events.
   - `forane`: String - Forane context (used to filter events by region).
   - `creatorId`: String - UID of the user who posted the event.
   - `isPublic`: Boolean - If `false`, the event is considered a "Draft" and only visible to the creator/admin.
+  - `status`: String - Optional event lifecycle status (indexed for filtered queries alongside `timestamp`).
+  - `creatorSchoolName`: String - Display name of the school that created the event (stored for report generation).
 
 ### 3. `programs`
 Defines active registration programs (e.g., competitive events).
@@ -53,6 +94,7 @@ Stores student entries. Features several status levels for a workflow.
   - `schoolUserId`: String - UID of the submitting School.
   - `schoolName`: String - Name of the submitting School.
   - `parishUserId`: String - UID of the associated Parish for approval.
+  - `parishId`: String - UID of the associated Parish document (used as an alternative key for filtering registrations by parish; indexed alongside `status` and `submittedAt`).
   - `parishName`: String - Name of the associated Parish.
   - `isCountOnly`: Boolean - If `true`, only `studentCount` is relevant (no individual names).
   - `studentCount`: Number - Total count for bulk registration.
@@ -139,7 +181,7 @@ Stores teacher profiles for each Sunday School.
   - `schoolId`: String - UID of the associated Sunday School user.
   - `schoolName`: String - Name of the Sunday School.
   - `photoUrl`: String - Optional URL to the teacher's profile photo in Storage.
-  - `addedAt`: serverTimestamp - Date the record was created.
+  - `createdAt`: serverTimestamp - Date the record was created (indexed for ordered queries).
 
 ### 11. `assignments`
 Stores observer assignments that link a teacher from one school to another school's exam.

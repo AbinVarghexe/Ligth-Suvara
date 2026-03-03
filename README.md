@@ -278,20 +278,33 @@ lib/
 
 ## 📊 Firebase / Firestore Database Structure
 
-See [`database_structure.md`](database_structure.md) for the full field-level reference. Summary:
+See [`database_structure.md`](database_structure.md) for the full field-level reference.
+
+### Firebase Project Configuration
+
+| Property | Value |
+|---|---|
+| **Project Name** | Sunday-School |
+| **Project ID** | `sunday-school-8cde8` |
+| **Database Type** | Firestore Native |
+| **Database Location** | `nam5` (US Central) |
+
+> ⚠️ **Security Rules Notice**: The current Firestore security rules are set to `allow read, write: if true`, granting unrestricted access to all documents for any user. These rules **must** be replaced with proper role-based rules before production deployment.
+
+### Collections Summary
 
 | Collection | Purpose |
 |---|---|
-| `users` | User profiles with role (`admin`, `parish`, `school`, `animator`), FCM token, forane/parish info |
-| `events` | School or admin-posted events with title, description, date, image, category, draft flag |
+| `users` | User profiles with role (`admin`, `parish`, `school`, `animator`), `schoolname` (for school users), FCM token, forane/parish info |
+| `events` | School or admin-posted events with title, description, date, image, category, `isPublic` draft flag, and optional `status` field |
 | `programs` | Competitive program definitions — name, registration dates, active flag |
-| `program_registrations` | Student registrations with multi-step approval status (`pending_parish` → `approved_parish` → `locked` → `approved_admin`) |
+| `program_registrations` | Student registrations with multi-step approval status (`pending_parish` → `approved_parish` → `locked` → `approved_admin`); includes both `parishUserId` and `parishId` for parish filtering |
 | `notifications` | Targeted or role-based notifications with `readBy` receipt array |
 | `broadcasts` | Public-facing announcements visible to all users |
 | `animator_assignments` | Maps animators to assigned Sunday Schools (max 2/year) |
 | `marks` | Mark entries per school per year, keyed by `{schoolId}_{year}` |
 | `questions` | Mark entry schema (question text, max mark, display order) |
-| `teachers` | Teacher profiles per Sunday School and academic year (name, phone, email, DOB, qualification, classes, photo) |
+| `teachers` | Teacher profiles per Sunday School and academic year (name, phone, email, DOB, qualification, classes, photo); uses `createdAt` for ordering |
 | `assignments` | Observer assignments linking a teacher from one school to another school's exam; stores 6-digit `accessCode`, `type: 'Observer'`, attendance and remarks once submitted |
 
 ### Firebase Storage Paths
@@ -302,6 +315,25 @@ See [`database_structure.md`](database_structure.md) for the full field-level re
 | `broadcast_images/` | Banner images for broadcasts and notifications |
 | `marks_pdfs/` | Student result proof PDFs uploaded by animators |
 | `user_profiles/` | User and school profile pictures |
+
+### Firestore Composite Indexes
+
+The following composite indexes are configured to support the app's ordered and filtered queries:
+
+| Collection | Indexed Fields | Notes |
+|---|---|---|
+| `events` | `creatorId` + `timestamp` ↓ | Filter events by creator |
+| `events` | `category` + `timestamp` ↓ | Filter events by category |
+| `events` | `status` + `timestamp` ↓ | Filter events by status |
+| `events` | `title_lowercase` + `timestamp` ↓ | Case-insensitive title search |
+| `events` | `timestamp` ↓ + `title` ↓ | Default sorted event feed |
+| `events` | `isPublic` + `timestamp` ↓ | Filter draft vs published events |
+| `users` | `role` + `schoolname` | School-selection queries |
+| `notifications` | `recipientId` + `timestamp` ↓ | Per-user notification inbox |
+| `program_registrations` | `parishUserId` + `status` + `submittedAt` ↓ | Parish approval queue |
+| `program_registrations` | `parishId` + `status` + `submittedAt` ↓ | Alternative parish filtering |
+| `programs` | `isActive` + `createdAt` ↓ | Active program listing |
+| `teachers` | `schoolId` + `createdAt` ↓ | Teachers per school |
 
 ---
 
