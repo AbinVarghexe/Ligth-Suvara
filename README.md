@@ -19,7 +19,7 @@
 
 ### 🎯 Key Highlights
 
-- **Multi-Role System**: Four distinct dashboards tailored for Admin, Parish, School, and Animator roles
+- **Multi-Role System**: Four distinct dashboards tailored for Admin, Parish, School, and Animator roles, plus a code-gated Observer portal for teachers
 - **Real-time Event Management**: Create, publish, and track events with live Firestore updates
 - **Program Registration Workflow**: End-to-end registration pipeline — school submission → parish approval → admin oversight
 - **Marks & Evaluation**: Animators record student marks per question set; PDFs are generated as proof
@@ -37,10 +37,11 @@ The app uses **role-based access control** stored in Firestore. Each user has a 
 
 | Role | Dashboard | Primary Responsibilities |
 |------|-----------|--------------------------|
-| **admin** | Admin Dashboard | Full system control — manage events, programs, animators, parishes, schools, marks, and broadcasts |
+| **admin** | Admin Dashboard | Full system control — manage events, programs, animators, parishes, schools, teachers, observers, marks, and broadcasts |
 | **parish** | Parish Dashboard | Approve/reject school registrations, view events, manage linked Sunday School |
 | **school** | Home Screen | Browse events, submit program registrations, view spiritual resources |
 | **animator** | Animator Dashboard | Enter student marks, upload PDF proofs, view assigned schools |
+| **observer** | Observer Portal | Access via 6-digit code — submit exam attendance and remarks for an assigned school (no Firebase Auth account required) |
 
 ---
 
@@ -78,6 +79,20 @@ The app uses **role-based access control** stored in Firestore. Each user has a 
 - **Animator** uploads a PDF proof document
 - Once submitted, entries can be **locked** to prevent edits
 - Admin can view all marks, generate a consolidated PDF report
+
+### 👨‍🏫 Teacher Management
+
+- **Admin** adds teachers to any Sunday School with full profile details: name, phone, email, date of birth, qualification, classes taught, academic year, and a photo
+- Teachers are stored per school and per academic year, making them available for observer assignment
+- Admin can view, edit, and delete teacher records from the `AdminTeacherManagementScreen`
+
+### 👁️ Observer Portal
+
+- **Admin** assigns a teacher from one school as an **Observer** for a different school's exam
+- Each observer assignment generates a unique **6-digit access code** stored in the `assignments` collection with `type: 'Observer'`
+- Observers access a standalone **Observer Portal** (`ObserverRemarksLoginScreen`) by entering their code — no Firebase Auth account is required
+- After authentication, the observer submits an **exam report** containing total attendance, absentee names, and written remarks
+- Admin can review all submitted observer reports from `AdminObserverRemarksViewScreen`; a global expiration date can be set to lock the portal after a deadline
 
 ### 📢 Notifications & Broadcasts
 
@@ -276,6 +291,8 @@ See [`database_structure.md`](database_structure.md) for the full field-level re
 | `animator_assignments` | Maps animators to assigned Sunday Schools (max 2/year) |
 | `marks` | Mark entries per school per year, keyed by `{schoolId}_{year}` |
 | `questions` | Mark entry schema (question text, max mark, display order) |
+| `teachers` | Teacher profiles per Sunday School and academic year (name, phone, email, DOB, qualification, classes, photo) |
+| `assignments` | Observer assignments linking a teacher from one school to another school's exam; stores 6-digit `accessCode`, `type: 'Observer'`, attendance and remarks once submitted |
 
 ### Firebase Storage Paths
 
