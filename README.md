@@ -82,6 +82,18 @@
   - Download event summaries
   - Track user engagement
 
+- **👁️ Observer Management**
+  - Assign observers to Sunday Schools by academic year
+  - Generate unique access codes for observer login
+  - Observers submit visit remarks, total attendance, and absentee details
+  - View all observer submissions per school in one place
+
+- **👨‍🏫 Teacher Management**
+  - Add and manage teachers linked to specific Sunday Schools
+  - Store teacher profiles: name, phone, email, qualification, classes taught, and date of birth
+  - Filter teacher records by school and academic year
+  - Upload teacher profile images to Firebase Storage
+
 ---
 
 ## 🏗️ Technical Architecture
@@ -149,6 +161,12 @@ lib/
 │   ├── bible.dart                     # Bible reader
 │   ├── catechism_screen.dart          # Catechism
 │   └── japamala.dart                  # Rosary counter
+├── admin/
+│   ├── admin_observer_management.dart # Observer assignment & access code generation
+│   ├── admin_observer_remarks_view.dart # View observer submissions
+│   ├── admin_teacher_management.dart  # Teacher profile management
+│   ├── observer_remarks_screen.dart   # Observer visit remarks entry
+│   └── observer_remarks_login.dart    # Observer access-code login
 ├── components/
 │   ├── custom_app_bar.dart            # Reusable app bar
 │   └── event_details_skelton.dart     # Loading skeleton
@@ -283,10 +301,12 @@ Generate detailed event reports with:
 
 ### User Roles
 
-| Role  | Permissions |
-|-------|-------------|
-| User  | View events, receive notifications, access spiritual resources |
-| Admin | All user permissions + create/edit/delete events, send broadcasts |
+| Role     | Permissions |
+|----------|-------------|
+| User     | View events, receive notifications, access spiritual resources |
+| Admin    | All user permissions + create/edit/delete events, send broadcasts, manage observers and teachers |
+| Observer | Log in with an access code to submit visit remarks and attendance for assigned Sunday Schools |
+| Teacher  | Associated with a Sunday School; profile managed by admin |
 
 ---
 
@@ -321,6 +341,22 @@ notifications/
       ├── eventId: string (optional)
       ├── category: string
       └── timestamp: timestamp
+
+assignments/
+  └── {assignmentId}
+      ├── teacherId: string
+      ├── teacherName: string
+      ├── teacherPhone: string
+      ├── sourceSchoolId: string
+      ├── sourceSchoolName: string
+      ├── targetSchoolId: string
+      ├── targetSchoolName: string
+      ├── academicYear: string
+      ├── accessCode: string
+      ├── remarks: string (optional)
+      ├── totalAttendance: number (optional)
+      ├── absentees: string (optional)
+      └── submittedAt: timestamp (optional)
 ```
 
 ---
