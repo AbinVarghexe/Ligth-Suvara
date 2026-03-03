@@ -126,6 +126,40 @@ Announcements visible to all users, including non-logged-in visitors.
   - `imageUrl`: String
   - `readBy`: List<String> - Same read receipt logic as `notifications`.
 
+### 10. `teachers`
+Stores teacher profiles for each Sunday School.
+- **Fields**:
+  - `name`: String - Full name of the teacher.
+  - `phone`: String - Contact number.
+  - `email`: String - Email address.
+  - `dob`: Timestamp - Date of birth.
+  - `qualification`: String - Academic/professional qualification.
+  - `classes`: String - Classes or subjects taught.
+  - `academicYear`: String - Academic year (e.g., `'2024-25'`).
+  - `schoolId`: String - UID of the associated Sunday School user.
+  - `schoolName`: String - Name of the Sunday School.
+  - `photoUrl`: String - Optional URL to the teacher's profile photo in Storage.
+  - `addedAt`: serverTimestamp - Date the record was created.
+
+### 11. `assignments`
+Stores observer assignments that link a teacher from one school to another school's exam.
+- **Fields**:
+  - `type`: String - Always `'Observer'` for this use case.
+  - `teacherId`: String - Document ID of the assigned teacher from the `teachers` collection.
+  - `teacherName`: String - Redundant name for display.
+  - `teacherPhone`: String - Contact number of the observer.
+  - `sourceSchoolId`: String - UID of the school the observer belongs to.
+  - `sourceSchoolName`: String - Name of that school.
+  - `targetSchoolId`: String - UID of the school being observed.
+  - `targetSchoolName`: String - Name of the observed school.
+  - `accessCode`: String - 6-digit numeric code used by the observer to log in to the Observer Portal.
+  - `academicYear`: String - Academic year for this assignment.
+  - `assignedAt`: serverTimestamp - Date the assignment was created.
+  - `remarks`: String - Written exam remarks submitted by the observer.
+  - `totalAttendance`: Number - Total student attendance count submitted by the observer.
+  - `absentees`: String - Names or details of absentees submitted by the observer.
+  - `remarksSubmittedAt`: serverTimestamp - Date the observer submitted the report.
+
 ## Firebase Storage Structure
 - `event_images/`: Optimized JPEG files for `events`.
 - `broadcast_images/`: Banner images for `broadcasts` or `notifications`.
