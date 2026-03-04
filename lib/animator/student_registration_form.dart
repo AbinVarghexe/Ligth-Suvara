@@ -8,11 +8,15 @@ import 'package:sundayschool_app/providers/user_data_provider.dart';
 class StudentRegistrationForm extends StatefulWidget {
   final String programId;
   final String programName;
+  final String? convertToDetailedDocId;
+  final int? initialCount;
 
   const StudentRegistrationForm({
     super.key,
     required this.programId,
     required this.programName,
+    this.convertToDetailedDocId,
+    this.initialCount,
   });
 
   @override
@@ -39,31 +43,44 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
   @override
   void initState() {
     super.initState();
-    _addStudentEntry(); // Add initial entry
+    if (widget.convertToDetailedDocId != null && widget.initialCount != null) {
+      _isCountOnly = false;
+      _countController.text = widget.initialCount.toString();
+      _updateStudentEntriesCount(widget.initialCount.toString());
+    }
+    _countController.addListener(
+      () => _updateStudentEntriesCount(_countController.text),
+    );
     _loadContext();
     _checkLockStatus();
   }
 
-  void _addStudentEntry() {
-    setState(() {
-      _studentEntries.add({
-        'name': TextEditingController(),
-        'phone': TextEditingController(),
-        'address': TextEditingController(),
-        'studentClass': TextEditingController(),
-      });
-    });
-  }
+  void _updateStudentEntriesCount(String value) {
+    if (_isCountOnly) return;
 
-  void _removeStudentEntry(int index) {
-    if (_studentEntries.length <= 1) return;
-    final entry = _studentEntries[index];
-    entry['name']?.dispose();
-    entry['phone']?.dispose();
-    entry['address']?.dispose();
-    entry['studentClass']?.dispose();
+    final count = int.tryParse(value) ?? 0;
+    if (count < 0) return;
+
     setState(() {
-      _studentEntries.removeAt(index);
+      if (count > _studentEntries.length) {
+        for (int i = _studentEntries.length; i < count; i++) {
+          _studentEntries.add({
+            'name': TextEditingController(),
+            'phone': TextEditingController(),
+            'address': TextEditingController(),
+            'studentClass': TextEditingController(),
+          });
+        }
+      } else if (count < _studentEntries.length) {
+        for (int i = _studentEntries.length - 1; i >= count; i--) {
+          final entry = _studentEntries[i];
+          entry['name']?.dispose();
+          entry['phone']?.dispose();
+          entry['address']?.dispose();
+          entry['studentClass']?.dispose();
+          _studentEntries.removeAt(i);
+        }
+      }
     });
   }
 
@@ -176,7 +193,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
           'studentCount': count,
           'isCountOnly': true,
           'submittedAt': FieldValue.serverTimestamp(),
-          'status': 'pending_parish',
+          'status': 'approved_parish',
           if (_schoolName != null) 'schoolName': _schoolName,
         });
       } else {
@@ -199,10 +216,15 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
             'studentClass': studentClass.isEmpty ? null : studentClass,
             'isCountOnly': false,
             'submittedAt': FieldValue.serverTimestamp(),
-            'status': 'pending_parish',
+            'status': 'approved_parish',
             if (_schoolName != null) 'schoolName': _schoolName,
           });
         }
+      }
+
+      if (widget.convertToDetailedDocId != null && !_isCountOnly) {
+        final convertDocRef = collection.doc(widget.convertToDetailedDocId);
+        batch.delete(convertDocRef);
       }
 
       await batch.commit();
@@ -233,7 +255,6 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
       }
     }
   }
-
 
   Future<void> _showStatusDialog({
     required BuildContext context,
@@ -315,7 +336,6 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
       },
     );
   }
-
 
   @override
   void dispose() {
@@ -472,7 +492,6 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                           : const SizedBox.shrink(),
                     ),
 
-
                     const SizedBox(height: 20),
 
                     // --- SEGMENTED CONTROL TOGGLE ---
@@ -515,8 +534,14 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                             children: [
                               Expanded(
                                 child: GestureDetector(
-                                  onTap: () =>
-                                      setState(() => _isCountOnly = false),
+                                  onTap: () {
+                                    setState(() {
+                                      _isCountOnly = false;
+                                      _updateStudentEntriesCount(
+                                        _countController.text,
+                                      );
+                                    });
+                                  },
                                   child: Container(
                                     color: Colors.transparent,
                                     child: Center(
@@ -561,45 +586,14 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                       ),
                     ),
 
-
-
-                    // Add Button
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: _addStudentEntry,
-                        icon: const Icon(
-                          Icons.add_circle_outline_rounded,
-                          size: 24,
-                        ),
-                        label: Text(
-                          'Add Another Student',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          foregroundColor: Colors.blue.shade900,
-                        ),
-
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-
-                    // --- CONDITIONAL FORM UI ---
-                    if (_isCountOnly)
-                      _buildCountOnlyEntry()
-                    else
+                    // --- FORM UI ---
+                    _buildCountInput(),
+                    if (!_isCountOnly && _studentEntries.isNotEmpty) ...[
+                      const SizedBox(height: 24),
                       _buildDetailedEntry(),
+                    ],
 
                     const SizedBox(height: 24),
-
-
 
                     ElevatedButton(
                       onPressed:
@@ -660,8 +654,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
     );
   }
 
-
-  Widget _buildCountOnlyEntry() {
+  Widget _buildCountInput() {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -773,15 +766,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                         ),
                       ),
                     ),
-                    if (_studentEntries.length > 1)
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline_rounded,
-                          color: Colors.red,
-                        ),
-                        onPressed: () => _removeStudentEntry(index),
-                        tooltip: 'Remove Student',
-                      ),
+                    // Removed individual delete button; count controls size.
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -873,23 +858,6 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
             ),
           );
         }),
-        Center(
-          child: TextButton.icon(
-            onPressed: _addStudentEntry,
-            icon: const Icon(Icons.add_circle_outline_rounded, size: 24),
-            label: Text(
-              'Add Another Student',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              foregroundColor: Colors.blue.shade900,
-            ),
-          ),
-        ),
       ],
     );
   }
