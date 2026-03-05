@@ -1,0 +1,292 @@
+﻿flutter : Package 
+open_file:macos 
+references open_file_
+macos:macos as the 
+default plugin, but 
+the package does not 
+exist, or is not a 
+plugin package.
+At line:1 char:1
++ flutter build 
+appbundle --release 
+> build_output.txt 
+2>&1
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (Package   
+  open_fi...plugi    
+n package.:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+Ask the maintainers 
+of open_file to 
+either avoid 
+referencing a 
+default 
+implementation via 
+`platforms: macos: 
+default_package: 
+open_file_macos` or 
+create a plugin 
+named 
+open_file_macos.
+
+Package 
+open_file:macos 
+references open_file_
+macos:macos as the 
+default plugin, but 
+the package does not 
+exist, or is not a 
+plugin package.
+Ask the maintainers 
+of open_file to 
+either avoid 
+referencing a 
+default 
+implementation via 
+`platforms: macos: 
+default_package: 
+open_file_macos` or 
+create a plugin 
+named 
+open_file_macos.
+
+Package 
+open_file:macos 
+references open_file_
+macos:macos as the 
+default plugin, but 
+the package does not 
+exist, or is not a 
+plugin package.
+Ask the maintainers 
+of open_file to 
+either avoid 
+referencing a 
+default 
+implementation via 
+`platforms: macos: 
+default_package: 
+open_file_macos` or 
+create a plugin 
+named 
+open_file_macos.
+
+Running Gradle task 'bundleRelease'...                          
+Γ£à Redirecting buildDir for flutter_plugin_android_lifecycle to C:\Users\USER\AppData\Local\Temp\flutter_build\flutter_plugin_android_lifecycle to fix cross-drive issue
+Γ£à Set namespace 'io.flutter.plugins.firebase.firestore' for module 'cloud_firestore'
+Γ£à Set namespace 'com.example.launchexternalapp' for module 'external_app_launcher'
+Γ£à Set namespace 'com.mr.flutter.plugin.filepicker' for module 'file_picker'
+Γ£à Set namespace 'io.flutter.plugins.firebase.appcheck' for module 'firebase_app_check'
+Γ£à Set namespace 'io.flutter.plugins.firebase.auth' for module 'firebase_auth'
+Γ£à Set namespace 'io.flutter.plugins.firebase.core' for module 'firebase_core'
+Γ£à Set namespace 'io.flutter.plugins.firebase.messaging' for module 'firebase_messaging'
+Γ£à Set namespace 'io.flutter.plugins.firebase.storage' for module 'firebase_storage'
+Γ£à Set namespace 'com.fluttercandies.flutter_image_compress' for module 'flutter_image_compress_common'
+Γ£à Set namespace 'com.dexterous.flutterlocalnotifications' for module 'flutter_local_notifications'
+Γ£à Set namespace 'net.jonhanson.flutter_native_splash' for module 'flutter_native_splash'
+Γ£à Set namespace 'io.flutter.plugins.flutter_plugin_android_lifecycle' for module 'flutter_plugin_android_lifecycle'
+Γ£à Set namespace 'io.flutter.plugins.imagepicker' for module 'image_picker_android'
+Γ£à Set namespace 'com.crazecoder.openfile' for module 'open_file_android'
+Γ£à Set namespace 'io.flutter.plugins.pathprovider' for module 'path_provider_android'
+Γ£à Set namespace 'com.baseflow.permissionhandler' for module 'permission_handler_android'
+Γ£à Set namespace 'net.nfet.flutter.printing' for module 'printing'
+Γ£à Set namespace 'io.flutter.plugins.urllauncher' for module 'url_launcher_android'
+Γ£à Set namespace 'io.flutter.plugins.webviewflutter' for module 'webview_flutter_android'
+Font asset "fa-regular-400.ttf" was tree-shaken, reducing it from 68064 to 1228 bytes (98.2% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Font asset "fa-solid-900.ttf" was tree-shaken, reducing it from 426112 to 3108 bytes (99.3% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 24592 bytes (98.5% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+ERROR: Missing 
+classes detected 
+while running R8. 
+Please add the 
+missing classes or 
+apply additional 
+keep rules that are 
+generated in D:\Light
+SuvaraUI\Ligth-Suvara
+\build\app\outputs\ma
+pping\release\missing
+_rules.txt.
+ERROR: R8: Missing 
+class com.google.andr
+oid.play.core.splitco
+mpat.SplitCompatAppli
+cation (referenced 
+from: void io.flutter
+.embedding.android.Fl
+utterPlayStoreSplitAp
+plication.<init>() 
+and 2 other contexts)
+Missing class com.goo
+gle.android.play.core
+.splitinstall.SplitIn
+stallException 
+(referenced from: 
+void io.flutter.embed
+ding.engine.deferredc
+omponents.PlayStoreDe
+ferredComponentManage
+r.lambda$installDefer
+redComponent$1(int, 
+java.lang.String, 
+java.lang.Exception))
+Missing class com.goo
+gle.android.play.core
+.splitinstall.SplitIn
+stallManager 
+(referenced from: com
+.google.android.play.
+core.splitinstall.Spl
+itInstallManager io.f
+lutter.embedding.engi
+ne.deferredcomponents
+.PlayStoreDeferredCom
+ponentManager.splitIn
+stallManager and 5 
+other contexts)
+Missing class com.goo
+gle.android.play.core
+.splitinstall.SplitIn
+stallManagerFactory 
+(referenced from: 
+void io.flutter.embed
+ding.engine.deferredc
+omponents.PlayStoreDe
+ferredComponentManage
+r.<init>(android.cont
+ent.Context, io.flutt
+er.embedding.engine.F
+lutterJNI))
+Missing class com.goo
+gle.android.play.core
+.splitinstall.SplitIn
+stallRequest$Builder 
+(referenced from: 
+void io.flutter.embed
+ding.engine.deferredc
+omponents.PlayStoreDe
+ferredComponentManage
+r.installDeferredComp
+onent(int, 
+java.lang.String))
+Missing class com.goo
+gle.android.play.core
+.splitinstall.SplitIn
+stallRequest 
+(referenced from: 
+void io.flutter.embed
+ding.engine.deferredc
+omponents.PlayStoreDe
+ferredComponentManage
+r.installDeferredComp
+onent(int, 
+java.lang.String))
+Missing class com.goo
+gle.android.play.core
+.splitinstall.SplitIn
+stallSessionState 
+(referenced from: 
+void io.flutter.embed
+ding.engine.deferredc
+omponents.PlayStoreDe
+ferredComponentManage
+r$FeatureInstallState
+UpdatedListener.onSta
+teUpdate(com.google.a
+ndroid.play.core.spli
+tinstall.SplitInstall
+SessionState) and 1 
+other context)
+Missing class com.goo
+gle.android.play.core
+.splitinstall.SplitIn
+stallStateUpdatedList
+ener (referenced 
+from: void io.flutter
+.embedding.engine.def
+erredcomponents.PlayS
+toreDeferredComponent
+Manager.<init>(androi
+d.content.Context, io
+.flutter.embedding.en
+gine.FlutterJNI) and 
+2 other contexts)
+Missing class com.goo
+gle.android.play.core
+.tasks.OnFailureListe
+ner (referenced 
+from: void io.flutter
+.embedding.engine.def
+erredcomponents.PlayS
+toreDeferredComponent
+Manager.installDeferr
+edComponent(int, 
+java.lang.String))
+Missing class com.goo
+gle.android.play.core
+.tasks.OnSuccessListe
+ner (referenced 
+from: void io.flutter
+.embedding.engine.def
+erredcomponents.PlayS
+toreDeferredComponent
+Manager.installDeferr
+edComponent(int, 
+java.lang.String))
+Missing class com.goo
+gle.android.play.core
+.tasks.Task 
+(referenced from: 
+void io.flutter.embed
+ding.engine.deferredc
+omponents.PlayStoreDe
+ferredComponentManage
+r.installDeferredComp
+onent(int, 
+java.lang.String) 
+and 1 other context)
+
+FAILURE: Build 
+failed with an 
+exception.
+
+* What went wrong:
+Execution failed for 
+task ':app:minifyRele
+aseWithR8'.
+> A failure occurred 
+while executing com.a
+ndroid.build.gradle.i
+nternal.tasks.R8Task$
+R8Runnable
+   > Compilation 
+failed to complete
+
+* Try:
+> Run with 
+--stacktrace option 
+to get the stack 
+trace.
+> Run with --info or 
+--debug option to 
+get more log output.
+> Run with --scan to 
+get full insights.
+> Get more help at ht
+tps://help.gradle.org
+.
+
+BUILD FAILED in 52s
+Running Gradle task 'bundleRelease'...                             52.6s
+Gradle task 
+bundleRelease failed 
+with exit code 1

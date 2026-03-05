@@ -1,0 +1,101 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class ContentProvider with ChangeNotifier {
+  // Cache for Broadcasts (Latest Updates)
+  List<QueryDocumentSnapshot> _broadcasts = [];
+  List<QueryDocumentSnapshot> get broadcasts => _broadcasts;
+
+  // Cache for Events (Recent Programs)
+  List<QueryDocumentSnapshot> _events = [];
+  List<QueryDocumentSnapshot> get events => _events;
+
+  bool _isLoadingBroadcasts = false;
+  bool get isLoadingBroadcasts => _isLoadingBroadcasts;
+
+  bool _isLoadingEvents = false;
+  bool get isLoadingEvents => _isLoadingEvents;
+
+  // Stream Subscriptions
+  StreamSubscription? _broadcastSubscription;
+  StreamSubscription? _eventSubscription;
+
+  // Define limits consistent with UI
+  static const int _broadcastLimit = 10;
+  static const int _eventLimit = 5;
+
+  ContentProvider() {
+    // Start listening on initialization
+    refreshContent();
+  }
+
+  /// Initiates stream listeners for both broadcasts and events
+  Future<void> refreshContent() async {
+    fetchBroadcasts();
+    fetchEvents();
+  }
+
+  void fetchBroadcasts() {
+    // If we're already listening, we don't need to start another listener
+    if (_broadcastSubscription != null) return;
+
+    if (_broadcasts.isEmpty) {
+      _isLoadingBroadcasts = true;
+      notifyListeners();
+    }
+
+    _broadcastSubscription = FirebaseFirestore.instance
+        .collection('broadcasts')
+        .orderBy('timestamp', descending: true)
+        .limit(_broadcastLimit)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            _broadcasts = snapshot.docs;
+            _isLoadingBroadcasts = false;
+            notifyListeners();
+          },
+          onError: (e) {
+            debugPrint("Error fetching broadcasts: $e");
+            _isLoadingBroadcasts = false;
+            notifyListeners();
+          },
+        );
+  }
+
+  void fetchEvents() {
+    if (_eventSubscription != null) return;
+
+    if (_events.isEmpty) {
+      _isLoadingEvents = true;
+      notifyListeners();
+    }
+
+    _eventSubscription = FirebaseFirestore.instance
+        .collection('events')
+        .where('isPublic', isEqualTo: true)
+        .orderBy('timestamp', descending: true)
+        .limit(_eventLimit)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            _events = snapshot.docs;
+            _isLoadingEvents = false;
+            notifyListeners();
+          },
+          onError: (e) {
+            debugPrint("Error fetching events: $e");
+            _isLoadingEvents = false;
+            notifyListeners();
+          },
+        );
+  }
+
+  @override
+  void dispose() {
+    _broadcastSubscription?.cancel();
+    _eventSubscription?.cancel();
+    super.dispose();
+  }
+}

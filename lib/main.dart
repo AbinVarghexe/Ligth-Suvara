@@ -1,45 +1,88 @@
 // Import the necessary packages
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart'; // ⭐️ 1. IMPORT PROVIDER
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:sundayschool_app/providers/user_data_provider.dart'; // ⭐️ 2. IMPORT YOUR NEW PROVIDER
 import 'firebase_options.dart';
-import 'package:sundayschool_app/login_screen.dart';
+// Import the new AuthWrapper
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:sundayschool_app/animated_splash_screen.dart'; // Import the animated splash screen
+import 'package:sundayschool_app/services/notification_service.dart'; // Import Notification Service
+import 'package:lottie/lottie.dart';
+
+import 'package:sundayschool_app/providers/content_provider.dart'; // Import ContentProvider
+
+// Global future for preloaded animation
+late Future<LottieComposition> animationCompositionFuture;
 
 void main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Log synchronous and asynchronous Flutter errors to aid blank-screen debugging
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+  };
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    // Return true to consume the error and avoid app crash in release
+    return false;
+  };
 
-  // NEW: Initialize App Check
-  await FirebaseAppCheck.instance.activate(
-    // You can also use a `ReCaptchaV3Provider` provider for web
-    // platforms. Your provider must be enabled in the Firebase console.
-    androidProvider: AndroidProvider.debug,
-    // appleProvider: AppleProvider.appAttest,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint("Firebase initialization failed: $e");
+  }
 
-  await SystemChrome.setPreferredOrientations([
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kReleaseMode
+          ? AndroidProvider.playIntegrity
+          : AndroidProvider.debug,
+    );
+  } catch (e) {
+    debugPrint("App Check activation failed: $e");
+  }
+
+  await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // --- UPDATED DURATION ---
-  // Hold native splash for 1.6 seconds (1600 milliseconds)
-  await Future.delayed(const Duration(milliseconds: 1600));
-  FlutterNativeSplash.remove();
+  // Initialize Notification Service
+  try {
+    await NotificationService().init();
+  } catch (e) {
+    debugPrint("Notification Service init failed: $e");
+  }
+
+  // Preload Lottie Animation
+  animationCompositionFuture = AssetLottie(
+    'assets/images/animation n2.json',
+  ).load();
 
   // ⭐️ 3. WRAP YOUR APP WITH THE PROVIDER
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => UserDataProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => UserDataProvider()),
+        ChangeNotifierProvider(
+          create: (context) => ContentProvider(), // Added ContentProvider
+        ),
+      ],
       child: const MyApp(),
     ),
   );
+
+  // Remove native splash after the first frame.
+  widgetsBinding.addPostFrameCallback((_) {
+    FlutterNativeSplash.remove();
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -50,7 +93,7 @@ class MyApp extends StatelessWidget {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Sunday School Events',
-      home: LoginScreen(),
+      home: AnimatedSplashScreen(), // Start with Animated Splash Screen
     );
   }
 }

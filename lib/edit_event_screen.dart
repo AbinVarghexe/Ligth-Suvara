@@ -2,16 +2,15 @@
 
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
-// Assuming you have this custom app bar
 import 'package:sundayschool_app/custom_app_bar.dart';
+import 'package:flutter/cupertino.dart'; // Core: for modern picker
+import 'package:sundayschool_app/utils/image_optimizer.dart';
+import 'package:sundayschool_app/homescreen.dart';
 
 class EditEventScreen extends StatefulWidget {
   final DocumentSnapshot eventDoc;
@@ -35,7 +34,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
   bool _isLoading = false;
 
   String? _selectedCategory;
-  final List<String> _categories = ['cml', 'suvara'];
+  final List<String> _categories = ['CML', 'SUVARA'];
 
   // CORE CHANGE: Field to hold existing isPublic status
   bool _currentIsPublic = false;
@@ -47,7 +46,9 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
     _titleController = TextEditingController(text: data['title'] ?? '');
     _placeController = TextEditingController(text: data['place'] ?? '');
-    _descriptionController = TextEditingController(text: data['description'] ?? '');
+    _descriptionController = TextEditingController(
+      text: data['description'] ?? '',
+    );
     _currentImageUrl = data['imageUrl'];
 
     // CORE CHANGE: Load existing 'isPublic' status (defaults to false)
@@ -59,8 +60,14 @@ class _EditEventScreenState extends State<EditEventScreen> {
       _selectedTime = TimeOfDay.fromDateTime(loadedDateTime);
     }
 
-    if (data['category'] != null && _categories.contains(data['category'])) {
-      _selectedCategory = data['category'];
+    // Case-insensitive match so stored values like 'cml' or 'CML' both work
+    final storedCategory = data['category'] as String?;
+    if (storedCategory != null) {
+      final match = _categories.firstWhere(
+        (c) => c.toLowerCase() == storedCategory.toLowerCase(),
+        orElse: () => '',
+      );
+      if (match.isNotEmpty) _selectedCategory = match;
     }
   }
 
@@ -73,40 +80,26 @@ class _EditEventScreenState extends State<EditEventScreen> {
   }
 
   Future<void> _pickImage() async {
-    final pickedImage = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final pickedImage = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
     if (pickedImage == null) return;
 
-    final tempDir = await getTemporaryDirectory();
-    final targetPath = p.join(tempDir.path, '${DateTime.now().millisecondsSinceEpoch}.jpg');
-
-    // 1. COMPRESS IMAGE
-    final compressedXFile = await FlutterImageCompress.compressAndGetFile(
-      pickedImage.path,
-      targetPath,
-      quality: 85,
+    setState(() => _isLoading = true);
+    final compressedFile = await ImageOptimizer.compressBelowLimit(
+      File(pickedImage.path),
+      targetSizeKB: 400,
     );
+    setState(() => _isLoading = false);
 
-    if (compressedXFile == null) {
-      if (!mounted) return;
-      _showStatusDialog(context: context, isSuccess: false, title: "Image Error", message: "Failed to process the selected image.");
-      return;
-    }
-
-    final compressedFile = File(compressedXFile.path);
-
-    // 2. CHECK SIZE RESTRICTION (400 KB)
-    const sizeLimitKB = 400;
-    final fileSizeInKB = await compressedFile.length() / 1024;
-
-    if (fileSizeInKB > sizeLimitKB) {
+    if (compressedFile == null) {
       if (!mounted) return;
       _showStatusDialog(
         context: context,
         isSuccess: false,
-        title: "Image Too Large",
-        message: "File size exceeds the ${sizeLimitKB}KB limit (Current: ${fileSizeInKB.toStringAsFixed(2)}KB). Please choose a smaller image.",
+        title: "Image Error",
+        message: "Failed to process the selected image.",
       );
-      // Stop execution if file is too large
       return;
     }
 
@@ -116,53 +109,173 @@ class _EditEventScreenState extends State<EditEventScreen> {
     });
   }
 
-  Future<void> _pickDateAndTime() async {
-    final themeColor = Colors.blue[900]!;
-    final pickedDate = await showDatePicker(
+  Future<void> _pickDate() async {
+    DateTime tempDate = _selectedDate ?? DateTime.now();
+    await showModalBottomSheet(
       context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: themeColor,
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) {
+        return Container(
+          height: 350,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Container(
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Select Date',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade900,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  initialDateTime: tempDate,
+                  minimumDate: DateTime(2020),
+                  maximumDate: DateTime(2100),
+                  onDateTimeChanged: (val) => tempDate = val,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() => _selectedDate = tempDate);
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade900,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  child: Text(
+                    'Confirm Date',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
           ),
-          child: child!,
         );
       },
     );
+  }
 
-    if (pickedDate == null || !mounted) return;
-
-    final pickedTime = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
+  Future<void> _pickTime() async {
+    final now = DateTime.now();
+    DateTime tempTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      _selectedTime?.hour ?? now.hour,
+      _selectedTime?.minute ?? now.minute,
     );
 
-    if (pickedTime == null) return;
-
-    setState(() {
-      _selectedDate = pickedDate;
-      _selectedTime = pickedTime;
-    });
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) {
+        return Container(
+          height: 350,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Container(
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Select Time',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade900,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  initialDateTime: tempTime,
+                  use24hFormat: false,
+                  onDateTimeChanged: (val) => tempTime = val,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedTime = TimeOfDay.fromDateTime(tempTime);
+                    });
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade900,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  child: Text(
+                    'Confirm Time',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _updateEvent() async {
-    if (!_formKey.currentState!.validate() || _selectedDate == null || _selectedTime == null || _selectedCategory == null) {
+    if (!_formKey.currentState!.validate() ||
+        _selectedDate == null ||
+        _selectedTime == null ||
+        _selectedCategory == null) {
       _showStatusDialog(
-          context: context,
-          isSuccess: false,
-          title: "Incomplete Form",
-          message: "Please fill all fields, select a category, and choose a date and time.");
+        context: context,
+        isSuccess: false,
+        title: "Incomplete Form",
+        message:
+            "Please fill all fields, select a category, and choose a date and time.",
+      );
       return;
     }
 
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       String? imageUrl = _currentImageUrl;
@@ -170,8 +283,12 @@ class _EditEventScreenState extends State<EditEventScreen> {
       if (_newImageFile != null) {
         // Since _newImageFile is already compressed and size-checked in _pickImage(), we upload it directly.
         final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final storageRef = FirebaseStorage.instance.ref().child('event_images/$fileName');
-        imageUrl = await storageRef.putFile(_newImageFile!).then((task) => task.ref.getDownloadURL());
+        final storageRef = FirebaseStorage.instance.ref().child(
+          'event_images/$fileName',
+        );
+        imageUrl = await storageRef
+            .putFile(_newImageFile!)
+            .then((task) => task.ref.getDownloadURL());
       }
 
       final finalDateTime = DateTime(
@@ -182,7 +299,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
         _selectedTime!.minute,
       );
 
-      final updatedData = {
+      final Map<String, dynamic> updatedData = {
         'title': _titleController.text.trim(),
         'place': _placeController.text.trim(),
         'description': _descriptionController.text.trim(),
@@ -190,11 +307,15 @@ class _EditEventScreenState extends State<EditEventScreen> {
         'imageUrl': imageUrl,
         'category': _selectedCategory,
         'title_lowercase': _titleController.text.trim().toLowerCase(),
-        // CORE CHANGE: Preserve the original isPublic status
         'isPublic': _currentIsPublic,
+        // Always refresh updatedAt to record the actual time of this edit
+        'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      await FirebaseFirestore.instance.collection('events').doc(widget.eventDoc.id).update(updatedData);
+      await FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventDoc.id)
+          .update(updatedData);
 
       if (mounted) {
         _showStatusDialog(
@@ -207,10 +328,17 @@ class _EditEventScreenState extends State<EditEventScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      _showStatusDialog(context: context, isSuccess: false, title: "Update Failed", message: "An error occurred: $e");
+      _showStatusDialog(
+        context: context,
+        isSuccess: false,
+        title: "Update Failed",
+        message: "An error occurred: $e",
+      );
     } finally {
       if (mounted) {
-        setState(() { _isLoading = false; });
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -221,76 +349,87 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: const CustomAppBar(),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Text(
-              'Edit Event',
-              style: GoogleFonts.poppins(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: themeColor,
-              ),
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildImagePicker(themeColor),
-                    const SizedBox(height: 24),
-                    _buildTextFormField(
-                      controller: _titleController,
-                      label: 'Event Title',
-                      icon: Icons.title_rounded,
-                      themeColor: themeColor,
-                      validator: (v) => v!.isEmpty ? 'Title is required' : null,
+      appBar: const CustomAppBar(), // Use the shared AppBar
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator(color: themeColor))
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Text(
+                    'Edit Event',
+                    style: GoogleFonts.poppins(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: themeColor,
                     ),
-                    const SizedBox(height: 20),
-                    _buildCategoryDropdown(themeColor),
-                    const SizedBox(height: 20),
-                    _buildTextFormField(
-                      controller: _placeController,
-                      label: 'Place / Venue',
-                      icon: Icons.location_on_outlined,
-                      themeColor: themeColor,
-                      validator: (v) => v!.isEmpty ? 'Place is required' : null,
-                    ),
-                    const SizedBox(height: 20),
-                    _buildDateTimePickerTile(themeColor),
-                    const SizedBox(height: 20),
-                    _buildTextFormField(
-                      controller: _descriptionController,
-                      label: 'Description',
-                      icon: Icons.notes_rounded,
-                      themeColor: themeColor,
-                      maxLines: 5,
-                      validator: (v) => v!.isEmpty ? 'Description is required' : null,
-                    ),
-                    const SizedBox(height: 40),
-                    _buildSaveButton(themeColor),
-                  ],
+                  ),
                 ),
-              ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildImagePicker(themeColor),
+                          const SizedBox(height: 24),
+                          _buildTextFormField(
+                            controller: _titleController,
+                            label: 'Event Title',
+                            icon: Icons.title_rounded,
+                            themeColor: themeColor,
+                            validator: (v) =>
+                                v!.isEmpty ? 'Title is required' : null,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildCategoryDropdown(themeColor),
+                          const SizedBox(height: 20),
+                          _buildTextFormField(
+                            controller: _placeController,
+                            label: 'Place / Venue',
+                            icon: Icons.location_on_outlined,
+                            themeColor: themeColor,
+                            validator: (v) =>
+                                v!.isEmpty ? 'Place is required' : null,
+                          ),
+                          const SizedBox(height: 20),
+                          // CORE CHANGE 6: Modern Date/Time Picker
+                          _buildModernDateTimePicker(themeColor),
+                          const SizedBox(height: 20),
+                          _buildTextFormField(
+                            controller: _descriptionController,
+                            label: 'Description',
+                            icon: Icons.notes_rounded,
+                            themeColor: themeColor,
+                            maxLines: 5,
+                            validator: (v) =>
+                                v!.isEmpty ? 'Description is required' : null,
+                          ),
+                          const SizedBox(height: 40),
+                          _buildSaveButton(themeColor),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
   // --- HELPER WIDGETS ---
 
   Widget _buildImagePicker(Color themeColor) {
-    ImageProvider? newImageProvider = _newImageFile != null ? FileImage(_newImageFile!) : null;
-    ImageProvider? currentImageProvider = _currentImageUrl != null && _currentImageUrl!.isNotEmpty ? NetworkImage(_currentImageUrl!) : null;
+    ImageProvider? newImageProvider = _newImageFile != null
+        ? FileImage(_newImageFile!)
+        : null;
+    ImageProvider? currentImageProvider =
+        _currentImageUrl != null && _currentImageUrl!.isNotEmpty
+        ? NetworkImage(_currentImageUrl!)
+        : null;
     ImageProvider? displayImage = newImageProvider ?? currentImageProvider;
 
     return GestureDetector(
@@ -298,42 +437,64 @@ class _EditEventScreenState extends State<EditEventScreen> {
       child: Container(
         height: 180,
         width: double.infinity,
-        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: Colors.blue.shade50,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: themeColor, width: 1.5),
-          image: displayImage != null ? DecorationImage(image: displayImage, fit: BoxFit.cover) : null,
+          gradient: displayImage == null
+              ? HomeScreen.getEventPlaceholderData(
+                      _selectedCategory ?? '',
+                    )['gradient']
+                    as LinearGradient?
+              : null,
+          image: displayImage != null
+              ? DecorationImage(image: displayImage, fit: BoxFit.cover)
+              : null,
         ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (displayImage != null)
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.45),
+        child: displayImage == null
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _selectedCategory != null
+                          ? HomeScreen.getEventPlaceholderData(
+                              _selectedCategory!,
+                            )['icon']
+                          : Icons.add_a_photo_outlined,
+                      size: 40,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap to change event image',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                        shadows: [
+                          const Shadow(
+                            blurRadius: 4,
+                            color: Colors.black26,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : Align(
+                alignment: Alignment.bottomRight,
+                child: Container(
+                  margin: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.edit, color: Colors.white, size: 20),
                 ),
               ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  displayImage != null ? Icons.edit : Icons.add_a_photo_outlined,
-                  color: displayImage != null ? Colors.white : themeColor,
-                  size: 40,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  displayImage != null ? 'Tap to Change Image' : 'Tap to Select Image',
-                  style: GoogleFonts.poppins(
-                    color: displayImage != null ? Colors.white : themeColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -363,11 +524,13 @@ class _EditEventScreenState extends State<EditEventScreen> {
         ),
       ),
       hint: Text('Select a category', style: GoogleFonts.poppins()),
-      onChanged: _isLoading ? null : (String? newValue) {
-        setState(() {
-          _selectedCategory = newValue;
-        });
-      },
+      onChanged: _isLoading
+          ? null
+          : (String? newValue) {
+              setState(() {
+                _selectedCategory = newValue;
+              });
+            },
       validator: (value) => value == null ? 'Category is required' : null,
       items: _categories.map<DropdownMenuItem<String>>((String value) {
         return DropdownMenuItem<String>(
@@ -385,39 +548,87 @@ class _EditEventScreenState extends State<EditEventScreen> {
     );
   }
 
-  Widget _buildDateTimePickerTile(Color themeColor) {
-    String displayText;
-    if (_selectedDate == null) {
-      displayText = 'Select Event Date & Time';
-    } else {
-      final formattedDate = DateFormat('MMM dd, yyyy').format(_selectedDate!);
-      final formattedTime = _selectedTime?.format(context) ?? 'Time not set';
-      displayText = '$formattedDate  •  $formattedTime';
-    }
+  // CORE CHANGE 7: Modern Date/Time Picker Widgets
+  Widget _buildModernDateTimePicker(Color themeColor) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildTimePickCard(
+            label: 'Date',
+            value: _selectedDate != null
+                ? DateFormat('MMM dd, yyyy').format(_selectedDate!)
+                : 'Select Date',
+            icon: Icons.calendar_today_rounded,
+            themeColor: themeColor,
+            onTap: _pickDate,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildTimePickCard(
+            label: 'Time',
+            value: _selectedTime?.format(context) ?? 'Select Time',
+            icon: Icons.access_time_rounded,
+            themeColor: themeColor,
+            onTap: _pickTime,
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _buildTimePickCard({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color themeColor,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
-      onTap: _isLoading ? null : _pickDateAndTime,
-      borderRadius: BorderRadius.circular(12),
+      onTap: _isLoading ? null : onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: themeColor)),
-        child: Row(
-          children: [
-            Icon(Icons.calendar_month_outlined, color: themeColor),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  displayText,
-                  style: GoogleFonts.poppins(fontSize: 16, color: _selectedDate == null ? themeColor.withOpacity(0.8) : Colors.black),
-                  maxLines: 1,
-                  softWrap: false,
-                ),
-              ),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: themeColor.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            Icon(Icons.arrow_drop_down, color: themeColor),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 18, color: themeColor),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),
@@ -441,8 +652,14 @@ class _EditEventScreenState extends State<EditEventScreen> {
         labelStyle: GoogleFonts.poppins(color: themeColor),
         prefixIcon: Icon(icon, color: themeColor),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: themeColor)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: themeColor, width: 2)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: themeColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: themeColor, width: 2),
+        ),
       ),
       validator: validator,
     );
@@ -453,15 +670,22 @@ class _EditEventScreenState extends State<EditEventScreen> {
       onPressed: _isLoading ? null : _updateEvent,
       icon: _isLoading
           ? Container(
-        width: 24,
-        height: 24,
-        padding: const EdgeInsets.all(2.0),
-        child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
-      )
+              width: 24,
+              height: 24,
+              padding: const EdgeInsets.all(2.0),
+              child: const CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 3,
+              ),
+            )
           : const Icon(Icons.check_circle_outline, color: Colors.white),
       label: Text(
         _isLoading ? 'Saving...' : 'Update Event',
-        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+        style: GoogleFonts.poppins(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          color: Colors.white,
+        ),
       ),
       style: ElevatedButton.styleFrom(
         backgroundColor: themeColor,
@@ -492,7 +716,10 @@ class _EditEventScreenState extends State<EditEventScreen> {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+              child: Text(
+                title,
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -503,7 +730,10 @@ class _EditEventScreenState extends State<EditEventScreen> {
               Navigator.of(ctx).pop();
               onDismiss?.call();
             },
-            child: Text('OK', style: GoogleFonts.poppins(color: Colors.blue[900])),
+            child: Text(
+              'OK',
+              style: GoogleFonts.poppins(color: Colors.blue[900]),
+            ),
           ),
         ],
       ),

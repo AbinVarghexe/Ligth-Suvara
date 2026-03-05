@@ -5,15 +5,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:sundayschool_app/custom_app_bar.dart'; // Import the new appbar
 import 'package:sundayschool_app/event_details_skelton.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:sundayschool_app/homescreen.dart';
+import 'package:sundayschool_app/widgets/full_screen_image_viewer.dart';
 import 'package:open_file/open_file.dart';
 
 // PDF/PRINTING IMPORTS
-import 'package:pdf/pdf.dart';
 import 'package:sundayschool_app/edit_event_screen.dart';
 import 'package:sundayschool_app/report_generator.dart';
-import 'package:sundayschool_app/utils/pdf_download_helper.dart';
 import 'package:sundayschool_app/utils/downloads_helper.dart';
 
 // DATA MODEL
@@ -295,10 +293,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Colors.white,
+      appBar: const CustomAppBar(),
       body: Column(
         children: [
-          const CustomAppBar(),
           Expanded(
             child: FutureBuilder<EventDetailsPageData>(
               future: _detailsFuture,
@@ -352,10 +350,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFFFFDF7).withOpacity(0.95), // Warm Cream
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.orange.withOpacity(0.05), // Warm Shadow
             blurRadius: 10,
             offset: const Offset(0, -5),
           ),
@@ -451,40 +449,86 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       padding: const EdgeInsets.all(20.0),
       sliver: SliverList(
         delegate: SliverChildListDelegate([
-          if (imageUrl.isNotEmpty)
-            GestureDetector(
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    fullscreenDialog: true,
-                    builder: (context) => FullScreenImageViewer(
-                      imageUrl: imageUrl,
-                      heroTag: 'eventImage_${widget.eventId}',
-                    ),
-                  ),
-                );
-              },
-              child: Hero(
-                tag: 'eventImage_${widget.eventId}',
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    height: 220,
-                    errorBuilder: (c, o, s) => Container(
-                      height: 220,
-                      color: Colors.grey.shade200,
-                      child: const Icon(
-                        Icons.image_not_supported,
-                        size: 60,
-                        color: Colors.grey,
+          Hero(
+            tag: imageUrl.isNotEmpty
+                ? 'event_image_${widget.eventId}'
+                : 'event_icon_${widget.eventId}',
+            child: GestureDetector(
+              onTap: imageUrl.isNotEmpty
+                  ? () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => FullScreenImageViewer(
+                            imageUrl: imageUrl,
+                            heroTag: 'event_image_${widget.eventId}',
+                          ),
+                        ),
+                      );
+                    }
+                  : null,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        height: 220,
+                        width: double.infinity,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            height: 220,
+                            color: Colors.grey.shade100,
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        },
+                        errorBuilder: (c, o, s) => Container(
+                          height: 220,
+                          decoration: BoxDecoration(
+                            gradient:
+                                HomeScreen.getEventPlaceholderData(
+                                      data['category'] ?? '',
+                                    )['gradient']
+                                    as LinearGradient?,
+                          ),
+                          child: Center(
+                            child: Icon(
+                              HomeScreen.getEventPlaceholderData(
+                                    data['category'] ?? '',
+                                  )['icon']
+                                  as IconData?,
+                              size: 60,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        height: 220,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient:
+                              HomeScreen.getEventPlaceholderData(
+                                    data['category'] ?? '',
+                                  )['gradient']
+                                  as LinearGradient?,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            HomeScreen.getEventPlaceholderData(
+                                  data['category'] ?? '',
+                                )['icon']
+                                as IconData?,
+                            size: 80,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
               ),
             ),
+          ),
           const SizedBox(height: 24),
           Text(
             title,
@@ -557,45 +601,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           ),
         ),
       ],
-    );
-  }
-}
-
-// --- FULL SCREEN IMAGE VIEWER WIDGET ---
-
-class FullScreenImageViewer extends StatelessWidget {
-  final String imageUrl;
-  final String heroTag;
-
-  const FullScreenImageViewer({
-    super.key,
-    required this.imageUrl,
-    required this.heroTag,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: Center(
-        child: Hero(
-          tag: heroTag,
-          child: InteractiveViewer(
-            panEnabled: true,
-            minScale: 1.0,
-            maxScale: 4.0,
-            child: Image.network(imageUrl, fit: BoxFit.contain),
-          ),
-        ),
-      ),
     );
   }
 }
