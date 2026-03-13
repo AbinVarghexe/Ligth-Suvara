@@ -134,13 +134,13 @@ The Level 0 DFD shows the entire system as a single process interacting with its
 ```
                           ┌─────────────────────────────────────────┐
                           │                                         │
-  ┌──────────┐  events/   │                                         │  notifications  ┌──────────┐
+  ┌──────────┐ programs/  │                                         │  events/notif.  ┌──────────┐
   │  Admin   │◄──────────►│                                         │◄───────────────►│  School  │
-  └──────────┘  reports   │                                         │  registrations  └──────────┘
+  └──────────┘ mgmt/marks │                                         │  registrations  └──────────┘
                           │                                         │
-  ┌──────────┐  approvals │     LIGHT SUVARA SYSTEM                 │  programs/marks ┌──────────┐
+  ┌──────────┐ approvals/ │     LIGHT SUVARA SYSTEM                 │  programs/marks ┌──────────┐
   │  Parish  │◄──────────►│                                         │◄───────────────►│ Animator │
-  └──────────┘            │                                         │                 └──────────┘
+  └──────────┘ events     │                                         │                 └──────────┘
                           │                                         │
   ┌──────────┐  remarks   │                                         │  FCM triggers   ┌──────────┐
   │ Observer │───────────►│                                         │◄───────────────►│ Firebase │
@@ -149,7 +149,7 @@ The Level 0 DFD shows the entire system as a single process interacting with its
 ```
 
 **External Entities:**
-- **Admin** — System owner; creates programs, questions, animator assignments, observer assignment and management, sends notification, manage programs, teacher management, user management, view evaluation done by animators
+- **Admin** — System owner; creates programs, questions, animator assignments, observer assignment and management, sends notifications, manages programs, teacher management, user management, views evaluation done by animators
 - **School** — Sunday School units; submit registrations, create events, receive notifications
 - **Parish** — Intermediate approvers; approve/reject/lock registrations, view events created by the corresponding school
 - **Animator** — Evaluators; enter marks for assigned schools
@@ -204,7 +204,7 @@ The Level 1 DFD breaks the central system into its major processes:
 | Process | Inputs | Outputs | Data Stores Accessed |
 |---|---|---|---|
 | P1 — Authentication | Email, Password | Session, Role flags | `users` |
-| P2 — Event Management | Title, Date, Image, Category | Published event, Notifications | `events`, Storage |
+| P2 — Event Management | Title, Date, Image, Category (Admin or School) | Published event, Notifications to Parish | `events`, Storage |
 | P3 — Registration Workflow | Student data, Parish approval | Status transitions | `program_registrations`, `programs` |
 | P4 — Marks Entry | Question answers, PDF proof | Locked mark record | `marks`, `questions`, Storage |
 | P5 — Notifications | Message, Recipient target | FCM push + in-app record | `notifications`, `broadcasts` |
@@ -253,6 +253,7 @@ rectangle "Light Suvara System" {
   usecase "Send Notification\n/ Broadcast" as UC_Notify
   usecase "View Registration\nOverview" as UC_AdminReg
   usecase "Final Approve\nRegistration" as UC_AdminApprove
+  usecase "Manage User\nAccounts" as UC_UserMgmt
 
   ' ─── Parish Use Cases ───
   usecase "View Linked School\nRegistrations" as UC_ParishView
@@ -260,9 +261,11 @@ rectangle "Light Suvara System" {
   usecase "Reject Registration" as UC_Reject
   usecase "Lock Registration" as UC_Lock
   usecase "View Programs" as UC_ViewPrograms
+  usecase "View School\nEvents" as UC_ParishViewEvents
 
   ' ─── School Use Cases ───
   usecase "View Events &\nAnnouncements" as UC_ViewEvents
+  usecase "Create Events" as UC_SchoolCreateEvent
   usecase "Submit Program\nRegistration" as UC_Submit
   usecase "Track Registration\nStatus" as UC_Track
   usecase "View Notifications" as UC_ViewNotify
@@ -290,6 +293,7 @@ rectangle "Light Suvara System" {
   UC_AdminApprove ..> UC_AdminReg : <<include>>
   UC_AssignObserver ..> UC_Teacher : <<include>>
   UC_AdminMarks ..> UC_Question : <<include>>
+  UC_SchoolCreateEvent <.. UC_ParishViewEvents : <<extend>>
 
   ' ─── Actor → Use Case connections ───
   Admin --> UC_Event
@@ -303,14 +307,17 @@ rectangle "Light Suvara System" {
   Admin --> UC_Notify
   Admin --> UC_AdminReg
   Admin --> UC_AdminApprove
+  Admin --> UC_UserMgmt
 
   Parish --> UC_ParishView
   Parish --> UC_Approve
   Parish --> UC_Reject
   Parish --> UC_Lock
   Parish --> UC_ViewPrograms
+  Parish --> UC_ParishViewEvents
 
   School --> UC_ViewEvents
+  School --> UC_SchoolCreateEvent
   School --> UC_Submit
   School --> UC_Track
   School --> UC_ViewNotify
@@ -335,9 +342,9 @@ rectangle "Light Suvara System" {
 
 | Actor | Use Cases |
 |---|---|
-| **Admin** | Manage events, programs, questions, animator accounts, teacher records, observer assignments; view/approve registrations; view all marks; generate PDFs; send notifications/broadcasts |
-| **Parish** | View linked school registrations; approve, reject, or lock registrations; view programs |
-| **School** | View & search events; submit program registrations; track registration status; view notifications; access Bible/Catechism/Japamala; view own marks |
+| **Admin** | Manage events, programs, questions, animator accounts, teacher records, observer assignments; manage user accounts; view/approve registrations; view all marks; generate PDFs; send notifications/broadcasts |
+| **Parish** | View linked school registrations; approve, reject, or lock registrations; view programs; view events created by their schools |
+| **School** | View & search events; create events; submit program registrations; track registration status; view notifications; access Bible/Catechism/Japamala; view own marks |
 | **Animator** | View assigned schools; enter marks per question; upload PDF proof; submit & lock marks; view school registrations |
 | **Observer** | Login with 6-digit access code; submit attendance count, absentee list, and exam remarks |
 
