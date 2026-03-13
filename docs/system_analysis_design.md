@@ -149,9 +149,9 @@ The Level 0 DFD shows the entire system as a single process interacting with its
 ```
 
 **External Entities:**
-- **Admin** — System owner; creates programs, questions, assignments
-- **School** — Sunday School units; submit registrations, view events
-- **Parish** — Intermediate approvers; approve/reject/lock registrations
+- **Admin** — System owner; creates programs, questions, animator assignments, observer assignment and management, sends notification, manage programs, teacher management, user management, view evaluation done by animators
+- **School** — Sunday School units; submit registrations, create events, receive notifications
+- **Parish** — Intermediate approvers; approve/reject/lock registrations, view events created by the corresponding school
 - **Animator** — Evaluators; enter marks for assigned schools
 - **Observer** — Exam inspectors; submit attendance and remarks (code-based)
 - **Firebase** — Cloud backend; stores data, sends notifications
