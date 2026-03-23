@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:sundayschool_app/app_globals.dart';
+import 'package:sundayschool_app/notification_screen.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -39,8 +41,8 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Handle notification tap
-        debugPrint('Notification tapped: ${response.payload}');
+        // Navigate to notifications screen when a local notification is tapped
+        _navigateToNotifications();
       },
     );
 
@@ -60,12 +62,41 @@ class NotificationService {
       }
     });
 
-    // 5. Get Fcm Token (Optional - for debugging)
+    // 5. Handle notification tap when app is in the background
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      debugPrint('Notification tapped (background): ${message.messageId}');
+      _navigateToNotifications();
+    });
+
+    // 6. Handle notification tap when app was fully terminated
+    final RemoteMessage? initialMessage =
+        await _firebaseMessaging.getInitialMessage();
+    if (initialMessage != null) {
+      debugPrint(
+        'App opened from terminated state via notification: ${initialMessage.messageId}',
+      );
+      // Delay navigation until the navigator is ready after app startup
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateToNotifications();
+      });
+    }
+
+    // 7. Get Fcm Token (Optional - for debugging)
     String? token = await _firebaseMessaging.getToken();
     debugPrint("FCM Token: $token");
 
     // Subscribe to broadcasts with retry logic
     subscribeToBroadcastsWithRetry();
+  }
+
+  /// Pushes the [NotificationsScreen] onto the navigator stack, removing any
+  /// intermediate routes above the root so multiple notification taps do not
+  /// accumulate duplicate screens.
+  void _navigateToNotifications() {
+    navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+      (route) => route.isFirst,
+    );
   }
 
   Future<void> subscribeToBroadcastsWithRetry() async {

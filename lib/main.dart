@@ -12,6 +12,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:sundayschool_app/animated_splash_screen.dart'; // Import the animated splash screen
 import 'package:sundayschool_app/services/notification_service.dart'; // Import Notification Service
 import 'package:lottie/lottie.dart';
+import 'package:sundayschool_app/app_globals.dart'; // Global navigator key
 
 import 'package:sundayschool_app/providers/content_provider.dart'; // Import ContentProvider
 
@@ -90,10 +91,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Sunday School Events',
-      home: AnimatedSplashScreen(), // Start with Animated Splash Screen
+      home: const AnimatedSplashScreen(), // Start with Animated Splash Screen
     );
   }
 }
