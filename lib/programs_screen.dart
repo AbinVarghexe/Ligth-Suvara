@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sundayschool_app/widgets/heavenly_background.dart';
+import 'package:shimmer/shimmer.dart';
 
 class ProgramsScreen extends StatefulWidget {
   const ProgramsScreen({super.key});
@@ -16,6 +18,7 @@ class _ProgramsScreenState extends State<ProgramsScreen>
 
   // Defines the primary brand color
   final Color _primaryBlue = const Color(0xFF1E3A8A); // Deep Royal Blue
+  final Color _goldAccent = const Color(0xFFBC8A3A); // Gold Accent
 
   @override
   void initState() {
@@ -36,14 +39,14 @@ class _ProgramsScreenState extends State<ProgramsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
           'Our Programs',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w800,
             color: _primaryBlue,
+            fontSize: 22,
           ),
         ),
         backgroundColor: Colors.transparent,
@@ -53,86 +56,77 @@ class _ProgramsScreenState extends State<ProgramsScreen>
           icon: Icon(Icons.arrow_back_ios_new, color: _primaryBlue),
           onPressed: () => Navigator.pop(context),
         ),
-        iconTheme: IconThemeData(color: _primaryBlue),
       ),
-      body: Stack(
-        children: [
-          // Gradient Background Layer
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: [0.0, 1.0],
-                colors: [
-                  Color(0xFFFFFAF0), // Very Soft Cream (Floral White)
-                  Color(0xFFFFF8E1), // Ultra Light Gold
-                ],
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                Expanded(
-                  child: FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('settings')
-                        .doc('theme_programs')
-                        .get(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
+      body: HeavenlyBackground(
+        showImage: true,
+        child: SafeArea(
+          child: FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance
+                .collection('settings')
+                .doc('theme_programs')
+                .get(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return _buildShimmerLoading();
+              }
 
-                      Map<String, dynamic> data = {};
-                      if (snapshot.hasData && snapshot.data!.exists) {
-                        data = snapshot.data!.data() as Map<String, dynamic>;
-                      }
+              Map<String, dynamic> data = {};
+              if (snapshot.hasData && snapshot.data!.exists) {
+                data = snapshot.data!.data() as Map<String, dynamic>;
+              }
 
-                      final themeYear = data['themeYear'] ?? '2025-26';
-                      final themeMal =
-                          data['themeMalayalam'] ??
-                          '“നിത്യജീവനിലുള്ള പ്രത്യാശ”';
-                      final themeEng =
-                          data['themeEnglish'] ?? 'Hope in Eternal Life';
-                      final List<dynamic> programsList =
-                          data['programs'] ?? _getDefaultPrograms();
+              final themeYear = data['themeYear'] ?? '2025-2026';
+              final themeMal =
+                  data['themeMalayalam'] ?? '“നിത്യജീവനിലുള്ള പ്രത്യാശ”';
+              final themeEng = data['themeEnglish'] ?? 'Hope in Eternal Life';
+              final List<dynamic> programsList =
+                  data['programs'] ?? _getDefaultPrograms();
 
-                      return SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _buildThemeCard(themeYear, themeMal, themeEng),
-                            const SizedBox(height: 25),
-                            Padding(
-                              padding: const EdgeInsets.only(left: 4.0),
-                              child: Text(
-                                'FORMATION & TRAINING',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey.shade600,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 15),
-                            _buildProgramList(
-                              programsList.cast<Map<String, dynamic>>(),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
                 ),
-              ],
-            ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildThemeCard(themeYear, themeMal, themeEng),
+                    const SizedBox(height: 35),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0, bottom: 16),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: _goldAccent,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'FORMATION & TRAINING',
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: _primaryBlue.withOpacity(0.8),
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _buildProgramList(
+                      programsList.cast<Map<String, dynamic>>(),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
-        ],
+        ),
       ),
     );
   }
@@ -156,19 +150,24 @@ class _ProgramsScreenState extends State<ProgramsScreen>
           curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
         ),
         child: Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(32),
             gradient: LinearGradient(
-              colors: [_primaryBlue, Colors.blue.shade700],
+              colors: [_primaryBlue, const Color(0xFF1E40AF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             boxShadow: [
               BoxShadow(
                 color: _primaryBlue.withOpacity(0.3),
+                blurRadius: 30,
+                offset: const Offset(0, 15),
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.1),
                 blurRadius: 20,
-                offset: const Offset(0, 10),
+                spreadRadius: -10,
               ),
             ],
           ),
@@ -180,48 +179,48 @@ class _ProgramsScreenState extends State<ProgramsScreen>
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
                 ),
                 child: Text(
                   'THEME OF THE YEAR',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
                     color: Colors.white,
-                    letterSpacing: 1.5,
+                    letterSpacing: 2.0,
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               Text(
                 year,
                 style: GoogleFonts.outfit(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 54,
+                  fontWeight: FontWeight.w900,
                   color: Colors.white,
                   height: 1.0,
                 ),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 20),
               Text(
                 malayalamTheme,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.notoSansMalayalam(
-                  fontSize: 26,
+                  fontSize: 28,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
-                  height: 1.3,
+                  height: 1.4,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
                 englishTheme,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: Colors.blue.shade100,
+                  color: Colors.blue.shade100.withOpacity(0.9),
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -338,45 +337,50 @@ class _ProgramsScreenState extends State<ProgramsScreen>
             child: Container(
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.8), // Cream background
-                borderRadius: BorderRadius.circular(20),
+                color: const Color(
+                  0xFFFFFBEB,
+                ).withOpacity(0.4), // Warm glass tint
+                borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: const Color(
-                    0xFFFFE4B5,
-                  ).withOpacity(0.4), // Soft gold border
+                  color: _goldAccent.withOpacity(0.4),
                   width: 1.5,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.orange.withOpacity(0.08), // Warm shadow
+                    color: _goldAccent.withOpacity(0.08),
                     spreadRadius: 1,
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
+
               child: ListTile(
-                contentPadding: const EdgeInsets.all(16),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 leading: Container(
-                  width: 50,
-                  height: 50,
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(15),
+                    color: _primaryBlue.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _primaryBlue.withOpacity(0.1)),
                   ),
                   child: Icon(
                     _getIconFromName(
                       programs[index]['iconName']?.toString() ?? 'star',
                     ),
                     color: _primaryBlue,
-                    size: 22,
+                    size: 24,
                   ),
                 ),
                 title: Text(
                   programs[index]['title'] as String,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                  style: GoogleFonts.outfit(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
                     color: _primaryBlue,
                   ),
                 ),
@@ -384,9 +388,10 @@ class _ProgramsScreenState extends State<ProgramsScreen>
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
                     programs[index]['desc'] as String,
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: Colors.grey.shade600,
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF64748B),
                       height: 1.4,
                     ),
                   ),
@@ -396,6 +401,54 @@ class _ProgramsScreenState extends State<ProgramsScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade200,
+      highlightColor: Colors.white.withOpacity(0.5),
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Theme Card Shimmer
+            Container(
+              height: 280,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(32),
+              ),
+            ),
+            const SizedBox(height: 35),
+            // Header Shimmer
+            Row(
+              children: [
+                Container(width: 4, height: 24, color: Colors.white),
+                const SizedBox(width: 12),
+                Container(width: 180, height: 14, color: Colors.white),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // List Item Shimmers
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: 4,
+              itemBuilder: (_, __) => Container(
+                height: 100,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

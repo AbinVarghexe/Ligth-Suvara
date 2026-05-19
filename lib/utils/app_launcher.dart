@@ -2,6 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:external_app_launcher/external_app_launcher.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+class AppLauncher {
+  static Future<void> launchURL(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      debugPrint('Could not launch $url');
+    }
+  }
+
+  static Future<void> openYamaprarthanakal(BuildContext context) async {
+    await openYamaprarthanakalApp(context);
+  }
+}
+
 Future<void> openYamaprarthanakalApp(BuildContext context) async {
   // Package name for Yama Prarthanakal app
   // IMPORTANT: Verify this matches the actual package name in Play Store

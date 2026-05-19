@@ -21,12 +21,31 @@ class _AdminObserverManagementScreenState
   int _currentIndex = 0;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  String _selectedAcademicYear = '2025-26'; // Default
-  final List<String> _academicYears = ['2025-26', '2026-27'];
+  String _selectedAcademicYear = '2025-2026'; // Default
+  List<String> _academicYears = ['2025-2026'];
+
+  List<String> _generateAcademicYears() {
+    final now = DateTime.now();
+    int currentYear = now.year;
+    // Base academic year is 2025-2026
+    int startYear = 2025;
+    // Ensure the list goes up to the "current year - next year"
+    int endBound = currentYear;
+    if (endBound < startYear) endBound = startYear;
+
+    List<String> years = [];
+    for (int y = startYear; y <= endBound; y++) {
+      years.add('$y-${y + 1}');
+    }
+    return years;
+  }
+
 
   @override
   void initState() {
     super.initState();
+    _academicYears = _generateAcademicYears();
+    _selectedAcademicYear = _academicYears.last; // Default to latest
     _tabController = TabController(length: 2, vsync: this);
     _tabController.animation!.addListener(() {
       if (mounted) {
@@ -171,7 +190,7 @@ class _AdminObserverManagementScreenState
       context: context,
       initialDate: initialDate,
       firstDate: DateTime(2023),
-      lastDate: DateTime(2030),
+      lastDate: DateTime(DateTime.now().year + 5),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(

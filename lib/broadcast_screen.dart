@@ -7,6 +7,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sundayschool_app/widgets/full_screen_image_viewer.dart';
 import 'package:provider/provider.dart';
 import 'package:sundayschool_app/providers/content_provider.dart';
+import 'package:sundayschool_app/widgets/heavenly_background.dart';
+
+// Brand colors for consistency
+const Color _primaryBlue = Color(0xFF1E3A8A);
+const Color _goldAccent = Color(0xFFBC8A3A);
 
 // A simple model for our broadcast messages
 class BroadcastMessage {
@@ -84,9 +89,9 @@ Map<String, dynamic> _getIconDataGlobal(String title) {
 
   return {
     'icon': Icons.campaign_rounded,
-    'color': Colors.blue.shade400,
+    'color': _primaryBlue,
     'gradient': LinearGradient(
-      colors: [Colors.blue.shade400, Colors.blue.shade600],
+      colors: [_primaryBlue, Colors.blue.shade700],
     ),
   };
 }
@@ -99,171 +104,181 @@ class BroadcastDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: message.imageUrl != null ? 300 : 120,
-            pinned: true,
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.blue.shade900,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Builder(
-                builder: (context) {
-                  final iconData = _getIconDataGlobal(message.title);
-                  return message.imageUrl != null
-                      ? GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => FullScreenImageViewer(
-                                  imageUrl: message.imageUrl!,
-                                  heroTag: 'broadcast_image_${message.id}',
+      backgroundColor: Colors.transparent,
+      body: HeavenlyBackground(
+        showImage: true,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              expandedHeight: message.imageUrl != null ? 350 : 150,
+              pinned: true,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.8),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: _primaryBlue),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              flexibleSpace: FlexibleSpaceBar(
+                background: Builder(
+                  builder: (context) {
+                    final iconData = _getIconDataGlobal(message.title);
+                    return message.imageUrl != null
+                        ? GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FullScreenImageViewer(
+                                    imageUrl: message.imageUrl!,
+                                    heroTag: 'broadcast_image_${message.id}',
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                          child: Hero(
-                            tag: 'broadcast_image_${message.id}',
-                            child: Image.network(
-                              message.imageUrl!,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return Container(
-                                      color: Colors.grey.shade100,
-                                      child: const Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    );
-                                  },
-                              errorBuilder: (context, error, stackTrace) =>
+                              );
+                            },
+                            child: Hero(
+                              tag: 'broadcast_image_${message.id}',
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Image.network(
+                                    message.imageUrl!,
+                                    fit: BoxFit.cover,
+                                  ),
                                   Container(
-                                    color: Colors.grey.shade200,
-                                    child: const Icon(
-                                      Icons.broken_image,
-                                      color: Colors.grey,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.bottomCenter,
+                                        end: Alignment.topCenter,
+                                        colors: [
+                                          Colors.black.withOpacity(0.4),
+                                          Colors.transparent,
+                                        ],
+                                      ),
                                     ),
                                   ),
+                                ],
+                              ),
                             ),
-                          ),
-                        )
-                      : Container(
-                          decoration: BoxDecoration(
-                            gradient: iconData['gradient'] as LinearGradient?,
-                          ),
-                          child: Hero(
-                            tag: 'broadcast_icon_${message.id}',
+                          )
+                        : Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [_primaryBlue.withOpacity(0.8), _primaryBlue],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
                             child: Center(
                               child: Icon(
                                 iconData['icon'] as IconData?,
-                                color: Colors.white.withOpacity(0.2),
-                                size: 80,
+                                color: Colors.white.withOpacity(0.3),
+                                size: 100,
                               ),
                             ),
-                          ),
-                        );
-                },
+                          );
+                  },
+                ),
               ),
             ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                child: Container(
+                  padding: const EdgeInsets.all(28),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB).withOpacity(0.7), // Warm Tinted Glass
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(
+                      color: const Color(0xFFD4AF37).withOpacity(0.35),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _goldAccent.withOpacity(0.1),
+                        blurRadius: 40,
+                        offset: const Offset(0, 20),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(8),
+                          color: _primaryBlue.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _primaryBlue.withOpacity(0.1)),
                         ),
                         child: Text(
-                          DateFormat('MMM d, yyyy').format(message.timestamp),
-                          style: GoogleFonts.poppins(
-                            color: Colors.blue.shade800,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                          DateFormat('MMMM d, yyyy').format(message.timestamp),
+                          style: GoogleFonts.outfit(
+                            color: _primaryBlue,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        message.title,
+                        style: GoogleFonts.outfit(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          color: _primaryBlue,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Divider(height: 1),
+                      const SizedBox(height: 24),
+                      Text(
+                        message.body,
+                        style: GoogleFonts.outfit(
+                          fontSize: 17,
+                          height: 1.6,
+                          color: const Color(0xFF334155),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryBlue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            elevation: 8,
+                            shadowColor: _primaryBlue.withOpacity(0.4),
+                          ),
+                          child: Text(
+                            'Got It',
+                            style: GoogleFonts.outfit(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    message.title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF0F172A),
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Divider(),
-                  const SizedBox(height: 24),
-                  Text(
-                    message.body,
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      height: 1.7,
-                      color: const Color(0xFF334155),
-                    ),
-                  ),
-                  const SizedBox(height: 48),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade900,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        'Close',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                ],
+                ),
               ),
             ),
-          ),
-        ],
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(top: 10.0),
-        child: FloatingActionButton.small(
-          onPressed: () => Navigator.of(context).pop(),
-          backgroundColor: Colors.black.withOpacity(0.5),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          child: const Icon(Icons.close_rounded),
+          ],
         ),
       ),
     );
@@ -316,23 +331,22 @@ class _BroadcastScreenState extends State<BroadcastScreen>
     return Padding(
       padding: const EdgeInsets.only(
         left: 20.0,
-        top: 28.0,
+        top: 32.0,
         bottom: 12.0,
         right: 20.0,
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue.shade900, Colors.blue.shade700],
-              ),
+              color: const Color(0xFFFFFBEB).withOpacity(0.6),
               borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _goldAccent.withOpacity(0.3), width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.blue.shade900.withOpacity(0.3),
-                  blurRadius: 8,
+                  color: _goldAccent.withOpacity(0.05),
+                  blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
               ],
@@ -341,17 +355,18 @@ class _BroadcastScreenState extends State<BroadcastScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(
-                  Icons.calendar_today_rounded,
-                  color: Colors.white,
+                  Icons.auto_awesome_rounded,
+                  color: _goldAccent,
                   size: 16,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   text,
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
+                  style: GoogleFonts.outfit(
+                    color: _primaryBlue,
+                    fontWeight: FontWeight.w800,
                     fontSize: 14,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ],
@@ -359,13 +374,13 @@ class _BroadcastScreenState extends State<BroadcastScreen>
           ),
           Expanded(
             child: Container(
-              height: 1,
-              margin: const EdgeInsets.only(left: 12),
+              height: 1.5,
+              margin: const EdgeInsets.only(left: 16),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.grey.shade300,
-                    Colors.grey.shade300.withOpacity(0),
+                    _goldAccent.withOpacity(0.3),
+                    _goldAccent.withOpacity(0),
                   ],
                 ),
               ),
@@ -384,118 +399,96 @@ class _BroadcastScreenState extends State<BroadcastScreen>
       appBar: AppBar(
         title: Text(
           'Recent Updates',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            color: Colors.blue[900],
-            fontSize: 20,
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w800,
+            color: _primaryBlue,
+            fontSize: 22,
           ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        leading: Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(12),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: _primaryBlue,
+            size: 22,
           ),
-          child: IconButton(
-            icon: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: Colors.blue[900],
-              size: 20,
-            ),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: [0.0, 1.0],
-                colors: [Color(0xFFFFFAF0), Color(0xFFFFF8E1)],
-              ),
-            ),
-          ),
-          SafeArea(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('broadcasts')
-                  .orderBy('timestamp', descending: true)
-                  .limit(30)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                final provider = Provider.of<ContentProvider>(
-                  context,
-                  listen: false,
+      body: HeavenlyBackground(
+        showImage: true,
+        child: SafeArea(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('broadcasts')
+                .orderBy('timestamp', descending: true)
+                .limit(30)
+                .snapshots(),
+            builder: (context, snapshot) {
+              final provider = Provider.of<ContentProvider>(
+                context,
+                listen: false,
+              );
+              final bool hasCachedData = provider.broadcasts.isNotEmpty;
+
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  !hasCachedData) {
+                return const Center(
+                  child: CircularProgressIndicator(color: _primaryBlue),
                 );
-                final bool hasCachedData = provider.broadcasts.isNotEmpty;
+              }
 
-                if (snapshot.connectionState == ConnectionState.waiting &&
-                    !hasCachedData) {
-                  return Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.blue.shade900,
-                      ),
-                    ),
-                  );
-                }
+              final List<BroadcastMessage> messages;
+              if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                messages = snapshot.data!.docs
+                    .map((doc) => BroadcastMessage.fromDoc(doc))
+                    .toList();
+              } else if (hasCachedData) {
+                messages = provider.broadcasts
+                    .map((doc) => BroadcastMessage.fromDoc(doc))
+                    .toList();
+              } else {
+                return const Center(child: Text("No updates found"));
+              }
 
-                final List<BroadcastMessage> messages;
-                if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-                  messages = snapshot.data!.docs
-                      .map((doc) => BroadcastMessage.fromDoc(doc))
-                      .toList();
-                } else if (hasCachedData) {
-                  messages = provider.broadcasts
-                      .map((doc) => BroadcastMessage.fromDoc(doc))
-                      .toList();
-                } else {
-                  return const Center(child: Text("No updates found"));
-                }
+              final List<Widget> timelineWidgets = [];
+              String? lastHeader = '';
 
-                final List<Widget> timelineWidgets = [];
-                String? lastHeader = '';
+              for (int i = 0; i < messages.length; i++) {
+                var message = messages[i];
+                String currentHeader = _getTimelineHeader(message.timestamp);
 
-                for (int i = 0; i < messages.length; i++) {
-                  var message = messages[i];
-                  String currentHeader = _getTimelineHeader(message.timestamp);
-
-                  if (currentHeader != lastHeader) {
-                    timelineWidgets.add(
-                      _buildTimelineHeaderWidget(currentHeader),
-                    );
-                    lastHeader = currentHeader;
-                  }
-
+                if (currentHeader != lastHeader) {
                   timelineWidgets.add(
-                    FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20.0,
-                          vertical: 6.0,
-                        ),
-                        child: CustomBroadcastTile(message: message, index: i),
-                      ),
-                    ),
+                    _buildTimelineHeaderWidget(currentHeader),
                   );
+                  lastHeader = currentHeader;
                 }
 
-                return ListView(
-                  padding: const EdgeInsets.only(bottom: 24, top: 8),
-                  physics: const BouncingScrollPhysics(),
-                  children: timelineWidgets,
+                timelineWidgets.add(
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20.0,
+                        vertical: 8.0,
+                      ),
+                      child: CustomBroadcastTile(message: message, index: i),
+                    ),
+                  ),
                 );
-              },
-            ),
+              }
+
+              return ListView(
+                padding: const EdgeInsets.only(bottom: 40, top: 8),
+                physics: const BouncingScrollPhysics(),
+                children: timelineWidgets,
+              );
+            },
           ),
-        ],
+        ),
       ),
     );
   }
@@ -530,19 +523,27 @@ class CustomBroadcastTile extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFFFFFBEB).withOpacity(0.55), // Warm Glass Tint
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isHighlighted
-              ? iconData['color'].withOpacity(0.3)
-              : const Color(0xFFFFE4B5).withOpacity(0.4),
+              ? iconData['color'].withOpacity(0.5)
+              : const Color(0xFFD4AF37).withOpacity(0.35),
           width: isHighlighted ? 2 : 1.5,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: (isHighlighted ? iconData['color'] : _goldAccent).withOpacity(0.08),
+            spreadRadius: 1,
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           onTap: () {
             Navigator.push(
               context,
@@ -552,7 +553,7 @@ class CustomBroadcastTile extends StatelessWidget {
             );
           },
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -561,8 +562,8 @@ class CustomBroadcastTile extends StatelessWidget {
                       ? 'broadcast_image_${message.id}'
                       : 'broadcast_icon_${message.id}',
                   child: Container(
-                    width: 56,
-                    height: 56,
+                    width: 60,
+                    height: 60,
                     decoration: BoxDecoration(
                       gradient: message.imageUrl == null
                           ? iconData['gradient']
@@ -570,45 +571,45 @@ class CustomBroadcastTile extends StatelessWidget {
                       color: message.imageUrl != null
                           ? Colors.grey.shade200
                           : null,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(18),
                       boxShadow: [
-                        BoxShadow(
-                          color: iconData['color'].withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
+                        if (message.imageUrl == null)
+                          BoxShadow(
+                            color: iconData['color'].withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
                       ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(18),
                       child: message.imageUrl != null
                           ? Image.network(
                               message.imageUrl!,
                               fit: BoxFit.cover,
-                              width: 56,
-                              height: 56,
                             )
                           : Center(
                               child: Icon(
                                 iconData['icon'],
                                 color: Colors.white,
-                                size: 28,
+                                size: 30,
                               ),
                             ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 18),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         message.title,
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Colors.grey[900],
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                          color: _primaryBlue,
+                          height: 1.2,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -618,33 +619,35 @@ class CustomBroadcastTile extends StatelessWidget {
                         message.body,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
-                          color: Colors.grey[600],
+                        style: GoogleFonts.outfit(
+                          color: const Color(0xFF64748B),
                           fontSize: 14,
-                          height: 1.5,
+                          fontWeight: FontWeight.w500,
+                          height: 1.4,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                       Row(
                         children: [
                           Icon(
-                            Icons.access_time_rounded,
+                            Icons.access_time_filled_rounded,
                             size: 14,
-                            color: Colors.grey[400],
+                            color: _goldAccent.withOpacity(0.6),
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 6),
                           Text(
                             _getTimeAgo(message.timestamp),
-                            style: GoogleFonts.poppins(
-                              color: Colors.grey[500],
+                            style: GoogleFonts.outfit(
+                              color: _goldAccent.withOpacity(0.8),
                               fontSize: 12,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           const Spacer(),
-                          Icon(
+                          const Icon(
                             Icons.arrow_forward_ios_rounded,
-                            size: 14,
-                            color: Colors.grey[400],
+                            size: 12,
+                            color: _primaryBlue,
                           ),
                         ],
                       ),
@@ -659,3 +662,4 @@ class CustomBroadcastTile extends StatelessWidget {
     );
   }
 }
+

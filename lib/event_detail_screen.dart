@@ -7,12 +7,10 @@ import 'package:sundayschool_app/custom_app_bar.dart'; // Import the new appbar
 import 'package:sundayschool_app/event_details_skelton.dart';
 import 'package:sundayschool_app/homescreen.dart';
 import 'package:sundayschool_app/widgets/full_screen_image_viewer.dart';
-import 'package:open_file/open_file.dart';
-
-// PDF/PRINTING IMPORTS
 import 'package:sundayschool_app/edit_event_screen.dart';
 import 'package:sundayschool_app/report_generator.dart';
-import 'package:sundayschool_app/utils/downloads_helper.dart';
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
 
 // DATA MODEL
 class EventDetailsPageData {
@@ -269,23 +267,58 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       }
 
       final reportData = {...eventData, 'creatorSchoolName': creatorSchoolName};
-      final pdfBytes = await generateEventReport(reportData);
-
-      if (pdfBytes.isNotEmpty) {
-        final fileName =
-            'Event_Report_${widget.eventId}_${DateTime.now().millisecondsSinceEpoch}.pdf';
-        final filePath = await DownloadsHelper.saveToDownloads(
-          pdfBytes,
-          fileName,
+      
+      // 1. Show a loading dialog while pre-fetching assets
+      if (mounted) {
+        showDialog(
           context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            content: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(color: Color(0xFF1E40AF)),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Generating Report...',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF1E40AF),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         );
-
-        if (filePath != null) {
-          await OpenFile.open(filePath);
-        }
       }
+
+      // 2. Pre-fetch assets (Logo, Hero Image) outside the Print Dialog
+      // This ensures the System Preview doesn't "hang" on the network request.
+      final assets = await preFetchReportAssets(reportData);
+
+      // 3. Close the loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      // 4. Open the System Print/Save Dialog
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => await generateEventReport(reportData, preFetchedAssets: assets, format: format),
+        name: 'Event_Report_${widget.eventId}',
+      );
     } catch (e) {
-      // Silently fail
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not generate report: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      print('PDF Generation Error: $e');
     }
   }
 
@@ -437,7 +470,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final String title = data['title'] ?? 'Event Title';
     final Timestamp? dateTimestamp =
         data['timestamp'] as Timestamp?; // Corrected to use 'timestamp'
-    final String imageUrl = data['imageUrl'] ?? '';
     final String category = (data['category'] ?? 'N/A').toUpperCase();
     final String dateTimeString = dateTimestamp != null
         ? DateFormat('MMMM d, yyyy, h:mm a').format(
@@ -449,86 +481,88 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       padding: const EdgeInsets.all(20.0),
       sliver: SliverList(
         delegate: SliverChildListDelegate([
-          Hero(
-            tag: imageUrl.isNotEmpty
-                ? 'event_image_${widget.eventId}'
-                : 'event_icon_${widget.eventId}',
-            child: GestureDetector(
-              onTap: imageUrl.isNotEmpty
-                  ? () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => FullScreenImageViewer(
-                            imageUrl: imageUrl,
-                            heroTag: 'event_image_${widget.eventId}',
-                          ),
-                        ),
-                      );
-                    }
-                  : null,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: imageUrl.isNotEmpty
-                    ? Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        height: 220,
-                        width: double.infinity,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            height: 220,
-                            color: Colors.grey.shade100,
-                            child: const Center(
-                              child: CircularProgressIndicator(),
+          () {
+            final String? rawImageUrl = data['imageUrl'];
+            final bool hasValidImage = rawImageUrl != null &&
+                rawImageUrl.isNotEmpty &&
+                !rawImageUrl.contains('via.placeholder.com');
+            final String finalImageUrl = hasValidImage ? rawImageUrl : '';
+
+            return Hero(
+              tag: finalImageUrl.isNotEmpty
+                  ? 'event_image_${widget.eventId}'
+                  : 'event_icon_${widget.eventId}',
+              child: GestureDetector(
+                onTap: finalImageUrl.isNotEmpty
+                    ? () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => FullScreenImageViewer(
+                              imageUrl: finalImageUrl,
+                              heroTag: 'event_image_${widget.eventId}',
                             ),
-                          );
-                        },
-                        errorBuilder: (c, o, s) => Container(
+                          ),
+                        );
+                      }
+                    : null,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: finalImageUrl.isNotEmpty
+                      ? Image.network(
+                          finalImageUrl,
+                          fit: BoxFit.cover,
                           height: 220,
-                          decoration: BoxDecoration(
-                            gradient:
+                          width: double.infinity,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              height: 220,
+                              color: Colors.grey.shade100,
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          },
+                          errorBuilder: (c, o, s) => Container(
+                            height: 220,
+                            decoration: BoxDecoration(
+                              gradient: HomeScreen.getEventPlaceholderData(
+                                data['category'] ?? '',
+                              )['gradient'] as LinearGradient?,
+                            ),
+                            child: Center(
+                              child: Icon(
                                 HomeScreen.getEventPlaceholderData(
-                                      data['category'] ?? '',
-                                    )['gradient']
-                                    as LinearGradient?,
+                                  data['category'] ?? '',
+                                )['icon'] as IconData?,
+                                size: 60,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          height: 220,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            gradient: HomeScreen.getEventPlaceholderData(
+                              data['category'] ?? '',
+                            )['gradient'] as LinearGradient?,
                           ),
                           child: Center(
                             child: Icon(
                               HomeScreen.getEventPlaceholderData(
-                                    data['category'] ?? '',
-                                  )['icon']
-                                  as IconData?,
-                              size: 60,
+                                data['category'] ?? '',
+                              )['icon'] as IconData?,
+                              size: 80,
                               color: Colors.white,
                             ),
                           ),
                         ),
-                      )
-                    : Container(
-                        height: 220,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          gradient:
-                              HomeScreen.getEventPlaceholderData(
-                                    data['category'] ?? '',
-                                  )['gradient']
-                                  as LinearGradient?,
-                        ),
-                        child: Center(
-                          child: Icon(
-                            HomeScreen.getEventPlaceholderData(
-                                  data['category'] ?? '',
-                                )['icon']
-                                as IconData?,
-                            size: 80,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+                ),
               ),
-            ),
-          ),
+            );
+          }(),
           const SizedBox(height: 24),
           Text(
             title,

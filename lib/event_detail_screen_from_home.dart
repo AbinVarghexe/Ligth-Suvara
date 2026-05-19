@@ -99,7 +99,6 @@ class _EventDetailScreenState extends State<EventDetailScreenFromHome> {
     final String place = data['place'] ?? 'Location not specified';
     final String title = data['title'] ?? 'Event Title';
     final Timestamp? dateTimestamp = data['timestamp'] as Timestamp?;
-    final String imageUrl = data['imageUrl'] ?? '';
     final String dateTimeString = dateTimestamp != null
         ? DateFormat('MMMM d, yyyy  •  h:mm a').format(dateTimestamp.toDate())
         : 'Date/Time Unknown';
@@ -109,89 +108,91 @@ class _EventDetailScreenState extends State<EventDetailScreenFromHome> {
       sliver: SliverList(
         delegate: SliverChildListDelegate([
           // --- Event Image ---
-          GestureDetector(
-            onTap: imageUrl.isNotEmpty
-                ? () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FullScreenImageViewer(
-                          imageUrl: imageUrl,
-                          heroTag: 'event_image_${widget.eventId}',
+          () {
+            final String? rawImageUrl = data['imageUrl'];
+            final bool hasValidImage = rawImageUrl != null &&
+                rawImageUrl.isNotEmpty &&
+                !rawImageUrl.contains('via.placeholder.com');
+            final String finalImageUrl = hasValidImage ? rawImageUrl : '';
+
+            return GestureDetector(
+              onTap: finalImageUrl.isNotEmpty
+                  ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FullScreenImageViewer(
+                            imageUrl: finalImageUrl,
+                            heroTag: 'event_image_${widget.eventId}',
+                          ),
                         ),
-                      ),
-                    );
-                  }
-                : null,
-            child: Hero(
-              tag: imageUrl.isNotEmpty
-                  ? 'event_image_${widget.eventId}'
-                  : 'event_icon_${widget.eventId}',
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: imageUrl.isNotEmpty
-                    ? Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        height: 220,
-                        width: double.infinity,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
+                      );
+                    }
+                  : null,
+              child: Hero(
+                tag: finalImageUrl.isNotEmpty
+                    ? 'event_image_${widget.eventId}'
+                    : 'event_icon_${widget.eventId}',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: finalImageUrl.isNotEmpty
+                      ? Image.network(
+                          finalImageUrl,
+                          fit: BoxFit.cover,
+                          height: 220,
+                          width: double.infinity,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              height: 220,
+                              width: double.infinity,
+                              color: Colors.grey.shade100,
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          },
+                          errorBuilder: (c, o, s) => Container(
                             height: 220,
                             width: double.infinity,
-                            color: Colors.grey.shade100,
-                            child: const Center(
-                              child: CircularProgressIndicator(),
+                            decoration: BoxDecoration(
+                              gradient: HomeScreen.getEventPlaceholderData(
+                                data['category'] ?? '',
+                              )['gradient'] as LinearGradient?,
                             ),
-                          );
-                        },
-                        errorBuilder: (c, o, s) => Container(
+                            child: Center(
+                              child: Icon(
+                                HomeScreen.getEventPlaceholderData(
+                                  data['category'] ?? '',
+                                )['icon'] as IconData?,
+                                size: 60,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Container(
                           height: 220,
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            gradient:
-                                HomeScreen.getEventPlaceholderData(
-                                      data['category'] ?? '',
-                                    )['gradient']
-                                    as LinearGradient?,
+                            gradient: HomeScreen.getEventPlaceholderData(
+                              data['category'] ?? '',
+                            )['gradient'] as LinearGradient?,
                           ),
                           child: Center(
                             child: Icon(
                               HomeScreen.getEventPlaceholderData(
-                                    data['category'] ?? '',
-                                  )['icon']
-                                  as IconData?,
-                              size: 60,
+                                data['category'] ?? '',
+                              )['icon'] as IconData?,
+                              size: 80,
                               color: Colors.white,
                             ),
                           ),
                         ),
-                      )
-                    : Container(
-                        height: 220,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          gradient:
-                              HomeScreen.getEventPlaceholderData(
-                                    data['category'] ?? '',
-                                  )['gradient']
-                                  as LinearGradient?,
-                        ),
-                        child: Center(
-                          child: Icon(
-                            HomeScreen.getEventPlaceholderData(
-                                  data['category'] ?? '',
-                                )['icon']
-                                as IconData?,
-                            size: 80,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+                ),
               ),
-            ),
-          ),
+            );
+          }(),
           const SizedBox(height: 24),
 
           // --- Event Title ---

@@ -8,6 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 // Import compression libraries
 import 'package:sundayschool_app/utils/image_optimizer.dart';
+import 'package:provider/provider.dart';
+import 'package:sundayschool_app/providers/user_data_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -20,6 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   final _fullNameController = TextEditingController();
   final _phoneNumberController = TextEditingController();
+  final _addressController = TextEditingController();
   final _foraneController = TextEditingController();
   final _parishController = TextEditingController();
 
@@ -63,6 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     _animationController.dispose();
     _fullNameController.dispose();
     _phoneNumberController.dispose();
+    _addressController.dispose();
     _foraneController.dispose();
     _parishController.dispose();
     super.dispose();
@@ -91,6 +95,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           _schoolName = data['schoolname'] ?? 'Not Set';
           _fullNameController.text = data['fullName'] ?? '';
           _phoneNumberController.text = data['phoneNumber'] ?? '';
+          _addressController.text = data['address'] ?? '';
           _foraneController.text = data['forane'] ?? '';
           _parishController.text = data['parish'] ?? '';
           _profileImageUrl = data['profileImageUrl'];
@@ -162,6 +167,8 @@ class _ProfileScreenState extends State<ProfileScreen>
           .update({
             'fullName': _fullNameController.text.trim(),
             'phoneNumber': _phoneNumberController.text.trim(),
+            if (Provider.of<UserDataProvider>(context, listen: false).userData.isAnimator)
+              'address': _addressController.text.trim(),
             'profileImageUrl': updatedImageUrl,
           });
 
@@ -199,6 +206,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   @override
   Widget build(BuildContext context) {
+    final userData = Provider.of<UserDataProvider>(context, listen: false).userData;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: CustomScrollView(
@@ -261,6 +269,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                               icon: Icons.phone_outlined,
                               keyboardType: TextInputType.phone,
                             ),
+                            if (userData.isAnimator) ...[
+                              const SizedBox(height: 16),
+                              _buildModernTextField(
+                                label: 'Address',
+                                controller: _addressController,
+                                icon: Icons.location_on_outlined,
+                                keyboardType: TextInputType.multiline,
+                              ),
+                            ],
                             const SizedBox(height: 32),
                             _buildModernButton(),
                             const SizedBox(height: 24),

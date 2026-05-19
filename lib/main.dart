@@ -39,15 +39,8 @@ void main() async {
     debugPrint("Firebase initialization failed: $e");
   }
 
-  try {
-    await FirebaseAppCheck.instance.activate(
-      androidProvider: kReleaseMode
-          ? AndroidProvider.playIntegrity
-          : AndroidProvider.debug,
-    );
-  } catch (e) {
-    debugPrint("App Check activation failed: $e");
-  }
+  // 🔹 Temporarily disabled to prevent "Something went wrong" dialog on Play Store builds
+  // _initializeAppCheck();
 
   await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
     DeviceOrientation.portraitUp,
@@ -63,7 +56,7 @@ void main() async {
 
   // Preload Lottie Animation
   animationCompositionFuture = AssetLottie(
-    'assets/images/animation n2.json',
+    'assets/images/animation upd.json',
   ).load();
 
   // ⭐️ 3. WRAP YOUR APP WITH THE PROVIDER
@@ -83,6 +76,21 @@ void main() async {
   widgetsBinding.addPostFrameCallback((_) {
     FlutterNativeSplash.remove();
   });
+}
+
+/// 🛡️ Resilient App Check Initialization
+/// Moving this to a non-blocking background function prevents "Something went wrong"
+/// dialogs from masking the app startup during connectivity or Integrity delays.
+Future<void> _initializeAppCheck() async {
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kReleaseMode
+          ? AndroidProvider.playIntegrity
+          : AndroidProvider.debug,
+    );
+  } catch (e) {
+    debugPrint("App Check Initialization Notice: $e");
+  }
 }
 
 class MyApp extends StatelessWidget {

@@ -350,6 +350,8 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                   );
                 },
               ),
+            ],
+            if (!widget.isLocked)
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
@@ -374,7 +376,6 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                   _deleteRegistration(docId);
                 },
               ),
-            ],
             ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(8),

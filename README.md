@@ -7,7 +7,7 @@
   
   [![Flutter](https://img.shields.io/badge/Flutter-3.8.1-02569B?logo=flutter)](https://flutter.dev)
   [![Firebase](https://img.shields.io/badge/Firebase-Enabled-FFCA28?logo=firebase)](https://firebase.google.com)
-  [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green)]()
+  [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Windows-green)]()
   [![License](https://img.shields.io/badge/License-Private-red)]()
 </div>
 
@@ -15,497 +15,167 @@
 
 ## 📖 Overview
 
-**Light Suvara** is a modern, feature-rich Flutter application designed to manage Sunday Schools under the **CML (Christian Mission League)** and **SUVARA** organizations. It provides a unified platform for administrators, parish coordinators, Sunday School units (schools), and animators (evaluators) to manage events, coordinate competitive program registrations, record marks, send notifications, and access spiritual resources.
+**Light Suvara** is a modern, elaborately feature-rich Flutter application designed to scale and digitally manage Sunday Schools operating under the **CML (Christian Mission League)** and **SUVARA** organizations. Designed from the ground up for seamless communication, event hosting, and administrative oversight, the app provides tailored platforms for administrators, parish coordinators, Sunday School units (schools), evaluators (animators), and exam observers. 
+
+It handles everything from multi-stage competitive program registrations to marks evaluation, push notifications, and spiritual resources, all fully synchronized in real-time through Firebase.
 
 ### 🎯 Key Highlights
-
-- **Multi-Role System**: Four distinct dashboards tailored for Admin, Parish, School, and Animator roles, plus a code-gated Observer portal for teachers
-- **Real-time Event Management**: Create, publish, and track events with live Firestore updates
-- **Program Registration Workflow**: End-to-end registration pipeline — school submission → parish approval → admin oversight
-- **Marks & Evaluation**: Animators record student marks per question set; PDFs are generated as proof
-- **Push Notifications**: FCM-powered broadcasts and targeted per-role/per-user notifications
-- **Spiritual Resources**: Bible reader, Catechism study materials, and Japamala (Rosary) counter
-- **PDF Report Generation**: Downloadable reports for events and marks
-- **Image Optimization**: Automatic JPEG compression for all uploaded images
-- **Offline Support**: Firestore local caching for low-bandwidth scenarios
+*   **5-Tier Hybrid Role Architecture**: Granular dashboards for Admin, Parish, School, and Animator, supplemented by a unique anonymous "Observer Portal."
+*   **Dynamic Event Hub**: A real-time hub for hosting public and draft events separated by organizational tags.
+*   **3-Stage Program Registration Engine**: Transparent and trackable registration workflow encompassing School Submission, Parish Review, and Admin Oversight.
+*   **Comprehensive Evaluation & Marks Engine**: Custom schema-driven marking system with PDF proof generation.
+*   **Real-time Push & Broadcast System**: Target specific users, roles, or broadcast universally using FCM.
+*   **Offline Data Resilience**: Built-in caching enabling rapid loading and operations in low-bandwidth network environments.
+*   **Internal Logging Mechanism**: Silent activity tracking monitoring user sign-in flows and critical events entirely within Firebase.
 
 ---
 
-## 👥 User Roles & Dashboards
+## 👥 Elaborative Role System & Dashboards
 
-The app uses **role-based access control** stored in Firestore. Each user has a `role` field that determines which dashboard they see after login.
+The app relies heavily on **role-based routing**, controlled through Firestore data points. Each validated app user is navigated securely to a role-specific interface to prevent unauthorized data access.
 
-| Role | Dashboard | Primary Responsibilities |
-|------|-----------|--------------------------|
-| **admin** | Admin Dashboard | Full system control — manage events, programs, animators, parishes, schools, teachers, observers, marks, and broadcasts |
-| **parish** | Parish Dashboard | Approve/reject school registrations, view events, manage linked Sunday School |
-| **school** | Home Screen | Browse events, submit program registrations, view spiritual resources |
-| **animator** | Animator Dashboard | Enter student marks, upload PDF proofs, view assigned schools |
-| **observer** | Observer Portal | Access via 6-digit code — submit exam attendance and remarks for an assigned school (no Firebase Auth account required) |
+### 1. The Admin (`admin`)
+The **Admin Dashboard** serves as the omnipotent control room for the entire network. From here, administrators have access to:
+*   **Master Event Management**: Post, edit, draft, and publish events targeted at specific subgroups.
+*   **Dynamic Program Management**: Launch new Sunday School programs, set timeframes, and oversee analytics of registrations.
+*   **Role Management & User Provisioning**: Create Parish user accounts, configure Animator accounts, and assign evaluators to specific individual schools.
+*   **Global Notifications**: Send push notifications or broad "Broadcasts" to notify the entire network of urgent updates.
+*   **Schema & Exam Control**: Define the scoring rubrics (Questions) and oversee marks submitted across the network.
+*   **Theme & Content Management**: Edit dynamic content elements (e.g., Theme of the Year) appearing on the login menus. 
+*   **Teacher & Observer Operations**: Manage the roster for teachers and assign specific educators as anonymous Observers for external testing environments. 
 
----
+### 2. The Animator / Evaluator (`animator`)
+The **Animator Dashboard** is focused strictly on evaluation operations.
+*   **Assignment Tracking**: View Sunday Schools explicitly assigned to their evaluating roster for the year.
+*   **Dynamic Mark Entry**: Enter specific student marks against the custom schema defined by the Admin.
+*   **Proof Validation**: Mandatory PDF upload requirement for evaluated sheets ensuring transparent marking.
+*   **Execution Locks**: Once submitted, inputs are actively "Locked" in Firestore preventing tampering post-grading.
 
-## ✨ Features
+### 3. The Parish Coordinator (`parish`)
+The **Parish Dashboard** acts as the crucial middle-tier verifier.
+*   **Queue Management**: Monitors pending school program registration submissions filtering up from connected Sunday Schools.
+*   **Decision Gateway**: Review documentation and approve or reject school submissions before they proceed to Admin review.
+*   **Unit Lock-in**: Locks approved submissions to freeze modifications from the school-side, ensuring integrity during the pipeline transition.
 
-### 🏠 Home Screen (School Role)
+### 4. The Sunday School Unit (`school`)
+The **Home Dashboard** is the primary face of the app geared towards localized units and their respective students.
+*   **Visual Event Feeds**: Interactive carousels highlighting latest news, sorted by organization (CML, SUVARA).
+*   **Registration Portal**: Browse active programs and submit forms for participating student bodies.
+*   **Spiritual Toolkit**: One-tap access to daily Biblical liturgy, Catechism curriculum integration, and an interactive digital Japamala (Rosary) counter system.
+*   **Notification Repository**: An isolated "Inbox" tracking targeted pings explicitly sent to their unit.
 
-- **Event Feed** with carousel slider for featured events
-- **Filter & Search**: Filter by category (ALL, CML, SUVARA), search by title or description
-- **Sort**: Newest first or alphabetically
-- **Programs Panel**: View and register for active competitive programs
-- **Spiritual Resources Quick Access**: Bible, Catechism, Japamala
-- **Notification Bell** with unread badge
-
-### 📅 Events
-
-- Rich event detail view with images, date, location, and description
-- Full-screen image viewer
-- Events link to related notifications
-- Admin can create, edit, delete, and toggle draft/public status
-- Event images are auto-compressed before upload
-
-### 📋 Program Registration Workflow
-
-1. **Admin** creates a `Program` (with name, start/end date, active flag)
-2. **School** submits student registrations (individual names or bulk count)
-3. **Parish** reviews pending submissions — approves, rejects, or locks them
-4. **Admin** has final oversight and can view all registrations and analytics
-
-### 📊 Marks & Evaluation
-
-- **Admin** manages a `Questions` schema (text, max marks, display order)
-- **Admin** assigns Animators to Sunday Schools (`animator_assignments`)
-- **Animator** enters marks per question for each assigned school
-- **Animator** uploads a PDF proof document
-- Once submitted, entries can be **locked** to prevent edits
-- Admin can view all marks, generate a consolidated PDF report
-
-### 👨‍🏫 Teacher Management
-
-- **Admin** adds teachers to any Sunday School with full profile details: name, phone, email, date of birth, qualification, classes taught, academic year, and a photo
-- Teachers are stored per school and per academic year, making them available for observer assignment
-- Admin can view, edit, and delete teacher records from the `AdminTeacherManagementScreen`
-
-### 👁️ Observer Portal
-
-- **Admin** assigns a teacher from one school as an **Observer** for a different school's exam
-- Each observer assignment generates a unique **6-digit access code** stored in the `assignments` collection with `type: 'Observer'`
-- Observers access a standalone **Observer Portal** (`ObserverRemarksLoginScreen`) by entering their code — no Firebase Auth account is required
-- After authentication, the observer submits an **exam report** containing total attendance, absentee names, and written remarks
-- Admin can review all submitted observer reports from `AdminObserverRemarksViewScreen`; a global expiration date can be set to lock the portal after a deadline
-
-### 📢 Notifications & Broadcasts
-
-- **Broadcast** (public): Visible to all users including non-logged-in visitors
-- **Targeted Notification**: Sent to a specific user UID or all users of a given role (e.g., `role_school`)
-- **Read Receipts**: `readBy` array tracks which users have seen each notification
-- Admin sends broadcasts via the Admin Notification screen; schools and parishes receive them in their notification feed
-
-### 📖 Spiritual Resources
-
-- **Bible**: Opens an interactive web-view-based Bible reader
-- **Catechism**: Study materials and questions via web view
-- **Japamala (Rosary)**: Interactive counter with haptic feedback for all 5 prayer groups
-
-### 👤 User Profile
-
-- View and edit profile image
-- Display name, school affiliation, parish, forane
-- Role-specific information
-
-### 🔐 Authentication & Security
-
-- **Firebase Authentication**: Email/password login
-- **Firebase App Check**: Prevents abuse on Android (Play Integrity in release, debug in development)
-- **Role-based routing**: `AuthWrapper` reads the Firestore `role` field to redirect to the correct dashboard
-- **Firestore Security Rules**: Data access enforced at the backend
+### 5. Access Check Observers (`observer`)
+The **Observer Portal** is a stateless environment distinct from Firebase Auth.
+*   **Token Access**: Logging in utilizes a 6-digit dynamic password (token) generated explicitly by the Admin.
+*   **Role Purpose**: Dedicated exclusively to reporting. Used for external invigilation during exams.
+*   **Feedback Loops**: Submits attendance logs, explicit absentee rosters, and structured remark reports back directly to Admins securely. 
 
 ---
 
-## 🏗️ Technical Architecture
+## ✨ Exhaustive Feature Breakdown
 
-### Built With
+### 📸 Full-Featured Media & Event Tools
+- **Auto-Optimizing Assets**: Native image and document picking utilizing the `flutter_image_compress` package. Heavy event posters are automatically compressed (85% Quality, JPG Format, 500KB cap) before being piped to Firebase Storage, saving excessive CDN bandwidth.
+- **Marquee & Real-time Feeds**: Events support scrolling `Marquee` banners for lengthy titles and implement `liquid_pull_to_refresh` for natural, tactile reloading inside the feeds.
+- **Full-Screen Immersion**: Integrated media viewers allowing zero-distraction zoomable views of event posters.
 
-- **Framework**: Flutter 3.8.1+ / Dart SDK ≥3.8.1
-- **Backend**: Firebase Suite
-  - Firebase Authentication (email/password)
-  - Cloud Firestore (real-time database)
-  - Firebase Storage (images & PDFs)
-  - Firebase Cloud Messaging / FCM (push notifications)
-  - Firebase App Check (security)
-- **State Management**: Provider (`ChangeNotifierProvider`)
-  - `UserDataProvider` — current user profile & role
-  - `ContentProvider` — shared content/event data
-- **UI Components**: Material Design 3, Google Fonts
+### 📋 The Three-Stage Registration Pipeline Architecture
+Registrations aren't just single forms; they operate as a complete state-machine funnel in the backend:
+1.  **Drafting (School)**: Users build bulk or specific student registration entries on active Programs. 
+2.  **Pending Parish Approval (Parish)**: Forms are pipelined up. A Parish coordinator either Rejects (kicking it back) or Approves.
+3.  **Final Security Lock (Parish/Admin)**: The data is structurally "Locked" terminating any further edits and preparing the schema for final Admin oversight charts.
 
-### Key Dependencies
+### 👨‍🏫 Administrative Human Resources Engine
+- **Teacher Ledger**: Integrated management of teachers allowing mapping explicitly to assigned schools, contact details, subject class assignments, and photo logs—segmented specifically by Academic Year logic.
+- **Examiner Overlaps**: Utilizes the teacher base to map out complex "Observer Assignments"—where an educator from *School A* is secretly routed an Access Token to observe the final exams at *School B*.
 
-```yaml
-Firebase & Backend:
-  - firebase_core: ^2.27.0
-  - cloud_firestore: ^4.15.8
-  - firebase_storage: ^11.6.9
-  - firebase_auth: ^4.20.0
-  - firebase_messaging: ^14.9.4
-  - firebase_app_check: ^0.2.1+8
+### 📊 PDF Engine & Deep Analytics
+Combining the parsing algorithms with Flutter's `printing` toolkit allows for:
+- **Instant Reporting**: Compiling all evaluation Marks from Animators into neatly formatted PDF documents strictly generated on-the-fly depending on user selection arrays right from the Admin interface.
+- **Analytics Visualization**: Real-time program registration statistics updating synchronously as approvals proceed up the pipeline.
 
-UI / UX:
-  - google_fonts: ^6.2.1
-  - carousel_slider: ^5.1.1
-  - marquee: ^2.3.0
-  - shimmer: ^3.0.0
-  - lottie: ^3.1.0
-  - loading_animation_widget: ^1.2.1
-  - liquid_pull_to_refresh: ^3.0.1
-  - font_awesome_flutter: ^10.0.0
+### ✝️ Highly-Interactive Spiritual Resources Module
+To boost utility outside administration context, light client utilities persist directly within the app:
+- **Rich-Text Bible Viewer**: Embedded views of scripture contexts.
+- **Catechism Guides**: Prepackaged study notes and interactive guides.
+- **Smart Japamala (Rosary)**: An explicit feature encompassing all 5 prayer groups (Joyful, Sorrowful, Glorious, Luminous). Includes tactile UI feedback and auto-increments saving place progression.
 
-Media & Files:
-  - image_picker: ^1.0.7
-  - flutter_image_compress: ^2.3.0
-  - file_picker: ^8.0.7
-  - pdf: ^3.10.0
-  - printing: ^5.13.1
-  - open_file: ^3.3.2
+### 🔔 Centralized Communications Node
+Instead of relying squarely on WhatsApp groups, the application leverages FCM correctly:
+- **Broadcasting Engine**: Capable of sending non-targeted global application blasts to visual news interfaces in the app.
+- **Direct FCM Notification**: Leveraging generated FCM UUIDs locally. Admins can filter their entire database routing a message strictly to `School Units`, `Animators`, or an explicitly identified `User UUID`.
+- **Read-Receipt Analytics**: Native Firestore array-checks tracking exactly who has acknowledged critical memo elements.
 
-Platform & Utilities:
-  - provider: ^6.1.2
-  - shared_preferences: ^2.5.3
-  - path_provider: ^2.1.5
-  - path: ^1.9.1
-  - url_launcher: ^6.3.2
-  - webview_flutter: ^4.10.0
-  - permission_handler: ^11.3.1
-  - uuid: ^4.5.2
-  - rxdart: ^0.27.7
-  - collection: ^1.18.0
-  - intl: ^0.18.1
-  - flutter_native_splash: ^2.4.7
-  - flutter_local_notifications: ^20.0.0
-  - external_app_launcher: ^4.0.3
-  - http: ^1.2.1
-```
-
-### Project Structure
-
-```
-lib/
-├── main.dart                              # App entry point; Firebase & provider setup
-├── auth_wrapper.dart                      # Role-based navigation after login
-├── animated_splash_screen.dart            # Lottie-animated splash screen
-├── firebase_options.dart                  # Generated Firebase configuration
-├── firestore_service.dart                 # Shared Firestore helper methods
-│
-├── providers/                             # State management
-│   ├── user_data_provider.dart            # Current user data & role flags
-│   └── content_provider.dart             # Shared content/event state
-│
-├── services/
-│   └── notification_service.dart         # FCM token registration & local notifications
-│
-├── screens (root-level):
-│   ├── login_screen.dart                  # Email/password login
-│   ├── auth_screen.dart                   # Auth gate
-│   ├── homescreen.dart                    # School-role home screen
-│   ├── home_events.dart                   # Event list widget for home
-│   ├── event_detail_screen.dart           # Event details (admin context)
-│   ├── event_detail_screen_from_home.dart # Event details (home context)
-│   ├── uploadscreen.dart                  # Create new event
-│   ├── edit_event_screen.dart             # Edit existing event
-│   ├── admin_dashboard_screen.dart        # Admin main dashboard
-│   ├── admin_notification_screen.dart     # Admin broadcast/notification sender
-│   ├── notification_screen.dart           # User notification inbox
-│   ├── broadcast_screen.dart              # Public broadcast feed
-│   ├── profile_screen.dart                # User profile view/edit
-│   ├── programs_screen.dart               # Program listing for schools
-│   ├── school_selection_screen.dart       # School selector
-│   ├── multi_school_selection.dart        # Multi-school picker
-│   ├── privacy_policy_screen.dart         # Privacy policy
-│   ├── bible.dart                         # Bible web-view reader
-│   ├── catechism_screen.dart              # Catechism web-view reader
-│   ├── japamala.dart                      # Rosary counter
-│   ├── report_generator.dart              # PDF report generation helper
-│   ├── custom_app_bar.dart                # Reusable app bar component
-│   └── event_details_skelton.dart         # Shimmer loading skeleton
-│
-├── admin/                                 # Admin-only screens
-│   ├── admin_all_events_screen.dart       # View/manage all events
-│   ├── admin_animator_menu.dart           # Animator management menu
-│   ├── admin_assignment_manager.dart      # Assign animators to schools
-│   ├── admin_create_animator.dart         # Create animator accounts
-│   ├── admin_create_parish_user.dart      # Create parish accounts
-│   ├── admin_manage_animators.dart        # List & manage animators
-│   ├── admin_marks_pdf_generator.dart     # Generate marks PDF report
-│   ├── admin_marks_viewer.dart            # View all submitted marks
-│   ├── admin_observer_management.dart     # Observer (evaluator) management
-│   ├── admin_observer_remarks_view.dart   # View observer remarks
-│   ├── admin_parish_menu.dart             # Parish management menu
-│   ├── admin_program_analytics.dart       # Registration analytics
-│   ├── admin_program_manager.dart         # Create/edit programs
-│   ├── admin_program_menu.dart            # Programs management menu
-│   ├── admin_question_manager.dart        # Manage marks question schema
-│   ├── admin_registration_manager.dart    # View all registrations
-│   ├── admin_school_menu.dart             # School management menu
-│   ├── admin_school_registrations.dart    # Registrations per school
-│   ├── admin_teacher_management.dart      # Teacher management
-│   ├── admin_theme_programs_manager.dart  # Theme program management
-│   ├── observer_remarks_login.dart        # Observer login gate
-│   └── observer_remarks_screen.dart       # Observer remarks entry
-│
-├── animator/                              # Animator-role screens
-│   ├── animator_dashboard_screen.dart     # Animator home dashboard
-│   ├── animator_profile_screen.dart       # Animator profile
-│   ├── mark_entry_screen.dart             # Enter marks per question
-│   ├── registration_dashboard.dart        # Registration overview
-│   ├── school_my_registrations_screen.dart# View school's registrations
-│   └── student_registration_form.dart     # Student registration form
-│
-├── parish/                                # Parish-role screens
-│   ├── parish_dashboard_screen.dart       # Parish home dashboard
-│   └── parish_program_list_screen.dart    # Program list for parish
-│
-├── utils/                                 # Utility helpers
-│   ├── app_launcher.dart                  # External app launcher helper
-│   ├── downloads_helper.dart              # File download management
-│   ├── image_optimizer.dart               # JPEG compression utility
-│   ├── pdf_download_helper.dart           # PDF save & open helper
-│   └── performance_utils.dart             # Performance optimization helpers
-│
-└── widgets/
-    └── full_screen_image_viewer.dart      # Full-screen image overlay widget
-```
+### 🔒 Transparent Security & Silent Internal Auditing
+- **Silenced LogService**: Logs and parses user activity flows (such as authentication sequences, session tracking, and user modifications) pushing synchronously to dedicated, non-public Firestore `logs` collections for deep administrative tracking invisible from the front end.
+- **Firebase App Check**: Hardened on Android through Google Play Integrity pipelines effectively locking API utilization against non-certified clones trying to hit the backend directly.
 
 ---
 
-## 📊 Firebase / Firestore Database Structure
+## 🏗️ Technical Architecture & Developer Reference
 
-See [`database_structure.md`](database_structure.md) for the full field-level reference.
+### Built With 
+- **Core SDK**: Flutter 3.8.1+ / Dart `^3.8.1`
+- **Dependency Injections**: Built actively employing `Provider` Architecture handling states globally (such as `UserDataProvider` resolving instantaneous role data after logins) minimizing massive prop-drilling.
 
-### Firebase Project Configuration
+### Explicit Firebase Topology
+*  **Cloud Firestore (NoSQL)**: Engineered relying heavily on sub-collections to enforce security rule scaling and indexed queries (`teachers`, `assignments`, `marks`, `events`, `programs`).
+*  **Authentication Integration**: Core layer binding `FirebaseAuth` UID's explicitly against parallel identically-keyed `users` documents encapsulating additional data (like custom roles that natively aren't supported easily inside Firebase JWT claims).
 
-| Property | Value |
-|---|---|
-| **Project Name** | Sunday-School |
-| **Project ID** | `sunday-school-8cde8` |
-| **Database Type** | Firestore Native |
-| **Database Location** | `nam5` (US Central) |
-
-> ⚠️ **Security Rules Notice**: The current Firestore security rules are set to `allow read, write: if true`, granting unrestricted access to all documents for any user. These rules **must** be replaced with proper role-based rules before production deployment.
-
-### Collections Summary
-
-| Collection | Purpose |
-|---|---|
-| `users` | User profiles with role (`admin`, `parish`, `school`, `animator`), `schoolname` (for school users), FCM token, forane/parish info |
-| `events` | School or admin-posted events with title, description, date, image, category, `isPublic` draft flag, and optional `status` field |
-| `programs` | Competitive program definitions — name, registration dates, active flag |
-| `program_registrations` | Student registrations with multi-step approval status (`pending_parish` → `approved_parish` → `locked` → `approved_admin`); includes both `parishUserId` and `parishId` for parish filtering |
-| `notifications` | Targeted or role-based notifications with `readBy` receipt array |
-| `broadcasts` | Public-facing announcements visible to all users |
-| `animator_assignments` | Maps animators to assigned Sunday Schools (max 2/year) |
-| `marks` | Mark entries per school per year, keyed by `{schoolId}_{year}` |
-| `questions` | Mark entry schema (question text, max mark, display order) |
-| `teachers` | Teacher profiles per Sunday School and academic year (name, phone, email, DOB, qualification, classes, photo); uses `createdAt` for ordering |
-| `assignments` | Observer assignments linking a teacher from one school to another school's exam; stores 6-digit `accessCode`, `type: 'Observer'`, attendance and remarks once submitted |
-
-### Firebase Storage Paths
-
-| Path | Contents |
-|---|---|
-| `event_images/` | Optimized JPEG images for events |
-| `broadcast_images/` | Banner images for broadcasts and notifications |
-| `marks_pdfs/` | Student result proof PDFs uploaded by animators |
-| `user_profiles/` | User and school profile pictures |
-
-### Firestore Composite Indexes
-
-The following composite indexes are configured to support the app's ordered and filtered queries:
-
-| Collection | Indexed Fields | Notes |
-|---|---|---|
-| `events` | `creatorId` + `timestamp` ↓ | Filter events by creator |
-| `events` | `category` + `timestamp` ↓ | Filter events by category |
-| `events` | `status` + `timestamp` ↓ | Filter events by status |
-| `events` | `title_lowercase` + `timestamp` ↓ | Case-insensitive title search |
-| `events` | `timestamp` ↓ + `title` ↓ | Default sorted event feed |
-| `events` | `isPublic` + `timestamp` ↓ | Filter draft vs published events |
-| `users` | `role` + `schoolname` | School-selection queries |
-| `notifications` | `recipientId` + `timestamp` ↓ | Per-user notification inbox |
-| `program_registrations` | `parishUserId` + `status` + `submittedAt` ↓ | Parish approval queue |
-| `program_registrations` | `parishId` + `status` + `submittedAt` ↓ | Alternative parish filtering |
-| `programs` | `isActive` + `createdAt` ↓ | Active program listing |
-| `teachers` | `schoolId` + `createdAt` ↓ | Teachers per school |
+### Data Modeling Highlights
+- **Indexes**: More than 10 heavily composite-indexed arrays optimizing sorting sequences like `title_lowercase`+`timestamp` (for fuzzy case-insensitive active sorting), `isActive`+`createdAt`, and explicit permission intersections grouping `recipientId`+`timestamp` to render low-cost inbox reads.
+- **Scalability**: By utilizing UUID mapping strategies across sub-collections (`{schoolId}_{year}` key pairs for marks) the data remains sharded linearly protecting against hard quota exhaustion.
 
 ---
 
-## 🔧 Key Feature Implementations
+## 🚀 Deployment & Installation
 
-### 1. Image Optimization
-All uploaded images are automatically compressed before saving to Firebase Storage:
-- Target maximum size: 500 KB
-- Quality: 85%
-- Output format: JPEG
+### Core Prerequisites
+- Flutter Environment Configured (`3.8.1+`)
+- Configured Native Build Pipelines (Android SDK Command-Line / Target Xcode configurations)
+- Initialized Firebase Stack matching required topologies.
 
-### 2. Event Filtering & Search
-- Filter by school category: CML, SUVARA, or ALL
-- Full-text search on `title_lowercase` field
-- Sort by newest-first or alphabetically
-
-### 3. Program Registration Pipeline
-- Schools submit individual student entries or bulk counts
-- Parish admins approve or reject submissions; "lock" finalizes a batch
-- Admin has a final approval step and analytics view
-
-### 4. Marks Workflow
-- Admin defines a question schema with max marks per question
-- Admin assigns animators to schools via `animator_assignments`
-- Animators complete mark entries and upload a PDF proof
-- Entries are locked after final submission; admin generates a consolidated PDF report
-
-### 5. Notification System
-- FCM tokens are saved on login via `NotificationService`
-- Local notifications are dispatched for foreground messages
-- Read receipts (`readBy` array) track per-user read status
-- Broadcasts use a separate public collection for non-authenticated viewers
-
-### 6. PDF Generation
-- `report_generator.dart` and `admin_marks_pdf_generator.dart` use the `pdf` and `printing` packages
-- Generated PDFs include branded headers, event or marks data tables, and are opened inline or shared
-
----
-
-## 🎨 Design System
-
-### Color Palette
-
-| Role | Color | Hex | Meaning |
-|---|---|---|---|
-| Primary | Royal Blue | `#0D47A1` / `#1E3A8A` | Trust, spirituality |
-| Splash / Splash Android 12 | Royal Blue | `#0D47A1` | Brand consistency |
-| Accent | Gold / Yellow | — | Light, enlightenment |
-| Background | White / Light Grey | — | Clarity |
-
-### Typography
-
-- **Primary Font**: Google Fonts (Poppins / Roboto)
-- **Headings**: Bold, 18–24 sp
-- **Body**: Regular, 14–16 sp
-
-### UI Patterns
-
-- Shimmer loading skeletons for all async list views
-- Lottie animations on the splash screen and empty states
-- Liquid pull-to-refresh for event/notification feeds
-- Carousel slider for featured events
-- Marquee text for long event titles
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Flutter SDK **3.8.1** or higher
-- Dart SDK (bundled with Flutter)
-- Android Studio or Xcode
-- A Firebase project with Authentication, Firestore, Storage, Messaging, and App Check enabled
-
-### Installation
-
-1. **Clone the repository**
+### Execution Instructions
+1. **Pull the Repository**:
    ```bash
    git clone https://github.com/AbinVarghexe/Ligth-Suvara.git
    cd Ligth-Suvara
    ```
 
-2. **Install Flutter dependencies**
+2. **Synchronize Dependencies**:
    ```bash
-   flutter pub get
+   flutter clean && flutter pub get
    ```
 
-3. **Configure Firebase**
-   - Download `google-services.json` from the Firebase Console and place it in `android/app/`
-   - Download `GoogleService-Info.plist` and place it in `ios/Runner/`
-   - Ensure `lib/firebase_options.dart` matches your Firebase project
+3. **Incorporate Firebase Assets**:
+   Download your valid `google-services.json` and inject it directly into the `android/app/` subdirectory. Do the equivalent for `GoogleService-Info.plist` at `ios/Runner/`.
 
-4. **Generate App Icons**
+4. **Regenerate Platform Hooks**:
+   Synchronize launcher icons and the specific lottie native splash components natively:
    ```bash
    flutter pub run flutter_launcher_icons
-   ```
-
-5. **Generate Native Splash Screen**
-   ```bash
    flutter pub run flutter_native_splash:create
    ```
 
-6. **Run the App**
+5. **Deploy Targets**:
    ```bash
-   # Development (Android)
-   flutter run
+   # Development
+   flutter run -d chrome     # Web Context Testing
+   flutter run -d emulator   # Target Android VM Context
 
-   # Development (iOS)
-   flutter run -d ios
-
-   # Release build
-   flutter build apk --release
-   flutter build ios --release
+   # Production Release Compilations
+   flutter build appbundle --release  # AAB for Google Play Console 
+   flutter build ios --release        # IPA Archiving Prep 
    ```
 
-### Configuration Files
-
-| File | Purpose |
-|---|---|
-| `pubspec.yaml` | All dependencies, assets, icons, and splash configuration |
-| `firebase.json` | Firebase Hosting and Storage emulator settings |
-| `flutter_build_config.yaml` | Build environment configuration |
-| `database_structure.md` | Full Firestore schema reference |
-| `analysis_options.yaml` | Dart/Flutter lint rules |
-| `devtools_options.yaml` | Flutter DevTools settings |
-
----
-
-## 📱 Screenshots
-
-<div align="center">
-  <img src="assets/images/Logo.png" alt="App Logo" width="150"/>
-  <img src="assets/images/suvara logo wbg.png" alt="Suvara Logo" width="150"/>
-  <img src="assets/images/branding.png" alt="Branding" width="150"/>
-</div>
-
-> **Note**: Add actual device screenshots here showing each role's dashboard, the event flow, program registration, marks entry, and spiritual resource screens.
-
----
-
-## 🤝 Contributing
-
-This is a private project. For questions or collaboration inquiries, contact the repository owner.
-
----
-
-## 📄 License
-
-This project is private and proprietary. All rights reserved.
-
-## 📞 Support
-
-For support, feature requests, or bug reports:
-- Open an issue in the GitHub repository
-- Contact the development team directly
-
----
-
-## 🙏 Acknowledgments
-
-- **Firebase** for the robust backend infrastructure
-- **Flutter Team** for the cross-platform framework
-- **CML & SUVARA Organizations** for the opportunity to serve
-- All contributors and testers
-
 ---
 
 <div align="center">
-  <img src="assets/images/branding.png" alt="Branding" width="300"/>
+  <img src="assets/images/branding.png" alt="Branding Block" width="300" style="margin-top: 30px;"/>
   
-  **Made with ❤️ for Sunday School Communities**
+  <br>
+
+  **Engineered Seamlessly with ❤️ for Sunday School Communities & CML Entities.**
   
-  © 2025 Light Suvara. All Rights Reserved.
+  © 2026 Light Suvara Development Team. All Rights Reserved.
 </div>

@@ -22,6 +22,7 @@ class _AnimatorProfileScreenState extends State<AnimatorProfileScreen> {
 
   final _fullNameController = TextEditingController();
   final _phoneNumberController = TextEditingController();
+  final _addressController = TextEditingController();
   String? _profileImageUrl;
   File? _newImageFile;
   bool _isSavingProfile = false;
@@ -37,6 +38,7 @@ class _AnimatorProfileScreenState extends State<AnimatorProfileScreen> {
       _fullNameController.text =
           widget.userData!['fullName'] ?? widget.userData!['name'] ?? '';
       _phoneNumberController.text = widget.userData!['phoneNumber'] ?? '';
+      _addressController.text = widget.userData!['address'] ?? '';
       _profileImageUrl = widget.userData!['profileImageUrl'];
     }
   }
@@ -45,6 +47,7 @@ class _AnimatorProfileScreenState extends State<AnimatorProfileScreen> {
   void dispose() {
     _fullNameController.dispose();
     _phoneNumberController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -87,6 +90,7 @@ class _AnimatorProfileScreenState extends State<AnimatorProfileScreen> {
       await _firestore.collection('users').doc(user.uid).update({
         'fullName': _fullNameController.text.trim(),
         'phoneNumber': _phoneNumberController.text.trim(),
+        'address': _addressController.text.trim(),
         'profileImageUrl': updatedImageUrl,
       });
 
@@ -266,6 +270,13 @@ class _AnimatorProfileScreenState extends State<AnimatorProfileScreen> {
               controller: _phoneNumberController,
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 16),
+            _buildModernTextField(
+              label: 'Address',
+              controller: _addressController,
+              icon: Icons.location_on_outlined,
+              keyboardType: TextInputType.multiline,
             ),
             const SizedBox(height: 32),
 

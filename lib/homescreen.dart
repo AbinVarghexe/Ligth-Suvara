@@ -252,7 +252,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           .snapshots(),
       FirebaseFirestore.instance.collection('broadcasts').snapshots(),
       (QuerySnapshot a, QuerySnapshot b) => [a, b],
-    );
+    ).asBroadcastStream();
   }
 
   Stream<QuerySnapshot>? _activeProgramsStream;
@@ -273,14 +273,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         assignments,
         settings,
       ],
-    ).asBroadcastStream();
+    ).shareValue();
   }
 
   void _setupActiveProgramsStream() {
     _activeProgramsStream = FirebaseFirestore.instance
         .collection('programs')
         .where('isActive', isEqualTo: true)
-        .limit(1)
         .snapshots();
   }
 
@@ -340,22 +339,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _toggleObserverMinimized() async {
+  Future<void> _saveObserverPreference() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('observer_minimized_school', _isObserverMinimized);
+    await prefs.setBool('observer_collapsed_school', _isObserverCollapsed);
+  }
+
+  Future<void> _toggleObserverMinimized() async {
     setState(() {
       _isObserverMinimized = !_isObserverMinimized;
-      prefs.setBool('observer_minimized_school', _isObserverMinimized);
+      if (!_isObserverMinimized) {
+        _isObserverCollapsed = false; // Auto-expand details when restored
+      }
+      _saveObserverPreference();
     });
     HapticFeedback.mediumImpact();
   }
 
   Future<void> _toggleObserverCollapsed() async {
-    final prefs = await SharedPreferences.getInstance();
     setState(() {
       _isObserverCollapsed = !_isObserverCollapsed;
-      prefs.setBool('observer_collapsed_school', _isObserverCollapsed);
+      _saveObserverPreference();
     });
-    HapticFeedback.mediumImpact();
+    HapticFeedback.lightImpact();
   }
 
   @override
@@ -682,7 +688,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ],
           ),
-          // Floating Observer button removed from Stack, will be moved to FAB Column
+          if (_isObserverMinimized) _buildFloatingObserverButton(),
         ],
       ),
       floatingActionButton: Column(
@@ -741,135 +747,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 16),
           ],
-          // Integrated Observer Button
-          if (_isObserverMinimized)
-            ScaleTransition(
-              scale: CurvedAnimation(
-                parent: _fabAnimationController,
-                curve: Curves.easeOut,
-              ),
-              child: Padding(
-                padding: EdgeInsets.only(bottom: _isFabExpanded ? 16 : 0),
-                child: StreamBuilder<List<QuerySnapshot>>(
-                  stream: _observerAssignmentsStream,
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const SizedBox.shrink();
-                    }
-
-                    final assignmentsData = snapshot.data![0];
-                    final settingsData = snapshot.data![1];
-
-                    if (assignmentsData.docs.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-
-                    final user = FirebaseAuth.instance.currentUser;
-                    if (user == null) return const SizedBox.shrink();
-
-                    final now = DateTime.now();
-                    final todayMidnight = DateTime(
-                      now.year,
-                      now.month,
-                      now.day,
-                    );
-
-                    final Map<String, DateTime> expirationDates = {};
-                    for (var doc in settingsData.docs) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      if (data['expirationDate'] != null) {
-                        expirationDates[doc.id] =
-                            (data['expirationDate'] as Timestamp).toDate();
-                      }
-                    }
-
-                    bool isExpired(String? academicYear) {
-                      if (academicYear == null ||
-                          !expirationDates.containsKey(academicYear))
-                        return false;
-                      return expirationDates[academicYear]!.isBefore(
-                        todayMidnight,
-                      );
-                    }
-
-                    final incoming = assignmentsData.docs.where((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      if (data['targetSchoolId'] != user.uid) return false;
-                      if (isExpired(data['academicYear'])) return false;
-                      return true;
-                    }).toList();
-
-                    final outgoing = assignmentsData.docs.where((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      if (data['sourceSchoolId'] != user.uid) return false;
-                      if (isExpired(data['academicYear'])) return false;
-                      return true;
-                    }).toList();
-
-                    if (incoming.isEmpty && outgoing.isEmpty)
-                      return const SizedBox.shrink();
-
-                    return Transform.translate(
-                      offset: Offset(
-                        _isFabExpanded ? -20 : 0,
-                        0,
-                      ), // Moves slightly left when expanded
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                          _showObserverDetailsModal(incoming, outgoing);
-                        },
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.indigo.shade900.withOpacity(0.8),
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.assignment_ind_rounded,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Observer',
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          if (_isObserverMinimized && !_isFabExpanded)
-            const SizedBox(height: 16),
           ScaleTransition(
             scale: _fabAnimation,
             child: FloatingActionButton(
@@ -888,6 +765,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
           ),
+          SizedBox(height: (MediaQuery.paddingOf(context).bottom * 0.4) + 8),
         ],
       ),
     );
@@ -906,10 +784,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
         final assignmentsData = snapshot.data![0];
         final settingsData = snapshot.data![1];
-
-        if (assignmentsData.docs.isEmpty) {
-          return const SizedBox.shrink();
-        }
 
         final now = DateTime.now();
         final todayMidnight = DateTime(now.year, now.month, now.day);
@@ -1002,7 +876,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       IconButton(
                         onPressed: _toggleObserverCollapsed,
                         icon: AnimatedRotation(
-                          turns: _isObserverCollapsed ? 0 : 0.5,
+                          turns: _isObserverCollapsed ? 0.5 : 0,
                           duration: const Duration(milliseconds: 300),
                           child: Icon(
                             Icons.keyboard_arrow_down_rounded,
@@ -1076,7 +950,129 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // _buildFloatingObserverButton removed as it's now integrated into the FAB stack
+  Widget _buildFloatingObserverButton() {
+    return Positioned(
+      right: 20,
+      bottom: 84 + (MediaQuery.paddingOf(context).bottom * 0.4),
+      child: StreamBuilder<List<QuerySnapshot>>(
+        stream: _observerAssignmentsStream,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const SizedBox.shrink();
+
+          final assignmentsData = snapshot.data![0];
+          final settingsData = snapshot.data![1];
+          final user = FirebaseAuth.instance.currentUser;
+
+          if (user == null || assignmentsData.docs.isEmpty)
+            return const SizedBox.shrink();
+
+          final now = DateTime.now();
+          final todayMidnight = DateTime(now.year, now.month, now.day);
+
+          final Map<String, DateTime> expirationDates = {};
+          for (var doc in settingsData.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            if (data['expirationDate'] != null) {
+              expirationDates[doc.id] = (data['expirationDate'] as Timestamp)
+                  .toDate();
+            }
+          }
+
+          bool isExpired(String? academicYear) {
+            if (academicYear == null ||
+                !expirationDates.containsKey(academicYear))
+              return false;
+            return expirationDates[academicYear]!.isBefore(todayMidnight);
+          }
+
+          final incoming = assignmentsData.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return data['targetSchoolId'] == user.uid &&
+                !isExpired(data['academicYear']);
+          }).toList();
+
+          final outgoing = assignmentsData.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return data['sourceSchoolId'] == user.uid &&
+                !isExpired(data['academicYear']);
+          }).toList();
+
+          if (incoming.isEmpty && outgoing.isEmpty)
+            return const SizedBox.shrink();
+
+          return TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.elasticOut,
+            builder: (context, value, child) {
+              return Transform.scale(scale: value, child: child);
+            },
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                _showObserverDetailsModal(incoming, outgoing);
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.indigo.shade900.withValues(
+                              alpha: 0.8,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.assignment_ind_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Observers',
+                          style: GoogleFonts.poppins(
+                            color: Colors.indigo.shade900,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   void _showObserverDetailsModal(
     List<DocumentSnapshot> incoming,
@@ -1142,7 +1138,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         TextButton.icon(
                           onPressed: () {
                             Navigator.pop(context);
-                            _toggleObserverMinimized();
+                            setState(() {
+                              _isObserverMinimized = false;
+                              _isObserverCollapsed = false;
+                              _saveObserverPreference();
+                            });
                           },
                           icon: const Icon(
                             Icons.open_in_full_rounded,
@@ -1212,128 +1212,301 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     required bool isIncoming,
     String? phone,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isIncoming ? Colors.indigo.shade100 : Colors.orange.shade100,
-          width: 1.5,
+    return InkWell(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        _showAssignmentDetails(
+          title: title,
+          observerName: observerName,
+          schoolName: schoolName,
+          isIncoming: isIncoming,
+          phone: phone,
+        );
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isIncoming ? Colors.indigo.shade100 : Colors.orange.shade100,
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isIncoming ? Colors.indigo.shade50 : Colors.orange.shade50,
-              shape: BoxShape.circle,
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color:
+                    isIncoming ? Colors.indigo.shade50 : Colors.orange.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isIncoming ? Icons.login_rounded : Icons.logout_rounded,
+                color:
+                    isIncoming ? Colors.indigo.shade700 : Colors.orange.shade700,
+                size: 20,
+              ),
             ),
-            child: Icon(
-              isIncoming ? Icons.login_rounded : Icons.logout_rounded,
-              color: isIncoming
-                  ? Colors.indigo.shade700
-                  : Colors.orange.shade700,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  observerName,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade900,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  isIncoming ? 'From: $schoolName' : 'Going to: $schoolName',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: Colors.grey.shade500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (phone != null && phone.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.phone,
-                          size: 14,
-                          color: Colors.grey.shade500,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            phone,
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              color: Colors.grey.shade500,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade600,
                     ),
                   ),
-              ],
-            ),
-          ),
-          if (phone != null && phone.isNotEmpty)
-            IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.call, color: Colors.green.shade700, size: 20),
+                  const SizedBox(height: 4),
+                  Text(
+                    observerName,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade900,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    isIncoming ? 'From: $schoolName' : 'Going to: $schoolName',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.grey.shade500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (phone != null && phone.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.phone,
+                            size: 14,
+                            color: Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              phone,
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: Colors.grey.shade500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
-              onPressed: () async {
-                final url = Uri.parse('tel:$phone');
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url);
-                } else {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Could not launch dialer')),
-                    );
-                  }
-                }
-              },
             ),
-        ],
+            if (phone != null && phone.isNotEmpty)
+              IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.call,
+                    color: Colors.green.shade700,
+                    size: 20,
+                  ),
+                ),
+                onPressed: () async {
+                  final url = Uri.parse('tel:$phone');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url);
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Could not launch dialer'),
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
 
+  void _showAssignmentDetails({
+    required String title,
+    required String observerName,
+    required String schoolName,
+    required bool isIncoming,
+    String? phone,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: AlertDialog(
+          backgroundColor: Colors.white.withValues(alpha: 0.94),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          contentPadding: EdgeInsets.zero,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 100,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors:
+                        isIncoming
+                            ? [Colors.indigo.shade600, Colors.indigo.shade400]
+                            : [Colors.orange.shade600, Colors.orange.shade400],
+                  ),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(30),
+                  ),
+                ),
+                child: Center(
+                  child: Icon(
+                    isIncoming ? Icons.login_rounded : Icons.logout_rounded,
+                    color: Colors.white,
+                    size: 40,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      observerName,
+                      style: GoogleFonts.poppins(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade900,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildDetailRow(
+                      Icons.school_rounded,
+                      isIncoming ? 'From' : 'Going to',
+                      schoolName,
+                    ),
+                    if (phone != null && phone.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      _buildDetailRow(Icons.phone_rounded, 'Contact', phone),
+                    ],
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade900,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 4,
+                          shadowColor: Colors.blue.shade900.withValues(
+                            alpha: 0.3,
+                          ),
+                        ),
+                        child: Text(
+                          'Close',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: Colors.blue.shade700, size: 18),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.grey.shade500,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  color: Colors.blue.shade900,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildModernAppBar() {
+    final double statusBarHeight = MediaQuery.of(context).padding.top;
+    const double barContentHeight = 52.0;
+
     return SliverAppBar(
-      expandedHeight: 80,
+      expandedHeight: statusBarHeight + barContentHeight,
+      toolbarHeight: barContentHeight,
       floating: false,
       pinned: true,
       backgroundColor: Colors.blue.shade900,
@@ -1348,197 +1521,183 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               colors: [Colors.blue.shade900, Colors.blue.shade700],
             ),
           ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
+          padding: EdgeInsets.fromLTRB(16, statusBarHeight, 16, 0),
+          child: Row(
+            children: [
+              // Profile Section
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfileScreen(),
+                    ),
+                  ).then((_) => _loadUserData());
+                },
+                child: Hero(
+                  tag: 'profile_avatar',
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [Colors.white, Colors.blue.shade100],
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.blue.shade100,
+                      backgroundImage:
+                          _profileImageUrl != null
+                              ? NetworkImage(_profileImageUrl!)
+                              : null,
+                      child:
+                          _profileImageUrl == null
+                              ? Icon(
+                                Icons.person,
+                                color: Colors.blue.shade900,
+                                size: 24,
+                              )
+                              : null,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // School Name - Expanded to take remaining space and prevent overflow
+              Expanded(
+                child: Text(
+                  _schoolDisplayName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16.0,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Action Buttons Section
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ProfileScreen(),
-                            ),
-                          ).then((_) => _loadUserData());
-                        },
-                        child: Hero(
-                          tag: 'profile_avatar',
-                          child: Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [Colors.white, Colors.blue.shade100],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withAlpha(51),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: CircleAvatar(
-                              radius: 18,
-                              backgroundColor: Colors.blue.shade100,
-                              backgroundImage: _profileImageUrl != null
-                                  ? NetworkImage(_profileImageUrl!)
-                                  : null,
-                              child: _profileImageUrl == null
-                                  ? Icon(
-                                      Icons.person,
-                                      color: Colors.blue.shade900,
-                                      size: 28,
-                                    )
-                                  : null,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _schoolDisplayName,
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      _buildHeaderIconButton(
-                        StreamBuilder<List<QuerySnapshot>>(
-                          stream:
-                              _notificationStream ??
-                              // Fallback stream if not initialized
-                              Rx.combineLatest2(
-                                FirebaseFirestore.instance
-                                    .collection('notifications')
-                                    .where(
-                                      'recipientId',
-                                      isEqualTo:
-                                          FirebaseAuth
-                                              .instance
-                                              .currentUser
-                                              ?.uid ??
-                                          'INVALID',
-                                    )
-                                    .snapshots(),
-                                FirebaseFirestore.instance
-                                    .collection('broadcasts')
-                                    .snapshots(),
-                                (QuerySnapshot a, QuerySnapshot b) => [a, b],
-                              ),
-                          builder: (context, snapshot) {
-                            int unreadCount = 0;
-                            if (snapshot.hasData && snapshot.data != null) {
-                              final user = FirebaseAuth.instance.currentUser;
-                              if (user != null) {
-                                final allDocs = [
-                                  ...snapshot.data![0].docs,
-                                  ...snapshot.data![1].docs,
-                                ];
-                                unreadCount = allDocs.where((doc) {
+                  _buildHeaderIconButton(
+                    StreamBuilder<List<QuerySnapshot>>(
+                      stream:
+                          _notificationStream ??
+                          Rx.combineLatest2(
+                            FirebaseFirestore.instance
+                                .collection('notifications')
+                                .where(
+                                  'recipientId',
+                                  isEqualTo:
+                                      FirebaseAuth.instance.currentUser?.uid ??
+                                      'INVALID',
+                                )
+                                .snapshots(),
+                            FirebaseFirestore.instance
+                                .collection('broadcasts')
+                                .snapshots(),
+                            (QuerySnapshot a, QuerySnapshot b) => [a, b],
+                          ).asBroadcastStream(),
+                      builder: (context, snapshot) {
+                        int unreadCount = 0;
+                        if (snapshot.hasData && snapshot.data != null) {
+                          final user = FirebaseAuth.instance.currentUser;
+                          if (user != null) {
+                            final allDocs = [
+                              ...snapshot.data![0].docs,
+                              ...snapshot.data![1].docs,
+                            ];
+                            unreadCount =
+                                allDocs.where((doc) {
                                   final data =
                                       doc.data() as Map<String, dynamic>?;
                                   final readBy =
                                       data?['readBy'] as List<dynamic>? ?? [];
                                   return !readBy.contains(user.uid);
                                 }).length;
-                              }
-                            }
-                            return Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Icon(
-                                  Icons.notifications_rounded,
-                                  color: Colors.white,
-                                  size: 24,
-                                ),
-                                if (unreadCount > 0)
-                                  Positioned(
-                                    top: -4,
-                                    right: -4,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      constraints: const BoxConstraints(
-                                        minWidth: 18,
-                                        minHeight: 18,
-                                      ),
-                                      child: Text(
-                                        unreadCount > 9 ? '9+' : '$unreadCount',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            );
-                          },
-                        ),
-                        () {
-                          HapticFeedback.lightImpact();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const NotificationsScreen(),
+                          }
+                        }
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Icon(
+                              Icons.notifications_rounded,
+                              color: Colors.white,
+                              size: 26,
                             ),
-                          ).then((_) => setState(() {}));
-                        },
-                      ),
-                      if (_isAdmin) const SizedBox(width: 8),
-                      if (_isAdmin)
-                        _buildHeaderIconButton(
-                          const Icon(
-                            Icons.admin_panel_settings_rounded,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                          () {
-                            HapticFeedback.lightImpact();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const AdminDashboardScreen(),
+                            if (unreadCount > 0)
+                              Positioned(
+                                top: -4,
+                                right: -4,
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 16,
+                                    minHeight: 16,
+                                  ),
+                                  child: Text(
+                                    unreadCount > 9 ? '9+' : '$unreadCount',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
                               ),
-                            );
-                          },
+                          ],
+                        );
+                      },
+                    ),
+                    () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationsScreen(),
                         ),
-                      const SizedBox(width: 8),
-                      _buildHeaderIconButton(
-                        const Icon(
-                          Icons.logout_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        _logout,
+                      ).then((_) => setState(() {}));
+                    },
+                  ),
+                  if (_isAdmin) const SizedBox(width: 8),
+                  if (_isAdmin)
+                    _buildHeaderIconButton(
+                      const Icon(
+                        Icons.admin_panel_settings_rounded,
+                        color: Colors.white,
+                        size: 26,
                       ),
-                    ],
+                      () {
+                        HapticFeedback.lightImpact();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AdminDashboardScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  const SizedBox(width: 8),
+                  _buildHeaderIconButton(
+                    const Icon(
+                      Icons.logout_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                    _logout,
                   ),
                 ],
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -1549,7 +1708,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: Colors.white.withAlpha(51),
           borderRadius: BorderRadius.circular(12),
@@ -1572,8 +1731,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           return const SizedBox.shrink();
         }
 
-        final programs = snapshot.data!.docs;
-        final latestProgram = programs.first.data() as Map<String, dynamic>;
+        final now = DateTime.now();
+        final activePrograms = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final endDate = (data['endDate'] as Timestamp?)?.toDate();
+          return endDate != null && endDate.isAfter(now);
+        }).toList();
+
+        if (activePrograms.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        // Sort by startDate descending to show the most recent one
+        activePrograms.sort((a, b) {
+          final aStart =
+              (a.data() as Map<String, dynamic>)['startDate'] as Timestamp?;
+          final bStart =
+              (b.data() as Map<String, dynamic>)['startDate'] as Timestamp?;
+          if (aStart == null || bStart == null) return 0;
+          return bStart.compareTo(aStart);
+        });
+
+        final latestProgram =
+            activePrograms.first.data() as Map<String, dynamic>;
         final String programName = latestProgram['name'] ?? 'New Program';
 
         return Padding(
@@ -2075,9 +2255,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         final placeholder = HomeScreen.getEventPlaceholderData(
                           data['category'] ?? '',
                         );
-                        final hasImage =
-                            data['imageUrl'] != null &&
-                            (data['imageUrl'] as String).isNotEmpty;
+                        final String? imageUrl = data['imageUrl'];
+                        final bool hasImage =
+                            imageUrl != null &&
+                            imageUrl.isNotEmpty &&
+                            !imageUrl.contains('via.placeholder.com');
+
                         return Container(
                           width: 80,
                           height: 80,
@@ -2100,7 +2283,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             borderRadius: BorderRadius.circular(16),
                             child: hasImage
                                 ? Image.network(
-                                    data['imageUrl'],
+                                    imageUrl,
                                     fit: BoxFit.cover,
                                     cacheWidth: 160,
                                     cacheHeight: 160,

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart'; // Added shimmer
 import 'dart:ui'; // Added Import for BackdropFilter
+import 'dart:math' as math;
 import 'package:sundayschool_app/login_screen.dart';
 import 'package:sundayschool_app/event_detail_screen_from_home.dart';
 import 'package:sundayschool_app/parish/parish_program_list_screen.dart';
@@ -13,6 +14,8 @@ import 'package:sundayschool_app/notification_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sundayschool_app/parish/parish_all_events_screen.dart';
+import 'package:sundayschool_app/homescreen.dart';
 
 class ParishDashboardScreen extends StatefulWidget {
   const ParishDashboardScreen({super.key});
@@ -22,7 +25,7 @@ class ParishDashboardScreen extends StatefulWidget {
 }
 
 class _ParishDashboardScreenState extends State<ParishDashboardScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late TabController _tabController;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -41,11 +44,17 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
   // Streams for notifications
   Stream<QuerySnapshot>? _userNotificationsStream;
   Stream<QuerySnapshot>? _broadcastsStream;
+  late Stream<List<QuerySnapshot>> _observerAssignmentsStream;
+  late AnimationController _pulseController; // Added for loader
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
     _initializeData();
     _loadObserverPreference();
   }
@@ -62,20 +71,27 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
     }
   }
 
-  Future<void> _toggleObserverMinimized() async {
+  Future<void> _saveObserverPreference() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('observer_minimized_parish', _isObserverMinimized);
+    await prefs.setBool('observer_collapsed_parish', _isObserverCollapsed);
+  }
+
+  Future<void> _toggleObserverMinimized() async {
     setState(() {
       _isObserverMinimized = !_isObserverMinimized;
-      prefs.setBool('observer_minimized_parish', _isObserverMinimized);
+      if (!_isObserverMinimized) {
+        _isObserverCollapsed = false; // Auto-expand details when restored
+      }
+      _saveObserverPreference();
     });
     HapticFeedback.mediumImpact();
   }
 
   Future<void> _toggleObserverCollapsed() async {
-    final prefs = await SharedPreferences.getInstance();
     setState(() {
       _isObserverCollapsed = !_isObserverCollapsed;
-      prefs.setBool('observer_collapsed_parish', _isObserverCollapsed);
+      _saveObserverPreference();
     });
     HapticFeedback.mediumImpact();
   }
@@ -83,6 +99,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _pulseController.dispose(); // Added dispose
     super.dispose();
   }
 
@@ -118,6 +135,23 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                     whereIn: ['approved_parish', 'locked'],
                   ) // Include locked
                   .snapshots();
+
+              // Initialize observer assignments stream
+              _observerAssignmentsStream = Rx.combineLatest2(
+                FirebaseFirestore.instance
+                    .collection('assignments')
+                    .where('type', isEqualTo: 'Observer')
+                    .snapshots(),
+                FirebaseFirestore.instance
+                    .collection('settings')
+                    .doc('observer_dates')
+                    .collection('years')
+                    .snapshots(),
+                (QuerySnapshot assignments, QuerySnapshot settings) => [
+                  assignments,
+                  settings,
+                ],
+              ).shareValue();
             });
 
             // Subscribe to linked school notifications
@@ -180,6 +214,129 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
     }
   }
 
+  Widget _buildHeavenlyLoadingScreen() {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // 🌊 Cosmic Background
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white,
+                  Colors.blue.shade50,
+                  Colors.indigo.shade50,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+
+          // 🌫️ Bokeh Particles (Stationary but elegant)
+          ...List.generate(5, (index) {
+            final double x = [0.2, 0.8, 0.5, 0.3, 0.7][index % 5];
+            final double y = [0.2, 0.3, 0.6, 0.8, 0.7][index % 5];
+            final double size = [150.0, 200.0, 250.0, 180.0, 220.0][index % 5];
+            final Color color = [
+              Colors.blue.shade100,
+              Colors.orange.shade50,
+              Colors.indigo.shade100,
+              Colors.white,
+              Colors.blue.shade50,
+            ][index % 5];
+
+            return Positioned(
+              left: MediaQuery.of(context).size.width * x - (size / 2),
+              top: MediaQuery.of(context).size.height * y - (size / 2),
+              child: Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      color.withValues(alpha: 0.3),
+                      color.withOpacity(0),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+
+          // ✨ Central Crystalline Loader
+          Center(
+            child: AnimatedBuilder(
+              animation: _pulseController,
+              builder: (context, child) {
+                final double pulse = 1.0 + (0.05 * _pulseController.value);
+                return Transform.scale(
+                  scale: pulse,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.12),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.white.withOpacity(
+                                0.5 * _pulseController.value,
+                              ),
+                              blurRadius: 30,
+                              spreadRadius: -2,
+                            ),
+                            BoxShadow(
+                              color: Colors.blue.shade400.withOpacity(
+                                0.15 * _pulseController.value,
+                              ),
+                              blurRadius: 40,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Image.asset(
+                              'assets/images/applogo3.png',
+                              height: 100,
+                              filterQuality: FilterQuality.high,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      Opacity(
+                        opacity: 0.3 + (0.4 * _pulseController.value),
+                        child: Text(
+                          'HEAVENLY EXPERIENCE',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 4,
+                            color: Colors.indigo.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatEventTime(Timestamp? timestamp) {
     if (timestamp == null) return 'Unknown date';
     final date = timestamp.toDate();
@@ -204,7 +361,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return _buildHeavenlyLoadingScreen();
     }
 
     if (_linkedSchoolId == null) {
@@ -245,13 +402,19 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
       ),
       extendBody: true, // Needed for floating nav bar to overlay body
       bottomNavigationBar: SafeArea(
+        bottom: false,
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          margin: EdgeInsets.fromLTRB(
+            24,
+            0,
+            24,
+            16 + MediaQuery.paddingOf(context).bottom,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: Colors.blue.shade900.withOpacity(0.15),
+                color: Colors.blue.shade900.withValues(alpha: 0.15),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
                 spreadRadius: 2,
@@ -259,7 +422,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
             ],
             // Outer border for the glass effect
             border: Border.all(
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
               width: 1.5,
             ),
           ),
@@ -268,7 +431,9 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
               child: Container(
-                color: Colors.white.withOpacity(0.8), // Semi-transparent white
+                color: Colors.white.withValues(
+                  alpha: 0.8,
+                ), // Semi-transparent white
                 child: BottomNavigationBar(
                   currentIndex: _selectedIndex,
                   onTap: _onItemTapped,
@@ -369,7 +534,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
             borderRadius: BorderRadius.circular(25),
             boxShadow: [
               BoxShadow(
-                color: Colors.blue.shade900.withOpacity(0.3),
+                color: Colors.blue.shade900.withValues(alpha: 0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -487,7 +652,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blue.shade900.withOpacity(0.05),
+                        color: Colors.blue.shade900.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -521,7 +686,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                         border: Border.all(color: Colors.white, width: 2),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.red.withOpacity(0.4),
+                            color: Colors.red.withValues(alpha: 0.4),
                             blurRadius: 6,
                             offset: const Offset(0, 2),
                           ),
@@ -570,7 +735,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.blue.shade900.withOpacity(0.3),
+              color: Colors.blue.shade900.withValues(alpha: 0.3),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -686,6 +851,36 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                       color: Colors.blue.shade900,
                     ),
                   ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ParishAllEventsScreen(
+                            linkedSchoolId: _linkedSchoolId,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 16,
+                      color: Colors.blue.shade700,
+                    ),
+                    label: Text(
+                      'See All',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -694,8 +889,8 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
             stream: FirebaseFirestore.instance
                 .collection('events')
                 .where('creatorId', isEqualTo: _linkedSchoolId)
-                .where('isPublic', isEqualTo: true)
                 .orderBy('timestamp', descending: true)
+                .limit(4)
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -822,23 +1017,37 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                                       ),
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(16),
-                                        child: data['imageUrl'] != null
-                                            ? Image.network(
-                                                data['imageUrl'],
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (ctx, err, st) =>
-                                                    Icon(
-                                                      Icons.image_rounded,
-                                                      color:
-                                                          Colors.blue.shade900,
-                                                      size: 32,
-                                                    ),
-                                              )
-                                            : Icon(
-                                                Icons.image_rounded,
-                                                color: Colors.blue.shade900,
-                                                size: 32,
-                                              ),
+                                        child: () {
+                                          final String category =
+                                              data['category']?.toString() ??
+                                              '';
+                                          final String? imageUrl =
+                                              data['imageUrl'];
+                                          final bool hasValidImage =
+                                              imageUrl != null &&
+                                              imageUrl.isNotEmpty &&
+                                              !imageUrl.contains(
+                                                'via.placeholder.com',
+                                              );
+
+                                          return hasValidImage
+                                              ? Image.network(
+                                                  imageUrl,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder:
+                                                      (
+                                                        context,
+                                                        error,
+                                                        stackTrace,
+                                                      ) =>
+                                                          _buildParishImagePlaceholderWidget(
+                                                            category: category,
+                                                          ),
+                                                )
+                                              : _buildParishImagePlaceholderWidget(
+                                                  category: category,
+                                                );
+                                        }(),
                                       ),
                                     ),
                                   ),
@@ -1027,14 +1236,18 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                         ),
                         const SizedBox(width: 12),
                         Flexible(
-                          child: Text(
-                            'Observer Assignments',
-                            style: GoogleFonts.poppins(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue.shade900,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Observer Assignments',
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.blue.shade900,
+                                letterSpacing: -0.5,
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -1045,7 +1258,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                       IconButton(
                         onPressed: _toggleObserverCollapsed,
                         icon: AnimatedRotation(
-                          turns: _isObserverCollapsed ? 0 : 0.5,
+                          turns: _isObserverCollapsed ? 0.5 : 0,
                           duration: const Duration(milliseconds: 300),
                           child: Icon(
                             Icons.keyboard_arrow_down_rounded,
@@ -1120,35 +1333,54 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
   }
 
   Widget _buildFloatingObserverButton() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('assignments')
-          .where('type', isEqualTo: 'Observer')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const SizedBox.shrink();
-        }
+    return Positioned(
+      right: 20,
+      bottom: 84 + (MediaQuery.paddingOf(context).bottom * 0.4),
+      child: StreamBuilder<List<QuerySnapshot>>(
+        stream: _observerAssignmentsStream,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const SizedBox.shrink();
 
-        final incoming = snapshot.data!.docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          if (data['targetSchoolId'] != _linkedSchoolId) return false;
-          return true;
-        }).toList();
+          final assignmentsData = snapshot.data![0];
+          final settingsData = snapshot.data![1];
 
-        final outgoing = snapshot.data!.docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          if (data['sourceSchoolId'] != _linkedSchoolId) return false;
-          return true;
-        }).toList();
+          if (assignmentsData.docs.isEmpty) return const SizedBox.shrink();
 
-        if (incoming.isEmpty && outgoing.isEmpty)
-          return const SizedBox.shrink();
+          final now = DateTime.now();
+          final todayMidnight = DateTime(now.year, now.month, now.day);
 
-        return Positioned(
-          right: 20,
-          bottom: 110, // Above the floating bottom nav
-          child: TweenAnimationBuilder<double>(
+          final Map<String, DateTime> expirationDates = {};
+          for (var doc in settingsData.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            if (data['expirationDate'] != null) {
+              expirationDates[doc.id] = (data['expirationDate'] as Timestamp)
+                  .toDate();
+            }
+          }
+
+          bool isExpired(String? academicYear) {
+            if (academicYear == null ||
+                !expirationDates.containsKey(academicYear))
+              return false;
+            return expirationDates[academicYear]!.isBefore(todayMidnight);
+          }
+
+          final incoming = assignmentsData.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return data['targetSchoolId'] == _linkedSchoolId &&
+                !isExpired(data['academicYear']);
+          }).toList();
+
+          final outgoing = assignmentsData.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return data['sourceSchoolId'] == _linkedSchoolId &&
+                !isExpired(data['academicYear']);
+          }).toList();
+
+          if (incoming.isEmpty && outgoing.isEmpty)
+            return const SizedBox.shrink();
+
+          return TweenAnimationBuilder<double>(
             tween: Tween(begin: 0.0, end: 1.0),
             duration: const Duration(milliseconds: 800),
             curve: Curves.elasticOut,
@@ -1216,9 +1448,9 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -1285,7 +1517,11 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                         TextButton.icon(
                           onPressed: () {
                             Navigator.pop(context);
-                            _toggleObserverMinimized();
+                            setState(() {
+                              _isObserverMinimized = false;
+                              _isObserverCollapsed = false;
+                              _saveObserverPreference();
+                            });
                           },
                           icon: const Icon(
                             Icons.open_in_full_rounded,
@@ -1356,7 +1592,6 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
     String? phone,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -1366,111 +1601,346 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isIncoming ? Colors.indigo.shade50 : Colors.orange.shade50,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isIncoming ? Icons.login_rounded : Icons.logout_rounded,
-              color: isIncoming
-                  ? Colors.indigo.shade700
-                  : Colors.orange.shade700,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            _showAssignmentDetails(
+              title: title,
+              observerName: observerName,
+              schoolName: schoolName,
+              isIncoming: isIncoming,
+              phone: phone,
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade600,
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isIncoming
+                        ? Colors.indigo.shade50
+                        : Colors.orange.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isIncoming ? Icons.login_rounded : Icons.logout_rounded,
+                    color: isIncoming
+                        ? Colors.indigo.shade700
+                        : Colors.orange.shade700,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  observerName,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade900,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  isIncoming ? 'From: $schoolName' : 'Going to: $schoolName',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: Colors.grey.shade500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (phone != null && phone.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.phone,
-                          size: 14,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        observerName,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade900,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        isIncoming
+                            ? 'From: $schoolName'
+                            : 'Going to: $schoolName',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
                           color: Colors.grey.shade500,
                         ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            phone,
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              color: Colors.grey.shade500,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (phone != null && phone.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4.0),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.phone,
+                                size: 14,
+                                color: Colors.grey.shade500,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  phone,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (phone != null && phone.isNotEmpty)
+                  IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.call,
+                        color: Colors.green.shade700,
+                        size: 20,
+                      ),
+                    ),
+                    onPressed: () async {
+                      final url = Uri.parse('tel:$phone');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url);
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Could not launch dialer'),
                             ),
-                            overflow: TextOverflow.ellipsis,
+                          );
+                        }
+                      }
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAssignmentDetails({
+    required String title,
+    required String observerName,
+    required String schoolName,
+    required bool isIncoming,
+    String? phone,
+  }) {
+    final Color accentColor = isIncoming ? Colors.indigo.shade600 : Colors.orange.shade600;
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: AlertDialog(
+            backgroundColor: Colors.white.withValues(alpha: 0.9),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(32),
+              side: const BorderSide(color: Colors.white, width: 2),
+            ),
+            contentPadding: EdgeInsets.zero,
+            content: Container(
+              width: MediaQuery.of(context).size.width * 0.9,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [accentColor, accentColor.withValues(alpha: 0.8)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                          ),
+                          child: Icon(
+                            isIncoming ? Icons.login_rounded : Icons.logout_rounded,
+                            color: Colors.white,
+                            size: 40,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          title,
+                          style: GoogleFonts.poppins(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'ASSIGNMENT INFO',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1,
                           ),
                         ),
                       ],
                     ),
                   ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+                    child: Column(
+                      children: [
+                        _buildBeautifulDetailRow(
+                          Icons.person_rounded,
+                          'Observer Name',
+                          observerName,
+                          Colors.blue.shade700,
+                        ),
+                        const SizedBox(height: 24),
+                        _buildBeautifulDetailRow(
+                          Icons.school_rounded,
+                          isIncoming ? 'From School' : 'Target School',
+                          schoolName,
+                          Colors.indigo.shade700,
+                        ),
+                        if (phone != null && phone.isNotEmpty) ...[
+                          const SizedBox(height: 24),
+                          _buildBeautifulDetailRow(
+                            Icons.phone_iphone_rounded,
+                            'Contact Number',
+                            phone,
+                            Colors.green.shade700,
+                            isPhone: true,
+                          ),
+                        ],
+                        const SizedBox(height: 40),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 58,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade900,
+                              foregroundColor: Colors.white,
+                              elevation: 8,
+                              shadowColor: Colors.blue.shade900.withValues(alpha: 0.3),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: Text(
+                              'Got it',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          if (phone != null && phone.isNotEmpty)
-            IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(10),
+        );
+      },
+    );
+  }
+
+  Widget _buildBeautifulDetailRow(
+    IconData icon,
+    String label,
+    String value,
+    Color color, {
+    bool isPhone = false,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.1), width: 1),
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.grey.shade400,
+                  letterSpacing: 1,
                 ),
-                child: Icon(Icons.call, color: Colors.green.shade700, size: 20),
               ),
-              onPressed: () async {
-                final url = Uri.parse('tel:$phone');
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url);
-                } else {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Could not launch dialer')),
-                    );
-                  }
-                }
-              },
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: GoogleFonts.outfit(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade900,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (isPhone)
+          GestureDetector(
+            onTap: () async {
+              final url = Uri.parse('tel:$value');
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.call_rounded, color: Colors.green, size: 20),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
@@ -1704,7 +2174,6 @@ class HighlightEventCard extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('events')
           .where('creatorId', isEqualTo: schoolId)
-          .where('isPublic', isEqualTo: true)
           .orderBy('timestamp', descending: true)
           .limit(1)
           .snapshots(),
@@ -1797,32 +2266,27 @@ class HighlightEventCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Image.network(
-                      data['imageUrl'] ??
-                          'https://via.placeholder.com/400x220?text=No+Image',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.blue.shade300,
-                                Colors.blue.shade500,
-                              ],
-                            ),
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.image_rounded,
-                              size: 64,
-                              color: Colors.white,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                    () {
+                      final String? imageUrl = data['imageUrl'];
+                      final bool hasValidImage =
+                          imageUrl != null &&
+                          imageUrl.isNotEmpty &&
+                          !imageUrl.contains('via.placeholder.com');
+
+                      return hasValidImage
+                          ? Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  _buildParishImagePlaceholderWidget(
+                                    category:
+                                        data['category']?.toString() ?? '',
+                                  ),
+                            )
+                          : _buildParishImagePlaceholderWidget(
+                              category: data['category']?.toString() ?? '',
+                            );
+                    }(),
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -1898,4 +2362,20 @@ class HighlightEventCard extends StatelessWidget {
       },
     );
   }
+}
+
+Widget _buildParishImagePlaceholderWidget({required String category}) {
+  final placeholder = HomeScreen.getEventPlaceholderData(category);
+  return Container(
+    decoration: BoxDecoration(
+      gradient: placeholder['gradient'] as LinearGradient?,
+    ),
+    child: Center(
+      child: Icon(
+        placeholder['icon'] as IconData?,
+        size: 64,
+        color: Colors.white,
+      ),
+    ),
+  );
 }

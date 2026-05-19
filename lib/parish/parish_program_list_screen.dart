@@ -22,6 +22,66 @@ class ParishProgramListScreen extends StatefulWidget {
 class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
   bool _isSaving = false;
 
+  void _deleteRegistration(String docId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Confirm Delete',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to delete this registration? This will permanently remove the record and update the counts.',
+          style: GoogleFonts.poppins(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.poppins(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _isSaving = true);
+      try {
+        await FirebaseFirestore.instance
+            .collection('program_registrations')
+            .doc(docId)
+            .delete();
+
+        if (mounted) {
+          _showModernSnackBar(
+            message: 'Registration deleted successfully',
+            isSuccess: true,
+            icon: Icons.delete_outline_rounded,
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          _showModernSnackBar(message: 'Error deleting: $e', isSuccess: false);
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
+      }
+    }
+  }
+
   void _updateStatus(String docId, String newStatus) async {
     try {
       await FirebaseFirestore.instance
@@ -766,6 +826,25 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                       ),
                                     ),
                                   ),
+                                  if (!isItemLocked)
+                                    IconButton(
+                                      onPressed: () =>
+                                          _deleteRegistration(doc.id),
+                                      icon: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.shade50,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.delete_outline_rounded,
+                                          size: 18,
+                                          color: Colors.red.shade700,
+                                        ),
+                                      ),
+                                    ),
                               ],
                             ),
                             if (widget.statuses.contains('pending_parish')) ...[

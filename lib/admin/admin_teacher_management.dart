@@ -39,6 +39,23 @@ class _AdminTeacherManagementScreenState
     }
   }
 
+  List<String> _generateAcademicYears() {
+    final now = DateTime.now();
+    int currentYear = now.year;
+    // Academic years usually span June to May
+    int startYear = 2023; // Starting consistent with previous UI
+    
+    // If today is after May, we are entering/in a new academic year
+    int endBound = now.month >= 6 ? currentYear : currentYear - 1;
+    if (endBound < startYear) endBound = startYear;
+
+    List<String> years = [];
+    for (int y = startYear; y <= endBound; y++) {
+      years.add('$y-${y + 1}');
+    }
+    return years;
+  }
+
   Future<void> _showAddTeacherDialog() async {
     if (_selectedSchoolId == null) return;
 
@@ -49,17 +66,11 @@ class _AdminTeacherManagementScreenState
     final classesController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    String selectedAcademicYear = '2024-25';
+    final List<String> academicYears = _generateAcademicYears();
+    String selectedAcademicYear = academicYears.last;
     DateTime? selectedDob;
     File? pickedImage;
     bool isSubmitting = false;
-
-    final List<String> academicYears = [
-      '2023-24',
-      '2024-25',
-      '2025-26',
-      '2026-27',
-    ];
 
     await showDialog(
       context: context,
@@ -329,17 +340,11 @@ class _AdminTeacherManagementScreenState
     final classesController = TextEditingController(text: data['classes']);
     final formKey = GlobalKey<FormState>();
 
-    String selectedAcademicYear = data['academicYear'] ?? '2024-25';
+    final List<String> academicYears = _generateAcademicYears();
+    String selectedAcademicYear = data['academicYear'] ?? academicYears.last;
     DateTime? selectedDob = (data['dob'] as Timestamp?)?.toDate();
     File? pickedImage;
     bool isSubmitting = false;
-
-    final List<String> academicYears = [
-      '2023-24',
-      '2024-25',
-      '2025-26',
-      '2026-27',
-    ];
 
     await showDialog(
       context: context,

@@ -193,7 +193,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
           'studentCount': count,
           'isCountOnly': true,
           'submittedAt': FieldValue.serverTimestamp(),
-          'status': 'approved_parish',
+          'status': 'pending_parish',
           if (_schoolName != null) 'schoolName': _schoolName,
         });
       } else {
@@ -216,7 +216,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
             'studentClass': studentClass.isEmpty ? null : studentClass,
             'isCountOnly': false,
             'submittedAt': FieldValue.serverTimestamp(),
-            'status': 'approved_parish',
+            'status': 'pending_parish',
             if (_schoolName != null) 'schoolName': _schoolName,
           });
         }

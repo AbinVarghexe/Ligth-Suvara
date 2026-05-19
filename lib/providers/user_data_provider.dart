@@ -13,6 +13,7 @@ class UserData {
   final String? parishId;
   final String? schoolId;
   final String? schoolName;
+  final String? address;
 
   UserData({
     this.schoolDisplayName = 'Guest',
@@ -24,6 +25,7 @@ class UserData {
     this.parishId,
     this.schoolId,
     this.schoolName,
+    this.address,
   });
 }
 
@@ -72,6 +74,7 @@ class UserDataProvider with ChangeNotifier {
       String? parishId;
       String? schoolId;
       String? schoolNameStr;
+      String? address;
 
       if (userDoc.exists) {
         final data = userDoc.data();
@@ -83,6 +86,7 @@ class UserDataProvider with ChangeNotifier {
           schoolNameStr = name.toString();
         }
         imageUrl = data?['profileImageUrl']?.toString();
+        address = data?['address']?.toString();
         final role = data?['role'];
         isAdmin = role == 'admin';
         isAnimator = role == 'animator';
@@ -104,6 +108,7 @@ class UserDataProvider with ChangeNotifier {
         parishId: parishId,
         schoolId: schoolId,
         schoolName: schoolNameStr,
+        address: address,
       );
     } catch (e) {
       debugPrint("Error fetching user data for provider: $e");

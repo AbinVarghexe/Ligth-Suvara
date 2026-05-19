@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
 
 // Import necessary platform-specific settings for Android
 import 'package:webview_flutter_android/webview_flutter_android.dart';
@@ -16,8 +17,9 @@ class _PocBibleScreenState extends State<PocBibleScreen> {
   late final WebViewController _controller;
 
   static const String webUrl =
-      'https://thiruvachanam.in/ShowChaptersOfBook.do?b=12&t=1';
+      'https://www.wordproject.org/bibles/ml/';
   bool _isLoading = true;
+  bool _isReady = false; // Flag to delay rendering until transition finishes
 
   @override
   void initState() {
@@ -28,17 +30,11 @@ class _PocBibleScreenState extends State<PocBibleScreen> {
     // Access platform methods directly, only call those supported by your plugin version
     if (controller.platform is AndroidWebViewController) {
       (controller.platform as AndroidWebViewController)
-        ..setMediaPlaybackRequiresUserGesture(false)
-        ..setUseWideViewPort(
-          true,
-        ); // Force wide viewport for desktop-like rendering
+        ..setMediaPlaybackRequiresUserGesture(false);
     }
 
     _controller = controller
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      ) // Spoof Desktop UA
       ..setBackgroundColor(const Color(0x00000000))
       // Configure navigation and error handling
       ..setNavigationDelegate(
@@ -50,28 +46,22 @@ class _PocBibleScreenState extends State<PocBibleScreen> {
           onPageFinished: (String url) async {
             debugPrint('Page finished loading: $url');
             setState(() => _isLoading = false);
-
-            // Inject viewport meta tag to force desktop width (zoomed out view)
-            // This prevents the page from loading in "enlarged form" on mobile
-            await _controller.runJavaScript('''
-              var meta = document.createElement('meta');
-              meta.name = "viewport";
-              meta.content = "width=1024, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes";
-              var head = document.getElementsByTagName('head')[0];
-              // Remove existing viewport tag if any
-              var existing = head.querySelector('meta[name="viewport"]');
-              if (existing) { existing.remove(); }
-              head.appendChild(meta);
-            ''');
           },
           onWebResourceError: (WebResourceError error) {
             debugPrint('Error loading page: ${error.description}');
             setState(() => _isLoading = false);
           },
         ),
-      )
-      // Load the URL
-      ..loadRequest(Uri.parse(webUrl));
+      );
+    // Delay showing the WebView until the transition animation is complete
+    // This prevents the ImageReader buffer overflow errors during scaling
+    Future.delayed(const Duration(milliseconds: 650), () {
+      if (mounted) {
+        // --- ULTIMATE STABILITY: Delayed Load ---
+        _controller.loadRequest(Uri.parse(webUrl));
+        setState(() => _isReady = true);
+      }
+    });
   }
 
   @override
@@ -87,66 +77,128 @@ class _PocBibleScreenState extends State<PocBibleScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          // ⭐️ ADD THE LEADING BACK BUTTON HERE ⭐️
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-            onPressed: () => Navigator.of(context).pop(),
+          systemOverlayStyle: SystemUiOverlayStyle.light,
+          backgroundColor: const Color(0xFF1E3A8A),
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+              ),
+            ),
+          ),
+          leading: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: _buildPremiumAppBarButton(
+              icon: Icons.arrow_back_ios_new_rounded,
+              size: 18,
+              onTap: () => Navigator.of(context).pop(),
+            ),
           ),
           title: Text(
-            'POC Bible',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.bold,
-              color: Colors.blue.shade900,
+            'Bible',
+            style: GoogleFonts.outfit(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: -0.5,
             ),
           ),
           centerTitle: true,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.blue.shade900,
-          elevation: 1,
+          shape: const Border(
+            bottom: BorderSide(
+              color: Color(0xFFBC8A3A),
+              width: 1.5,
+            ),
+          ),
           actions: [
-            // Add Back navigation controls
             FutureBuilder<bool>(
               future: _controller.canGoBack(),
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data!) {
-                  return IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new),
-                    onPressed: () => _controller.goBack(),
+                  return _buildPremiumAppBarButton(
+                    icon: Icons.arrow_back_ios_new_rounded,
+                    size: 16,
+                    onTap: () => _controller.goBack(),
                     tooltip: 'Back',
                   );
                 }
                 return const SizedBox.shrink();
               },
             ),
-            FutureBuilder<bool>(
-              future: _controller.canGoForward(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data!) {
-                  return IconButton(
-                    icon: const Icon(Icons.arrow_forward_ios),
-                    onPressed: () => _controller.goForward(),
-                    tooltip: 'Forward',
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () => _controller.reload(),
+            _buildPremiumAppBarButton(
+              icon: Icons.refresh_rounded,
+              size: 20,
+              onTap: () => _controller.reload(),
               tooltip: 'Reload',
             ),
+            const SizedBox(width: 8),
           ],
         ),
         body: Stack(
           children: [
-            WebViewWidget(controller: _controller),
-            if (_isLoading)
+            if (_isReady)
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 400),
+                opacity: _isLoading ? 0.0 : 1.0, // Fade in once loaded
+                child: RepaintBoundary(
+                  child: WebViewWidget.fromPlatformCreationParams(
+                    params: AndroidWebViewWidgetCreationParams(
+                      controller: _controller.platform,
+                      displayWithHybridComposition: true,
+                    ),
+                  ),
+                ),
+              ),
+            if (!_isReady || _isLoading)
               Container(
                 color: Colors.white,
-                child: const Center(child: CircularProgressIndicator()),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFFBC8A3A),
+                  ),
+                ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumAppBarButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    double size = 20,
+    String? tooltip,
+  }) {
+    return Container(
+      width: 40,
+      height: 40,
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Tooltip(
+            message: tooltip ?? '',
+            child: Icon(
+              icon,
+              size: size,
+              color: Colors.white,
+            ),
+          ),
         ),
       ),
     );

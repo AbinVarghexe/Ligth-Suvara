@@ -1,0 +1,74 @@
+S6 B.TECH CSE
+
+DEPT. OF CSE,AJCE
+
+INSTRUCTIONS FOR PREPARATION OF MINI-PROJECT REPORT
+
+Arrangement of contents: Different pages of the Mini Project Report can be arranged in the following order:
+Front/Title Page	
+Certificate page	
+Acknowledgement
+Abstract
+Contents
+List of figures
+List of tables
+Introduction
+Chapters (including sections, subsection, etc, where appropriate)
+Conclusion and Future works
+References
+Appendix/Appendices [as Appendix A,B, …]
+Annexure (If any).
+No. of Copies of Report: 1 copy per Student.
+Length: The length of the entire report should be between 35-60 pages.
+Type of Binding: Soft Binding.
+Color printouts for title & certificate pages/images in both copies.
+Font Type: Times New Roman
+Chapter/Section Title – Times New Roman 18, Bold; 
+Heading 2 – Times New Roman16, Bold; 
+Heading 3 – Times New Roman14, Bold; 
+Body- Times New Roman 12, Normal.
+Line Spacing – Between Heading 2 – 3 lines, between lines in paragraph 1.5 lines.
+Alignments – Chapter/Section Title – Center, Heading 2 & 3 should be Left Aligned.
+Ensure that all body text is paragraph justified.
+Figures & Tables – Ensure that all Figures and Tables are suitably numbered and given
+proper names/headings. Write figure title under the figure and table title above the table.
+Insert Page Numbers: Pages starting from the Abstract until the List of tables should be numbered using lower case Roman numerals (i, ii, iii,…) positioned at the centre of the page. Pages starting from the Introduction until the Appendices/Annexures should be numbered using Arabic numerals (1, 2, 3,…) positioned on bottom right hand side of the page.
+The first page of each main chapters, appendix, and references will not have any header and is numbered at the center of the footer; all other pages are numbered in the right corner of the footer.
+
+Numbering: of chapters, sections, subsection, equations, figures and tables should be done as per the default LATEX template/format. Each chapter starts on a new page.
+Do not include chapter number for Bibliography.
+Each section in a chapter should be properly numbered for example, 2.1, 2.2 etc., where first digit represents the Chapter Number and second digit the section number.
+Sub-sections, if any indicated as 1.1.1, 1.1.2 etc. i.e. first digit representing the chapter, the second representing the section and third representing the sub-section.
+The figures, photographs and graphs occurring in a chapter may be serially numbered as Fig. 1.1, 1.2 etc., where the first digit represents the chapter, the second digit represents Figure number.
+The tables may be represented as Table 1.1, 1.2 etc., the first digit- representing chapter and the second digit represents table number.
+Captions to be provided with figures and tables. Table number and title will be placed above the table while the figure number and caption will be located below the figure.
+All figures and tables should be centralized.
+Use color images and take color printouts wherever necessary, in both copies of the report.
+
+Header & Footer: Draw a horizontal rule for both header and footer. Include chapter no. and title on top right corner (header) of every page in the Body of report except the page where a new chapter starts. (Default format in LATEX).
+Sample Header/Footer:
+
+Chapter 2: 
+Dept. of CSE, Amal Jyothi College of Engineering	3
+
+
+Headers are not to be included for the preliminary pages(Front page till the List of tables) but such pages must include only page numbers in roman lowercase at the center of the page footer.
+
+Appendix chapters can include the top right header content only eg:
+Appendix A:Screen Shots
+on pages other than the first page of the appendix chapter. The footer should only contain page number in Arabic numerals at the bottom center of the page. The same can be applied to References chapter if the number of references is
+
+more than one page. Horizontal rules should not be drawn either for the header or the footer on any of the appendices/references.
+
+References format:
+For books, reports, theses, standards, manuals, etc. :
+[number] NameOfAuthor(s), TitleOfWork, Publisher, Place, Date (if authors’ or editors’ names are not available, it can start with a title of the name of the Publisher)
+For papers/articles :
+[number] NameOfAuthor(s), TitleOfWork, JournalName, VolumeNumber, IssueNumber, PageNumbers (pp. first-last), Year (or Month and Year)
+For papers in Conference Proceedings :
+[number] NameOfAuthor(s), TitleOfWork, Phrase “Proceedings of the ” Conference Name, Place, Date [Publisher, Place Date]
+For Website :
+[number] AuthorNames(s), TitleOfWork, Company’s Name, Place, Date, URL
+Appropriate changes in body of contents depending on type of project (for e.g. research, application-based projects) may be adopted. Design diagrams (ER, use case etc ) can be put on according to requirement of each project after discussing with your guide.
+
+

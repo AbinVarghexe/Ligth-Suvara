@@ -3,10 +3,12 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:http/http.dart' as http; // Needed for downloading files
 import 'dart:io'; // Needed for File and Platform checks
 import 'package:path_provider/path_provider.dart'; // For app's private directory
 import 'package:open_file/open_file.dart'; // Needed to open the downloaded file
+import 'package:flutter/services.dart';
 
 class CatechismScreen extends StatefulWidget {
   const CatechismScreen({super.key});
@@ -19,6 +21,7 @@ class _CatechismScreenState extends State<CatechismScreen> {
   late final WebViewController _controller;
   bool _isLoading = true;
   bool _isDownloading = false;
+  bool _isReady = false; // Flag to delay rendering until transition finishes
 
   // --- State for the custom download notification ---
   bool _showDownloadComplete = false;
@@ -178,51 +181,108 @@ class _CatechismScreenState extends State<CatechismScreen> {
             return NavigationDecision.navigate;
           },
         ),
-      )
-      ..loadRequest(Uri.parse(webUrl));
+      );
+
+    // Delay showing the WebView until the transition animation is complete
+    // This prevents the ImageReader buffer overflow errors during scaling
+    Future.delayed(const Duration(milliseconds: 650), () {
+      if (mounted) {
+        // --- ULTIMATE STABILITY: Delayed Load ---
+        _controller.loadRequest(Uri.parse(webUrl));
+        setState(() => _isReady = true);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-          onPressed: () => Navigator.of(context).pop(),
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        backgroundColor: const Color(0xFF1E3A8A),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+            ),
+          ),
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: _buildPremiumAppBarButton(
+            icon: Icons.arrow_back_ios_new_rounded,
+            size: 18,
+            onTap: () => Navigator.of(context).pop(),
+          ),
         ),
         title: Text(
-          'Study Materials',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: Colors.blue.shade900,
+          'Catechism',
+          style: GoogleFonts.outfit(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+            letterSpacing: -0.5,
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.blue.shade900,
-        elevation: 1,
+        shape: const Border(
+          bottom: BorderSide(
+            color: Color(0xFFBC8A3A),
+            width: 1.5,
+          ),
+        ),
         actions: [
           if (_isDownloading)
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
+              padding: EdgeInsets.symmetric(horizontal: 12.0),
               child: Center(
                 child: SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => _controller.reload(),
+          _buildPremiumAppBarButton(
+            icon: Icons.refresh_rounded,
+            size: 20,
+            onTap: () => _controller.reload(),
+            tooltip: 'Reload',
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Stack(
         children: [
-          WebViewWidget(controller: _controller),
-          if (_isLoading) const Center(child: CircularProgressIndicator()),
+          if (_isReady)
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 400),
+              opacity: _isLoading ? 0.0 : 1.0, // Fade in once loaded
+              child: RepaintBoundary(
+                child: WebViewWidget.fromPlatformCreationParams(
+                  params: AndroidWebViewWidgetCreationParams(
+                    controller: _controller.platform,
+                    displayWithHybridComposition: true,
+                  ),
+                ),
+              ),
+            ),
+          if (!_isReady || _isLoading)
+            Container(
+              color: Colors.white,
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFFBC8A3A),
+                ),
+              ),
+            ),
 
           // --- MODERN DOWNLOAD COMPLETE POPUP ---
           AnimatedPositioned(
@@ -302,6 +362,42 @@ class _CatechismScreenState extends State<CatechismScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPremiumAppBarButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    double size = 20,
+    String? tooltip,
+  }) {
+    return Container(
+      width: 40,
+      height: 40,
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Tooltip(
+            message: tooltip ?? '',
+            child: Icon(
+              icon,
+              size: size,
+              color: Colors.white,
+            ),
+          ),
+        ),
       ),
     );
   }

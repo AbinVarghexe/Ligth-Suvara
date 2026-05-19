@@ -3,9 +3,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sundayschool_app/event_detail_screen_from_home.dart';
 import 'package:sundayschool_app/homescreen.dart';
+import 'package:sundayschool_app/widgets/heavenly_background.dart';
+import 'package:shimmer/shimmer.dart';
 
 class HomeEventsScreen extends StatelessWidget {
   const HomeEventsScreen({super.key});
+
+  // Defines the primary brand colors for consistency
+  static const Color _primaryBlue = Color(0xFF1E3A8A); // Deep Royal Blue
+  static const Color _goldAccent = Color(0xFFBC8A3A); // Gold Accent
 
   @override
   Widget build(BuildContext context) {
@@ -17,76 +23,58 @@ class HomeEventsScreen extends StatelessWidget {
         scrolledUnderElevation: 0,
         backgroundColor: Colors.transparent,
         leading: IconButton(
-          icon: Icon(
+          icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: Colors.blue.shade900,
+            color: _primaryBlue,
             size: 22,
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Events',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w700,
-            color: Colors.blue.shade900,
-            fontSize: 20,
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w800,
+            color: _primaryBlue,
+            fontSize: 22,
           ),
         ),
         centerTitle: true,
       ),
-      body: Stack(
-        children: [
-          // Gradient Background Layer
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: [0.0, 1.0],
-                colors: [
-                  Color(0xFFFFFAF0), // Very Soft Cream (Floral White)
-                  Color(0xFFFFF8E1), // Ultra Light Gold
-                ],
-              ),
-            ),
-          ),
-          SafeArea(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('events')
-                  .where('isPublic', isEqualTo: true)
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.blue.shade900,
-                    ),
-                  );
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return _buildEmptyState(context);
-                }
+      body: HeavenlyBackground(
+        showImage: true,
+        child: SafeArea(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('events')
+                .where('isPublic', isEqualTo: true)
+                .orderBy('timestamp', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return _buildShimmerLoading();
+              }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return _buildEmptyState(context);
+              }
 
-                final docs = snapshot.data!.docs;
+              final docs = snapshot.data!.docs;
 
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 20,
-                  ),
-                  itemCount: docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 20),
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    return _buildEventCard(context, doc);
-                  },
-                );
-              },
-            ),
+              return ListView.separated(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
+                ),
+                itemCount: docs.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 24),
+                itemBuilder: (context, index) {
+                  final doc = docs[index];
+                  return _buildEventCard(context, doc);
+                },
+              );
+            },
           ),
-        ],
+        ),
       ),
     );
   }
@@ -96,8 +84,6 @@ class HomeEventsScreen extends StatelessWidget {
     final String title = data['title']?.toString() ?? 'Untitled Event';
     final String place = data['place']?.toString() ?? '';
     final String imageUrl = data['imageUrl']?.toString() ?? '';
-    // If you have a timestamp, you could format it here
-    // final Timestamp? timestamp = data['timestamp'] as Timestamp?;
 
     return GestureDetector(
       onTap: () {
@@ -110,18 +96,18 @@ class HomeEventsScreen extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.8), // Cream background
-          borderRadius: BorderRadius.circular(20),
+          color: const Color(0xFFFFFBEB).withOpacity(0.65), // Warm Amber Glass
+          borderRadius: BorderRadius.circular(28),
           border: Border.all(
-            color: const Color(0xFFFFE4B5).withOpacity(0.4), // Soft gold border
+            color: const Color(0xFFD4AF37).withOpacity(0.4), // Warm Gold Border
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.orange.withOpacity(0.08), // Warm shadow
+              color: _goldAccent.withOpacity(0.08),
               spreadRadius: 1,
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -131,7 +117,7 @@ class HomeEventsScreen extends StatelessWidget {
             // Image Section
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(20),
+                top: Radius.circular(28),
               ),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
@@ -148,18 +134,15 @@ class HomeEventsScreen extends StatelessWidget {
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stack) => Container(
                             decoration: BoxDecoration(
-                              gradient:
-                                  HomeScreen.getEventPlaceholderData(
-                                        data['category'] ?? '',
-                                      )['gradient']
-                                      as LinearGradient?,
+                              gradient: HomeScreen.getEventPlaceholderData(
+                                data['category'] ?? '',
+                              )['gradient'] as LinearGradient?,
                             ),
                             child: Center(
                               child: Icon(
                                 HomeScreen.getEventPlaceholderData(
-                                      data['category'] ?? '',
-                                    )['icon']
-                                    as IconData?,
+                                  data['category'] ?? '',
+                                )['icon'] as IconData?,
                                 color: Colors.white,
                                 size: 40,
                               ),
@@ -167,17 +150,11 @@ class HomeEventsScreen extends StatelessWidget {
                           ),
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
-                            return Container(
-                              color: Colors.grey.shade50,
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  value:
-                                      loadingProgress.expectedTotalBytes != null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                            loadingProgress.expectedTotalBytes!
-                                      : null,
-                                  color: Colors.blue.shade100,
-                                ),
+                            return Shimmer.fromColors(
+                              baseColor: Colors.grey.shade300,
+                              highlightColor: Colors.white,
+                              child: Container(
+                                color: Colors.white,
                               ),
                             );
                           },
@@ -185,36 +162,33 @@ class HomeEventsScreen extends StatelessWidget {
                       else
                         Container(
                           decoration: BoxDecoration(
-                            gradient:
-                                HomeScreen.getEventPlaceholderData(
-                                      data['category'] ?? '',
-                                    )['gradient']
-                                    as LinearGradient?,
+                            gradient: HomeScreen.getEventPlaceholderData(
+                              data['category'] ?? '',
+                            )['gradient'] as LinearGradient?,
                           ),
                           child: Center(
                             child: Icon(
                               HomeScreen.getEventPlaceholderData(
-                                    data['category'] ?? '',
-                                  )['icon']
-                                  as IconData?,
+                                data['category'] ?? '',
+                              )['icon'] as IconData?,
                               color: Colors.white,
                               size: 50,
                             ),
                           ),
                         ),
-                      // Optional: Gradient Overlay on Image bottom for verified look
+                      // Radiant Glow Overlay
                       Positioned(
                         bottom: 0,
                         left: 0,
                         right: 0,
                         child: Container(
-                          height: 50,
+                          height: 60,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.bottomCenter,
                               end: Alignment.topCenter,
                               colors: [
-                                Colors.black.withOpacity(0.3),
+                                Colors.black.withOpacity(0.4),
                                 Colors.transparent,
                               ],
                             ),
@@ -228,7 +202,7 @@ class HomeEventsScreen extends StatelessWidget {
             ),
             // Content Section
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -239,49 +213,52 @@ class HomeEventsScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           title,
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1E3A8A), // Dark blue
-                            height: 1.3,
+                          style: GoogleFonts.outfit(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                            color: _primaryBlue,
+                            height: 1.25,
+                            letterSpacing: -0.2,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      // Arrow icon to indicate clickability
+                      const SizedBox(width: 12),
                       Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
+                          color: _primaryBlue.withOpacity(0.08),
                           shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _primaryBlue.withOpacity(0.1),
+                          ),
                         ),
-                        child: Icon(
+                        child: const Icon(
                           Icons.arrow_forward_rounded,
-                          size: 16,
-                          color: Colors.blue.shade900,
+                          size: 18,
+                          color: _primaryBlue,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   if (place.isNotEmpty)
                     Row(
                       children: [
                         Icon(
-                          Icons.location_on_outlined,
+                          Icons.location_on_rounded,
                           size: 16,
-                          color: Colors.grey.shade600,
+                          color: _goldAccent.withOpacity(0.8),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             place,
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 14,
-                              color: Colors.grey.shade700,
-                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF64748B), // Soft Slate
+                              fontWeight: FontWeight.w600,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -289,7 +266,6 @@ class HomeEventsScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                  // Optional: Add a "Read More" text or timestamp if needed
                 ],
               ),
             ),
@@ -305,36 +281,63 @@ class HomeEventsScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(28),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: const Color(0xFFFFFBEB).withOpacity(0.5),
               shape: BoxShape.circle,
+              border: Border.all(
+                color: const Color(0xFFD4AF37).withOpacity(0.2),
+              ),
             ),
             child: Icon(
-              Icons.event_busy_rounded,
-              size: 48,
-              color: Colors.blue.shade300,
+              Icons.event_note_rounded,
+              size: 56,
+              color: _goldAccent.withOpacity(0.5),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Text(
             'No Events Yet',
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue.shade900,
+            style: GoogleFonts.outfit(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: _primaryBlue,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Stay tuned for upcoming updates!',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: Colors.grey.shade600,
+            'Refining upcoming programs for you.',
+            style: GoogleFonts.outfit(
+              fontSize: 15,
+              color: const Color(0xFF64748B),
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade200,
+      highlightColor: Colors.white.withOpacity(0.5),
+      child: ListView.separated(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        itemCount: 3,
+        separatorBuilder: (_, __) => const SizedBox(height: 24),
+        itemBuilder: (context, index) {
+          return Container(
+            height: 280,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
+

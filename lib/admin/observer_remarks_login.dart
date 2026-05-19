@@ -76,6 +76,7 @@ class _ObserverRemarksLoginScreenState
     return Scaffold(
       backgroundColor: const Color(0xFFFFFDF5),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [

@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/services.dart'; // Added for HapticFeedback
 import 'package:sundayschool_app/multi_school_selection.dart';
 
@@ -71,50 +70,19 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
 
   // --- NEW: PICK IMAGE WITH PERMISSION CHECK ---
   Future<void> _pickImage() async {
-    // 1. Check Permission
-    PermissionStatus status;
-    if (Platform.isAndroid) {
-      status = await Permission.photos.status;
-      if (!status.isGranted) {
-        status = await Permission.photos.request();
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80, // Compress slightly
+      );
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+        });
       }
-      if (!status.isGranted) {
-        status = await Permission.storage.request();
-      }
-    } else {
-      status = await Permission.photos.request();
-    }
-
-    if (status.isGranted) {
-      try {
-        final XFile? pickedFile = await _picker.pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 80, // Compress slightly
-        );
-        if (pickedFile != null) {
-          setState(() {
-            _selectedImage = File(pickedFile.path);
-          });
-        }
-      } catch (e) {
-        if (mounted)
-          _showFeedbackDialog('Error', 'Failed to pick image: $e', true);
-      }
-    } else if (status.isPermanentlyDenied) {
-      if (mounted) {
-        _showFeedbackDialog(
-          'Permission Denied',
-          'Please give gallery permission in App Settings to upload images.',
-          true,
-        );
-      }
-    } else {
+    } catch (e) {
       if (mounted)
-        _showFeedbackDialog(
-          'Permission Required',
-          'Gallery permission is needed to select an image.',
-          true,
-        );
+        _showFeedbackDialog('Error', 'Failed to pick image: $e', true);
     }
   }
 
@@ -380,10 +348,14 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
                       itemBuilder: (context, index) {
                         final userData =
                             users[index].data() as Map<String, dynamic>?;
-                        final name =
+                        final role = userData?['role'] ?? '';
+                        String name =
                             userData?['schoolname'] ??
                             userData?['name'] ??
                             'Unknown User';
+                        if (role == 'parish') {
+                          name = '$name (Parish)';
+                        }
                         final location =
                             userData?['location'] ??
                             userData?['parishName'] ??

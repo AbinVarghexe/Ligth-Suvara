@@ -11,6 +11,10 @@ class ContentProvider with ChangeNotifier {
   List<QueryDocumentSnapshot> _events = [];
   List<QueryDocumentSnapshot> get events => _events;
 
+  // Cache for Login Screen Config
+  Map<String, dynamic> _loginConfig = {};
+  Map<String, dynamic> get loginConfig => _loginConfig;
+
   bool _isLoadingBroadcasts = false;
   bool get isLoadingBroadcasts => _isLoadingBroadcasts;
 
@@ -20,6 +24,7 @@ class ContentProvider with ChangeNotifier {
   // Stream Subscriptions
   StreamSubscription? _broadcastSubscription;
   StreamSubscription? _eventSubscription;
+  StreamSubscription? _loginConfigSubscription;
 
   // Define limits consistent with UI
   static const int _broadcastLimit = 10;
@@ -34,6 +39,7 @@ class ContentProvider with ChangeNotifier {
   Future<void> refreshContent() async {
     fetchBroadcasts();
     fetchEvents();
+    fetchLoginConfig();
   }
 
   void fetchBroadcasts() {
@@ -92,10 +98,31 @@ class ContentProvider with ChangeNotifier {
         );
   }
 
+  void fetchLoginConfig() {
+    if (_loginConfigSubscription != null) return;
+
+    _loginConfigSubscription = FirebaseFirestore.instance
+        .collection('settings')
+        .doc('login_screen_config')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (snapshot.exists) {
+              _loginConfig = snapshot.data() as Map<String, dynamic>;
+              notifyListeners();
+            }
+          },
+          onError: (e) {
+            debugPrint("Error fetching login config: $e");
+          },
+        );
+  }
+
   @override
   void dispose() {
     _broadcastSubscription?.cancel();
     _eventSubscription?.cancel();
+    _loginConfigSubscription?.cancel();
     super.dispose();
   }
 }

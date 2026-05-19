@@ -6,8 +6,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart'; // Added for HapticFeedback
 import 'package:sundayschool_app/custom_app_bar.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/cupertino.dart'; // Core: for modern picker
 import 'package:sundayschool_app/utils/image_optimizer.dart';
 import 'package:sundayschool_app/homescreen.dart';
@@ -113,62 +113,6 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _pickImage() async {
-    // 1. Permission Check Logic
-    PermissionStatus status;
-
-    if (Platform.isAndroid) {
-      // For Android 13+ (SDK 33+), use photos.
-      // For older, use storage.
-      // Since we don't have device_info here easily, we can try photos first.
-      // However, permission_handler handles SDK checks internally often.
-      // A common pattern is checking both or relying on the specific one needed.
-      // Let's check photos first.
-      status = await Permission.photos.status;
-
-      if (status.isDenied || status.isRestricted) {
-        // If photos is denied, maybe it's an older Android that needs storage?
-        // But attempting to request photos on old android might return permanently denied/restricted.
-        // Let's try to request it.
-        Map<Permission, PermissionStatus> statuses = await [
-          Permission.photos,
-          Permission.storage, // Request both to be safe across versions
-        ].request();
-
-        // If either is granted, we are good.
-        if (statuses[Permission.photos]!.isGranted ||
-            statuses[Permission.storage]!.isGranted) {
-          status = PermissionStatus.granted;
-        } else if (statuses[Permission.photos]!.isPermanentlyDenied ||
-            statuses[Permission.storage]!.isPermanentlyDenied) {
-          status = PermissionStatus.permanentlyDenied;
-        } else {
-          status = PermissionStatus.denied;
-        }
-      }
-    } else {
-      // iOS usually handled by Info.plist description, but we can check photos
-      status = await Permission.photos.request();
-    }
-
-    if (status.isPermanentlyDenied) {
-      if (!mounted) return;
-      _showStatusDialog(
-        context: context,
-        isSuccess: false,
-        title: "Permission Required",
-        message:
-            "Gallery access is permanently denied. Please enable it in App Settings.",
-        onDismiss: () => openAppSettings(),
-      );
-      return;
-    }
-
-    if (!status.isGranted && !status.isLimited) {
-      // If still not granted (and not limited access on iOS 14+), stop.
-      // Note: Limited access is fine for picking.
-      return;
-    }
-
     final pickedImage = await ImagePicker().pickImage(
       source: ImageSource.gallery,
     );
