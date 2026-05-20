@@ -581,9 +581,12 @@ class _LoginScreenState extends State<LoginScreen>
     // 🔹 Start 3-second cycle for banners
     _bannerTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (mounted) {
-        setState(() {
-          _currentRegIndex++;
-        });
+        final isCurrent = ModalRoute.of(context)?.isCurrent ?? false;
+        if (isCurrent) {
+          setState(() {
+            _currentRegIndex++;
+          });
+        }
       }
     });
   }
@@ -932,7 +935,6 @@ class _LoginScreenState extends State<LoginScreen>
                               label: 'Resources',
                               isActive: _selectedIndex == 1,
                               onTap: () {
-                                setState(() => _selectedIndex = 1);
                                 _showResourcesPopup(context);
                               },
                             ),
@@ -941,15 +943,12 @@ class _LoginScreenState extends State<LoginScreen>
                               label: 'Programs',
                               isActive: _selectedIndex == 2,
                               onTap: () {
-                                setState(() => _selectedIndex = 2);
                                 Navigator.push(
                                   context,
                                   CustomPageRoute(
                                     child: const ProgramsScreen(),
                                   ),
-                                ).then((_) {
-                                  setState(() => _selectedIndex = 0);
-                                });
+                                );
                               },
                             ),
                           ],
@@ -1050,13 +1049,14 @@ class _LoginScreenState extends State<LoginScreen>
               if (activeRegistrations.length <= 1) return;
 
               // 🔹 Detect Swipe Direction
-              if (details.primaryVelocity! < 0) {
+              final velocity = details.primaryVelocity ?? 0.0;
+              if (velocity < 0) {
                 // Swipe Left -> Next
                 setState(() {
                   _currentRegIndex =
                       (_currentRegIndex + 1) % activeRegistrations.length;
                 });
-              } else if (details.primaryVelocity! > 0) {
+              } else if (velocity > 0) {
                 // Swipe Right -> Previous
                 setState(() {
                   _currentRegIndex =
@@ -1897,14 +1897,9 @@ class _LoginScreenState extends State<LoginScreen>
                                         _buildAnimatedMenuItem(
                                           context,
                                           'Bible',
-                                          Icons.menu_book_rounded,
-                                          const Color(0xFFF59E0B),
-                                          () => Navigator.push(
-                                            context,
-                                            CustomPageRoute(
-                                              child: const PocBibleScreen(),
-                                            ),
-                                          ),
+                                          FontAwesomeIcons.handsPraying,
+                                          const Color(0xFF0EA5E9),
+                                          () => openBible(context),
                                         ),
                                         _buildAnimatedMenuItem(
                                           context,

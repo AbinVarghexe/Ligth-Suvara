@@ -446,8 +446,9 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
 
                 if (subKeys.isEmpty) {
                   final mark = marks[mainKey];
-                  if (mark == null)
+                  if (mark == null) {
                     return const SizedBox.shrink(); // Only show answered
+                  }
                   final maxMark = _maxMarkMap[mainKey];
                   final maxMarkStr = maxMark != null
                       ? maxMark.toString()
@@ -467,7 +468,7 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '${mark} / $maxMarkStr',
+                          '$mark / $maxMarkStr',
                           style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                         ),
                       ],
@@ -543,7 +544,7 @@ class _AdminMarksViewerState extends State<AdminMarksViewer> {
                               ],
                             ),
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                   );

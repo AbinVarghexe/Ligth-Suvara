@@ -49,7 +49,7 @@ class _AdminQuestionManagerState extends State<AdminQuestionManager> {
   bool _isLoading = false;
   bool _isMandatory = true;
   String _selectedPart = 'I'; // New
-  List<String> _parts = ['I', 'II', 'III', 'IV', 'V'];
+  final List<String> _parts = ['I', 'II', 'III', 'IV', 'V'];
   final Map<String, TextEditingController> _partTitleControllers = {};
   final Set<String> _selectedIds = {};
   bool _isSelectionMode = false;
@@ -480,7 +480,7 @@ class _AdminQuestionManagerState extends State<AdminQuestionManager> {
                                   },
                                 ),
                               );
-                            }).toList(),
+                            }),
                             const SizedBox(height: 8),
                             SizedBox(
                               width: double.infinity,

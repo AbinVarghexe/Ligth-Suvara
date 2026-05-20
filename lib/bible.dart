@@ -30,7 +30,7 @@ class _PocBibleScreenState extends State<PocBibleScreen> {
     // Access platform methods directly, only call those supported by your plugin version
     if (controller.platform is AndroidWebViewController) {
       (controller.platform as AndroidWebViewController)
-        ..setMediaPlaybackRequiresUserGesture(false);
+        .setMediaPlaybackRequiresUserGesture(false);
     }
 
     _controller = controller

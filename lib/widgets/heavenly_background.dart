@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import 'dart:ui';
 
 /// ✨ HeavenlyBackground
 /// A reusable premium background widget that provides:

@@ -1177,8 +1177,9 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
 
         bool isExpired(String? academicYear) {
           if (academicYear == null ||
-              !expirationDates.containsKey(academicYear))
+              !expirationDates.containsKey(academicYear)) {
             return false;
+          }
           return expirationDates[academicYear]!.isBefore(todayMidnight);
         }
 
@@ -1196,8 +1197,9 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
           return true;
         }).toList();
 
-        if (incoming.isEmpty && outgoing.isEmpty)
+        if (incoming.isEmpty && outgoing.isEmpty) {
           return const SizedBox.shrink();
+        }
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -1360,8 +1362,9 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
 
           bool isExpired(String? academicYear) {
             if (academicYear == null ||
-                !expirationDates.containsKey(academicYear))
+                !expirationDates.containsKey(academicYear)) {
               return false;
+            }
             return expirationDates[academicYear]!.isBefore(todayMidnight);
           }
 
@@ -1377,8 +1380,9 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                 !isExpired(data['academicYear']);
           }).toList();
 
-          if (incoming.isEmpty && outgoing.isEmpty)
+          if (incoming.isEmpty && outgoing.isEmpty) {
             return const SizedBox.shrink();
+          }
 
           return TweenAnimationBuilder<double>(
             tween: Tween(begin: 0.0, end: 1.0),
@@ -1572,7 +1576,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                             phone: data['teacherPhone'],
                           ),
                         );
-                      }).toList(),
+                      }),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -1760,7 +1764,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
               side: const BorderSide(color: Colors.white, width: 2),
             ),
             contentPadding: EdgeInsets.zero,
-            content: Container(
+            content: SizedBox(
               width: MediaQuery.of(context).size.width * 0.9,
               child: Column(
                 mainAxisSize: MainAxisSize.min,

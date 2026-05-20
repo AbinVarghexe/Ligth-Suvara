@@ -130,8 +130,9 @@ class AdminMarksPdfGenerator {
           return hasMark || hasText;
         }).toList();
 
-        if (answeredSubKeys.isEmpty)
+        if (answeredSubKeys.isEmpty) {
           continue; // Skip main question if all subfields are unanswered
+        }
 
         rowsBuffer.writeln('''
           <tr>

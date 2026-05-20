@@ -799,8 +799,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
         bool isExpired(String? academicYear) {
           if (academicYear == null ||
-              !expirationDates.containsKey(academicYear))
+              !expirationDates.containsKey(academicYear)) {
             return false;
+          }
           return expirationDates[academicYear]!.isBefore(todayMidnight);
         }
 
@@ -818,8 +819,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           return true;
         }).toList();
 
-        if (incoming.isEmpty && outgoing.isEmpty)
+        if (incoming.isEmpty && outgoing.isEmpty) {
           return const SizedBox.shrink();
+        }
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -963,8 +965,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           final settingsData = snapshot.data![1];
           final user = FirebaseAuth.instance.currentUser;
 
-          if (user == null || assignmentsData.docs.isEmpty)
+          if (user == null || assignmentsData.docs.isEmpty) {
             return const SizedBox.shrink();
+          }
 
           final now = DateTime.now();
           final todayMidnight = DateTime(now.year, now.month, now.day);
@@ -980,8 +983,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
           bool isExpired(String? academicYear) {
             if (academicYear == null ||
-                !expirationDates.containsKey(academicYear))
+                !expirationDates.containsKey(academicYear)) {
               return false;
+            }
             return expirationDates[academicYear]!.isBefore(todayMidnight);
           }
 
@@ -997,8 +1001,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 !isExpired(data['academicYear']);
           }).toList();
 
-          if (incoming.isEmpty && outgoing.isEmpty)
+          if (incoming.isEmpty && outgoing.isEmpty) {
             return const SizedBox.shrink();
+          }
 
           return TweenAnimationBuilder<double>(
             tween: Tween(begin: 0.0, end: 1.0),
@@ -1193,7 +1198,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             phone: data['teacherPhone'],
                           ),
                         );
-                      }).toList(),
+                      }),
                     const SizedBox(height: 20),
                   ],
                 ),

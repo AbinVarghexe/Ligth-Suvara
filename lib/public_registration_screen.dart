@@ -680,8 +680,9 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
                               );
                             }).toList(),
                             onChanged: (v) {
-                              if (v != null)
+                              if (v != null) {
                                 setState(() => _selectedCountryCode = v);
+                              }
                             },
                           ),
                         ),
@@ -722,11 +723,13 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
                 ),
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty)
+                if (v == null || v.trim().isEmpty) {
                   return 'Phone number is required';
+                }
                 if (_selectedCountryCode == '+91') {
-                  if (v.length != 10)
+                  if (v.length != 10) {
                     return 'Indian phone numbers must be 10 digits';
+                  }
                 } else {
                   if (v.length < 7) return 'Enter a valid phone number';
                 }

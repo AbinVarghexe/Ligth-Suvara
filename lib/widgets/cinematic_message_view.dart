@@ -11,13 +11,13 @@ class CinematicMessageView extends StatefulWidget {
   final Color themeColor;
 
   const CinematicMessageView({
-    Key? key,
+    super.key,
     required this.name,
     required this.role,
     this.message,
     required this.imageUrl,
     this.themeColor = const Color(0xFFD4AF37),
-  }) : super(key: key);
+  });
 
   @override
   _CinematicMessageViewState createState() => _CinematicMessageViewState();

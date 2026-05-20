@@ -290,10 +290,11 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
                       'iconName': selectedIcon,
                     };
                     setState(() {
-                      if (index == null)
+                      if (index == null) {
                         _programs.add(data);
-                      else
+                      } else {
                         _programs[index] = data;
+                      }
                     });
                     Navigator.pop(context);
                   },
@@ -384,10 +385,11 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
                     'message': msgController.text,
                   };
                   setState(() {
-                    if (index == null)
+                    if (index == null) {
                       _carouselItems.add(data);
-                    else
+                    } else {
                       _carouselItems[index] = data;
+                    }
                   });
                   Navigator.pop(context);
                 },

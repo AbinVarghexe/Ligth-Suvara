@@ -317,9 +317,10 @@ class _ProgramsScreenState extends State<ProgramsScreen>
       shrinkWrap: true,
       itemCount: programs.length,
       itemBuilder: (context, index) {
-        // Staggered animation for list items
-        final double begin = 0.4 + (index * 0.1);
-        final double end = (begin + 0.4 > 1.0) ? 1.0 : begin + 0.4;
+        // Staggered animation for list items safely clamped
+        double begin = 0.4 + (index * 0.1);
+        begin = begin.clamp(0.0, 0.8);
+        double end = (begin + 0.4).clamp(0.0, 1.0);
 
         return SlideTransition(
           position: Tween<Offset>(begin: const Offset(0.1, 0), end: Offset.zero)

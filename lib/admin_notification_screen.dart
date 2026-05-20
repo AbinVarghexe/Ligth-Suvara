@@ -81,8 +81,9 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
         });
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         _showFeedbackDialog('Error', 'Failed to pick image: $e', true);
+      }
     }
   }
 
@@ -1215,7 +1216,7 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${count} messages removed.',
+                      '$count messages removed.',
                       style: GoogleFonts.poppins(color: Colors.grey),
                     ),
                   ],

@@ -667,8 +667,9 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
                                             (value == null || value.isEmpty)) {
                                           return 'Please enter a mark';
                                         }
-                                        if (value == null || value.isEmpty)
+                                        if (value == null || value.isEmpty) {
                                           return null;
+                                        }
                                         final mark = int.tryParse(value);
                                         if (mark == null) {
                                           return 'Invalid number';
@@ -853,13 +854,15 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
                                                   return 'Required';
                                                 }
                                                 if (value == null ||
-                                                    value.isEmpty)
+                                                    value.isEmpty) {
                                                   return null;
+                                                }
                                                 final mark = int.tryParse(
                                                   value,
                                                 );
-                                                if (mark == null)
+                                                if (mark == null) {
                                                   return 'Invalid';
+                                                }
                                                 if (subMaxMark != null &&
                                                     (mark < 0 ||
                                                         mark > subMaxMark)) {
@@ -881,7 +884,7 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
                                           ],
                                         ),
                                       );
-                                    }).toList(),
+                                    }),
                                   ],
                                 ],
                               ),

@@ -6,7 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/services.dart'; // Added for HapticFeedback
+// Added for HapticFeedback
 import 'package:sundayschool_app/custom_app_bar.dart';
 import 'package:flutter/cupertino.dart'; // Core: for modern picker
 import 'package:sundayschool_app/utils/image_optimizer.dart';

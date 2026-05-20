@@ -5,7 +5,7 @@ import 'package:sundayschool_app/services/log_service.dart';
 import 'package:intl/intl.dart';
 
 class AdminLogsScreen extends StatefulWidget {
-  const AdminLogsScreen({Key? key}) : super(key: key);
+  const AdminLogsScreen({super.key});
 
   @override
   State<AdminLogsScreen> createState() => _AdminLogsScreenState();
