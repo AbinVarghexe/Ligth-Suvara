@@ -122,7 +122,7 @@ class ImageOptimizer {
         minHeight: 600,
       );
 
-      return result; // Return whatever we got in the final pass
+      return result ?? imageFile; // Return compressed result, or fallback to original if compression failed
     } catch (e) {
       print('Error in iterative compression: $e');
       return imageFile; // Fallback to original

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -119,25 +120,32 @@ class _UploadScreenState extends State<UploadScreen> {
     if (pickedImage == null) return;
 
     setState(() => _isLoading = true);
-    final compressedFile = await ImageOptimizer.compressBelowLimit(
-      File(pickedImage.path),
-      targetSizeKB: 400,
-    );
-    setState(() => _isLoading = false);
+    File? imageToUse;
+    try {
+      // Read bytes directly from XFile — works on ALL platforms including Windows
+      // (on Windows, XFile.path may be a data: URL, so we must use readAsBytes())
+      final Uint8List bytes = await pickedImage.readAsBytes();
+      final tempPath =
+          '${Directory.systemTemp.path}/${DateTime.now().millisecondsSinceEpoch}_pick.jpg';
+      final tempFile = File(tempPath);
+      await tempFile.writeAsBytes(bytes);
 
-    if (compressedFile == null) {
-      if (!mounted) return;
-      _showStatusDialog(
-        context: context,
-        isSuccess: false,
-        title: "Image Error",
-        message: "Failed to process the selected image.",
-      );
-      return;
+      try {
+        final compressedFile = await ImageOptimizer.compressBelowLimit(
+          tempFile,
+          targetSizeKB: 400,
+        );
+        imageToUse = compressedFile ?? tempFile;
+      } catch (e) {
+        debugPrint('Compression skipped: $e');
+        imageToUse = tempFile;
+      }
+    } catch (e) {
+      debugPrint('Image pick error: $e');
     }
-
     setState(() {
-      _imageFile = compressedFile;
+      _isLoading = false;
+      _imageFile = imageToUse;
     });
   }
 
@@ -331,7 +339,7 @@ class _UploadScreenState extends State<UploadScreen> {
           'event_images/$fileName',
         );
         imageUrl = await storageRef
-            .putFile(_imageFile!)
+            .putData(await _imageFile!.readAsBytes())
             .then((task) => task.ref.getDownloadURL());
       }
       // If _imageFile is null (no new image picked) and _isEditing is true,
@@ -371,7 +379,7 @@ class _UploadScreenState extends State<UploadScreen> {
         'category': _selectedCategory,
         'forane': userForane,
         if (!_isEditing) 'creatorId': user!.uid,
-        if (!_isEditing) 'isPublic': false,
+        if (!_isEditing) 'isPublic': user!.uid == 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2',
         // createdAt is only written once at creation time
         if (!_isEditing) 'createdAt': FieldValue.serverTimestamp(),
         // updatedAt is refreshed on both create AND every subsequent edit

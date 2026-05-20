@@ -1,6 +1,7 @@
 // lib/login_screen.dart
 
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:ui'; // Required for ImageFilter
@@ -1633,6 +1634,7 @@ class _LoginScreenState extends State<LoginScreen>
                   final doc = provider.events[index];
                   final data = doc.data() as Map<String, dynamic>;
                   final imageUrl = data['imageUrl'];
+                  debugPrint('Event ${doc.id} imageUrl: $imageUrl');
 
                   return GestureDetector(
                     onTap: () {
@@ -1655,55 +1657,60 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildProgramCard(String? imageUrl, String category) {
+    final placeholderData = HomeScreen.getEventPlaceholderData(category);
+    final placeholder = Center(
+      child: Icon(
+        placeholderData['icon'] as IconData?,
+        color: Colors.white,
+        size: 40,
+      ),
+    );
+
+    Widget imageWidget;
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      if (imageUrl.startsWith('data:image/')) {
+        // Base64 data URL stored by older admin uploads
+        try {
+          final bytes = base64Decode(imageUrl.split(',').last);
+          imageWidget = Image.memory(bytes, fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => placeholder);
+        } catch (_) {
+          imageWidget = placeholder;
+        }
+      } else {
+        imageWidget = CachedNetworkImage(
+          imageUrl: imageUrl,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => Container(color: Colors.grey.shade200),
+          errorWidget: (context, url, error) => Container(
+            decoration: BoxDecoration(
+              gradient: placeholderData['gradient'] as LinearGradient?,
+            ),
+            child: placeholder,
+          ),
+        );
+      }
+    } else {
+      imageWidget = placeholder;
+    }
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        color: const Color(0xFFFFFBEB).withValues(alpha: 0.9), // Soft Gold
+        color: const Color(0xFFFFFBEB).withValues(alpha: 0.9),
         border: Border.all(
-          color: const Color(
-            0xFFFDE68A,
-          ).withValues(alpha: 0.6), // Saturated gold
+          color: const Color(0xFFFDE68A).withValues(alpha: 0.6),
           width: 1.5,
         ),
-        gradient: imageUrl == null || imageUrl.isEmpty
-            ? HomeScreen.getEventPlaceholderData(category)['gradient']
-                  as LinearGradient?
+        gradient: (imageUrl == null || imageUrl.isEmpty)
+            ? placeholderData['gradient'] as LinearGradient?
             : null,
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
-        child: imageUrl != null && imageUrl.isNotEmpty
-            ? CachedNetworkImage(
-                imageUrl: imageUrl,
-                fit: BoxFit.cover,
-                placeholder: (context, url) =>
-                    Container(color: Colors.grey.shade200),
-                errorWidget: (context, url, error) => Container(
-                  decoration: BoxDecoration(
-                    gradient:
-                        HomeScreen.getEventPlaceholderData(category)['gradient']
-                            as LinearGradient?,
-                  ),
-                  child: Center(
-                    child: Icon(
-                      HomeScreen.getEventPlaceholderData(category)['icon']
-                          as IconData?,
-                      color: Colors.white,
-                      size: 40,
-                    ),
-                  ),
-                ),
-              )
-            : Center(
-                child: Icon(
-                  HomeScreen.getEventPlaceholderData(category)['icon']
-                      as IconData?,
-                  color: Colors.white,
-                  size: 40,
-                ),
-              ),
+        child: imageWidget,
       ),
     );
   }

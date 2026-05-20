@@ -108,12 +108,6 @@ class _PocBibleScreenState extends State<PocBibleScreen> {
             ),
           ),
           centerTitle: true,
-          shape: const Border(
-            bottom: BorderSide(
-              color: Color(0xFFBC8A3A),
-              width: 1.5,
-            ),
-          ),
           actions: [
             FutureBuilder<bool>(
               future: _controller.canGoBack(),

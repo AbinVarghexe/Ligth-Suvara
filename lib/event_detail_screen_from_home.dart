@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -115,8 +116,65 @@ class _EventDetailScreenState extends State<EventDetailScreenFromHome> {
                 !rawImageUrl.contains('via.placeholder.com');
             final String finalImageUrl = hasValidImage ? rawImageUrl : '';
 
+            final placeholderData = HomeScreen.getEventPlaceholderData(data['category'] ?? '');
+            final placeholder = Container(
+              height: 220,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: placeholderData['gradient'] as LinearGradient?,
+              ),
+              child: Center(
+                child: Icon(
+                  placeholderData['icon'] as IconData?,
+                  size: 80,
+                  color: Colors.white,
+                ),
+              ),
+            );
+
+            Widget imageWidget;
+            bool isBase64 = false;
+            if (finalImageUrl.isNotEmpty) {
+              if (finalImageUrl.startsWith('data:image/')) {
+                isBase64 = true;
+                try {
+                  final bytes = base64Decode(finalImageUrl.split(',').last);
+                  imageWidget = Image.memory(
+                    bytes,
+                    fit: BoxFit.cover,
+                    height: 220,
+                    width: double.infinity,
+                    errorBuilder: (_, __, ___) => placeholder,
+                  );
+                } catch (_) {
+                  imageWidget = placeholder;
+                }
+              } else {
+                imageWidget = Image.network(
+                  finalImageUrl,
+                  fit: BoxFit.cover,
+                  height: 220,
+                  width: double.infinity,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      height: 220,
+                      width: double.infinity,
+                      color: Colors.grey.shade100,
+                      child: const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  },
+                  errorBuilder: (c, o, s) => placeholder,
+                );
+              }
+            } else {
+              imageWidget = placeholder;
+            }
+
             return GestureDetector(
-              onTap: finalImageUrl.isNotEmpty
+              onTap: (finalImageUrl.isNotEmpty && !isBase64)
                   ? () {
                       Navigator.push(
                         context,
@@ -135,60 +193,7 @@ class _EventDetailScreenState extends State<EventDetailScreenFromHome> {
                     : 'event_icon_${widget.eventId}',
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: finalImageUrl.isNotEmpty
-                      ? Image.network(
-                          finalImageUrl,
-                          fit: BoxFit.cover,
-                          height: 220,
-                          width: double.infinity,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Container(
-                              height: 220,
-                              width: double.infinity,
-                              color: Colors.grey.shade100,
-                              child: const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            );
-                          },
-                          errorBuilder: (c, o, s) => Container(
-                            height: 220,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              gradient: HomeScreen.getEventPlaceholderData(
-                                data['category'] ?? '',
-                              )['gradient'] as LinearGradient?,
-                            ),
-                            child: Center(
-                              child: Icon(
-                                HomeScreen.getEventPlaceholderData(
-                                  data['category'] ?? '',
-                                )['icon'] as IconData?,
-                                size: 60,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        )
-                      : Container(
-                          height: 220,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            gradient: HomeScreen.getEventPlaceholderData(
-                              data['category'] ?? '',
-                            )['gradient'] as LinearGradient?,
-                          ),
-                          child: Center(
-                            child: Icon(
-                              HomeScreen.getEventPlaceholderData(
-                                data['category'] ?? '',
-                              )['icon'] as IconData?,
-                              size: 80,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
+                  child: imageWidget,
                 ),
               ),
             );

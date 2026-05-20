@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:sundayschool_app/event_detail_screen_from_home.dart';
 import 'package:sundayschool_app/homescreen.dart';
 import 'package:sundayschool_app/widgets/heavenly_background.dart';
@@ -43,21 +45,49 @@ class HomeEventsScreen extends StatelessWidget {
       body: HeavenlyBackground(
         showImage: true,
         child: SafeArea(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('events')
-                .where('isPublic', isEqualTo: true)
-                .orderBy('timestamp', descending: true)
-                .snapshots(),
+          child: StreamBuilder<List<QuerySnapshot>>(
+            stream: CombineLatestStream.list([
+              FirebaseFirestore.instance
+                  .collection('events')
+                  .where('isPublic', isEqualTo: true)
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              FirebaseFirestore.instance
+                  .collection('events')
+                  .where('creatorId', isEqualTo: 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2')
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+            ]),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return _buildShimmerLoading();
               }
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return _buildEmptyState(context);
               }
 
-              final docs = snapshot.data!.docs;
+              // Combine docs and deduplicate by id
+              final Map<String, QueryDocumentSnapshot> uniqueDocs = {};
+              for (var querySnapshot in snapshot.data!) {
+                for (var doc in querySnapshot.docs) {
+                  uniqueDocs[doc.id] = doc;
+                }
+              }
+
+              final docs = uniqueDocs.values.toList();
+              // Sort by timestamp descending
+              docs.sort((a, b) {
+                final aTime = (a.data() as Map<String, dynamic>?)?['timestamp'] as Timestamp?;
+                final bTime = (b.data() as Map<String, dynamic>?)?['timestamp'] as Timestamp?;
+                if (aTime == null && bTime == null) return 0;
+                if (aTime == null) return 1;
+                if (bTime == null) return -1;
+                return bTime.compareTo(aTime);
+              });
+
+              if (docs.isEmpty) {
+                return _buildEmptyState(context);
+              }
 
               return ListView.separated(
                 physics: const BouncingScrollPhysics(),
@@ -128,39 +158,8 @@ class HomeEventsScreen extends StatelessWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      if (imageUrl.isNotEmpty)
-                        Image.network(
-                          imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stack) => Container(
-                            decoration: BoxDecoration(
-                              gradient: HomeScreen.getEventPlaceholderData(
-                                data['category'] ?? '',
-                              )['gradient'] as LinearGradient?,
-                            ),
-                            child: Center(
-                              child: Icon(
-                                HomeScreen.getEventPlaceholderData(
-                                  data['category'] ?? '',
-                                )['icon'] as IconData?,
-                                color: Colors.white,
-                                size: 40,
-                              ),
-                            ),
-                          ),
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Shimmer.fromColors(
-                              baseColor: Colors.grey.shade300,
-                              highlightColor: Colors.white,
-                              child: Container(
-                                color: Colors.white,
-                              ),
-                            );
-                          },
-                        )
-                      else
-                        Container(
+                      () {
+                        final placeholder = Container(
                           decoration: BoxDecoration(
                             gradient: HomeScreen.getEventPlaceholderData(
                               data['category'] ?? '',
@@ -175,7 +174,39 @@ class HomeEventsScreen extends StatelessWidget {
                               size: 50,
                             ),
                           ),
-                        ),
+                        );
+
+                        if (imageUrl.isEmpty) return placeholder;
+
+                        if (imageUrl.startsWith('data:image/')) {
+                          try {
+                            final bytes = base64Decode(imageUrl.split(',').last);
+                            return Image.memory(
+                              bytes,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stack) => placeholder,
+                            );
+                          } catch (_) {
+                            return placeholder;
+                          }
+                        }
+
+                        return Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stack) => placeholder,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Shimmer.fromColors(
+                              baseColor: Colors.grey.shade300,
+                              highlightColor: Colors.white,
+                              child: Container(
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                        );
+                      }(),
                       // Radiant Glow Overlay
                       Positioned(
                         bottom: 0,

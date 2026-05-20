@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -487,13 +488,99 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 rawImageUrl.isNotEmpty &&
                 !rawImageUrl.contains('via.placeholder.com');
             final String finalImageUrl = hasValidImage ? rawImageUrl : '';
+            final bool isBase64 = finalImageUrl.startsWith('data:image/');
+
+            // Decode base64 once if needed
+            Widget imageContent;
+            if (finalImageUrl.isEmpty) {
+              imageContent = Container(
+                height: 220,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: HomeScreen.getEventPlaceholderData(
+                    data['category'] ?? '',
+                  )['gradient'] as LinearGradient?,
+                ),
+                child: Center(
+                  child: Icon(
+                    HomeScreen.getEventPlaceholderData(
+                      data['category'] ?? '',
+                    )['icon'] as IconData?,
+                    size: 80,
+                    color: Colors.white,
+                  ),
+                ),
+              );
+            } else if (isBase64) {
+              try {
+                final bytes = base64Decode(finalImageUrl.split(',').last);
+                imageContent = Image.memory(
+                  bytes,
+                  fit: BoxFit.cover,
+                  height: 220,
+                  width: double.infinity,
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 220,
+                    decoration: BoxDecoration(
+                      gradient: HomeScreen.getEventPlaceholderData(
+                        data['category'] ?? '',
+                      )['gradient'] as LinearGradient?,
+                    ),
+                    child: Center(
+                      child: Icon(
+                        HomeScreen.getEventPlaceholderData(
+                          data['category'] ?? '',
+                        )['icon'] as IconData?,
+                        size: 60,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                );
+              } catch (_) {
+                imageContent = const SizedBox.shrink();
+              }
+            } else {
+              imageContent = Image.network(
+                finalImageUrl,
+                fit: BoxFit.cover,
+                height: 220,
+                width: double.infinity,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 220,
+                    color: Colors.grey.shade100,
+                    child: const Center(child: CircularProgressIndicator()),
+                  );
+                },
+                errorBuilder: (c, o, s) => Container(
+                  height: 220,
+                  decoration: BoxDecoration(
+                    gradient: HomeScreen.getEventPlaceholderData(
+                      data['category'] ?? '',
+                    )['gradient'] as LinearGradient?,
+                  ),
+                  child: Center(
+                    child: Icon(
+                      HomeScreen.getEventPlaceholderData(
+                        data['category'] ?? '',
+                      )['icon'] as IconData?,
+                      size: 60,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              );
+            }
 
             return Hero(
               tag: finalImageUrl.isNotEmpty
                   ? 'event_image_${widget.eventId}'
                   : 'event_icon_${widget.eventId}',
               child: GestureDetector(
-                onTap: finalImageUrl.isNotEmpty
+                // Only allow full-screen tap for real network URLs (base64 is too large)
+                onTap: (finalImageUrl.isNotEmpty && !isBase64)
                     ? () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -507,58 +594,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     : null,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: finalImageUrl.isNotEmpty
-                      ? Image.network(
-                          finalImageUrl,
-                          fit: BoxFit.cover,
-                          height: 220,
-                          width: double.infinity,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Container(
-                              height: 220,
-                              color: Colors.grey.shade100,
-                              child: const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            );
-                          },
-                          errorBuilder: (c, o, s) => Container(
-                            height: 220,
-                            decoration: BoxDecoration(
-                              gradient: HomeScreen.getEventPlaceholderData(
-                                data['category'] ?? '',
-                              )['gradient'] as LinearGradient?,
-                            ),
-                            child: Center(
-                              child: Icon(
-                                HomeScreen.getEventPlaceholderData(
-                                  data['category'] ?? '',
-                                )['icon'] as IconData?,
-                                size: 60,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        )
-                      : Container(
-                          height: 220,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            gradient: HomeScreen.getEventPlaceholderData(
-                              data['category'] ?? '',
-                            )['gradient'] as LinearGradient?,
-                          ),
-                          child: Center(
-                            child: Icon(
-                              HomeScreen.getEventPlaceholderData(
-                                data['category'] ?? '',
-                              )['icon'] as IconData?,
-                              size: 80,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
+                  child: imageContent,
                 ),
               ),
             );

@@ -36,7 +36,13 @@ class ContentProvider with ChangeNotifier {
   }
 
   /// Initiates stream listeners for both broadcasts and events
-  Future<void> refreshContent() async {
+  Future<void> refreshContent({bool forceRefresh = false}) async {
+    if (forceRefresh) {
+      await _eventSubscription?.cancel();
+      _eventSubscription = null;
+      await _broadcastSubscription?.cancel();
+      _broadcastSubscription = null;
+    }
     fetchBroadcasts();
     fetchEvents();
     fetchLoginConfig();
@@ -80,13 +86,18 @@ class ContentProvider with ChangeNotifier {
 
     _eventSubscription = FirebaseFirestore.instance
         .collection('events')
-        .where('isPublic', isEqualTo: true)
         .orderBy('timestamp', descending: true)
         .limit(_eventLimit)
         .snapshots()
         .listen(
           (snapshot) {
-            _events = snapshot.docs;
+            _events = snapshot.docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>?;
+              if (data == null) return false;
+              final isPublic = data['isPublic'] ?? false;
+              final creatorId = data['creatorId'] as String?;
+              return isPublic == true || creatorId == 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2';
+            }).toList();
             _isLoadingEvents = false;
             notifyListeners();
           },

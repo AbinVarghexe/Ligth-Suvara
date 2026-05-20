@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1029,24 +1030,36 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                                               !imageUrl.contains(
                                                 'via.placeholder.com',
                                               );
+                                          final placeholder = _buildParishImagePlaceholderWidget(
+                                            category: category,
+                                          );
 
-                                          return hasValidImage
-                                              ? Image.network(
-                                                  imageUrl,
-                                                  fit: BoxFit.cover,
-                                                  errorBuilder:
-                                                      (
-                                                        context,
-                                                        error,
-                                                        stackTrace,
-                                                      ) =>
-                                                          _buildParishImagePlaceholderWidget(
-                                                            category: category,
-                                                          ),
-                                                )
-                                              : _buildParishImagePlaceholderWidget(
-                                                  category: category,
-                                                );
+                                          if (!hasValidImage) return placeholder;
+
+                                          if (imageUrl.startsWith('data:image/')) {
+                                            try {
+                                              final bytes = base64Decode(imageUrl.split(',').last);
+                                              return Image.memory(
+                                                bytes,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => placeholder,
+                                              );
+                                            } catch (_) {
+                                              return placeholder;
+                                            }
+                                          }
+
+                                          return Image.network(
+                                            imageUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (
+                                                  context,
+                                                  error,
+                                                  stackTrace,
+                                                ) =>
+                                                    placeholder,
+                                          );
                                         }(),
                                       ),
                                     ),
@@ -2276,20 +2289,31 @@ class HighlightEventCard extends StatelessWidget {
                           imageUrl != null &&
                           imageUrl.isNotEmpty &&
                           !imageUrl.contains('via.placeholder.com');
+                      final placeholder = _buildParishImagePlaceholderWidget(
+                        category: data['category']?.toString() ?? '',
+                      );
 
-                      return hasValidImage
-                          ? Image.network(
-                              imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  _buildParishImagePlaceholderWidget(
-                                    category:
-                                        data['category']?.toString() ?? '',
-                                  ),
-                            )
-                          : _buildParishImagePlaceholderWidget(
-                              category: data['category']?.toString() ?? '',
-                            );
+                      if (!hasValidImage) return placeholder;
+
+                      if (imageUrl.startsWith('data:image/')) {
+                        try {
+                          final bytes = base64Decode(imageUrl.split(',').last);
+                          return Image.memory(
+                            bytes,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => placeholder,
+                          );
+                        } catch (_) {
+                          return placeholder;
+                        }
+                      }
+
+                      return Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            placeholder,
+                      );
                     }(),
                     Container(
                       decoration: BoxDecoration(

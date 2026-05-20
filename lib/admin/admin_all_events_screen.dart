@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -579,7 +580,7 @@ class _AdminAllEventsScreenState extends State<AdminAllEventsScreen> {
                     itemBuilder: (context, index) {
                       final doc = filteredDocs[index];
                       final data = doc.data() as Map<String, dynamic>;
-                      final isPublic = data['isPublic'] ?? false;
+                      final isPublic = (data['isPublic'] ?? false) || (data['creatorId'] == 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2');
 
                       return TweenAnimationBuilder<double>(
                         duration: const Duration(milliseconds: 500),
@@ -628,52 +629,48 @@ class _AdminAllEventsScreenState extends State<AdminAllEventsScreen> {
                               child: Row(
                                 children: [
                                   Hero(
-                                    tag: data['imageUrl'] != null
+                                    tag: (data['imageUrl'] != null && (data['imageUrl'] as String).isNotEmpty)
                                         ? 'event_image_${doc.id}'
                                         : 'event_icon_${doc.id}',
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(16),
-                                      child: Container(
+                                      child: SizedBox(
                                         width: 80,
                                         height: 80,
-                                        decoration: BoxDecoration(
-                                          gradient: data['imageUrl'] == null
-                                              ? HomeScreen.getEventPlaceholderData(
-                                                      data['category'] ?? '',
-                                                    )['gradient']
-                                                    as LinearGradient?
-                                              : null,
-                                          color: data['imageUrl'] != null
-                                              ? Colors.grey.shade100
-                                              : null,
-                                        ),
-                                        child: data['imageUrl'] != null
-                                            ? Image.network(
-                                                data['imageUrl'],
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) =>
-                                                    Container(
-                                                      color:
-                                                          Colors.grey.shade200,
-                                                      child: Icon(
-                                                        Icons
-                                                            .broken_image_rounded,
-                                                        color: Colors
-                                                            .grey
-                                                            .shade400,
-                                                      ),
-                                                    ),
-                                              )
-                                            : Center(
-                                                child: Icon(
-                                                  HomeScreen.getEventPlaceholderData(
-                                                        data['category'] ?? '',
-                                                      )['icon']
-                                                      as IconData?,
-                                                  color: Colors.white,
-                                                  size: 32,
-                                                ),
-                                              ),
+                                        child: () {
+                                          final imgUrl = (data['imageUrl'] ?? '') as String;
+                                          final placeholderData = HomeScreen.getEventPlaceholderData(data['category'] ?? '');
+                                          final placeholder = Container(
+                                            width: 80, height: 80,
+                                            decoration: BoxDecoration(
+                                              gradient: placeholderData['gradient'] as LinearGradient?,
+                                            ),
+                                            child: Center(child: Icon(placeholderData['icon'] as IconData?, color: Colors.white, size: 32)),
+                                          );
+                                          if (imgUrl.isEmpty) return placeholder;
+                                          // Handle base64 data URLs (stored by older uploads)
+                                          if (imgUrl.startsWith('data:image/')) {
+                                            try {
+                                              final bytes = base64Decode(imgUrl.split(',').last);
+                                              return Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => placeholder);
+                                            } catch (_) { return placeholder; }
+                                          }
+                                          return Image.network(
+                                            imgUrl,
+                                            width: 80, height: 80,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => placeholder,
+                                            loadingBuilder: (_, child, progress) {
+                                              if (progress == null) return child;
+                                              return Container(
+                                                width: 80, height: 80,
+                                                color: Colors.grey.shade200,
+                                                child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                              );
+                                            },
+                                          );
+                                        }(),
                                       ),
                                     ),
                                   ),

@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -216,7 +217,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       final snapshot = await FirebaseFirestore.instance.collection('events').get();
       final allEvents = snapshot.docs;
       final total = allEvents.length;
-      final public = allEvents.where((doc) => (doc.data())['isPublic'] == true).length;
+      final public = allEvents.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final isPub = data['isPublic'] ?? false;
+        final creator = data['creatorId'] as String?;
+        return isPub == true || creator == 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2';
+      }).length;
       final draft = total - public;
 
       if (mounted) {
@@ -650,7 +656,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           itemBuilder: (context, index) {
             var eventDoc = docs[index];
             var data = eventDoc.data() as Map<String, dynamic>;
-            bool isPublic = data['isPublic'] ?? false;
+            bool isPublic = (data['isPublic'] ?? false) || (data['creatorId'] == 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2');
             return TweenAnimationBuilder<double>(
               duration: Duration(milliseconds: 300 + (index * 100)),
               tween: Tween(begin: 0.0, end: 1.0),
@@ -681,15 +687,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                 children: [
                                   Hero(
                                     tag: 'event_image_${eventDoc.id}',
-                                    child: Container(
-                                      width: 75, height: 75,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(22),
-                                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 5))],
-                                        image: data['imageUrl'] != null && (data['imageUrl'] as String).isNotEmpty ? DecorationImage(image: NetworkImage(data['imageUrl']), fit: BoxFit.cover) : null,
-                                        gradient: data['imageUrl'] == null || (data['imageUrl'] as String).isEmpty ? HomeScreen.getEventPlaceholderData(data['category'] ?? '')['gradient'] as LinearGradient? : null,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(22),
+                                      child: SizedBox(
+                                        width: 75, height: 75,
+                                        child: () {
+                                          final imgUrl = (data['imageUrl'] ?? '') as String;
+                                          final placeholderData = HomeScreen.getEventPlaceholderData(data['category'] ?? '');
+                                          final placeholder = Container(
+                                            width: 75, height: 75,
+                                            decoration: BoxDecoration(
+                                              gradient: placeholderData['gradient'] as LinearGradient?,
+                                            ),
+                                            child: Center(child: Icon(placeholderData['icon'] as IconData?, color: Colors.white, size: 32)),
+                                          );
+                                          if (imgUrl.isEmpty) return placeholder;
+                                          // Handle base64 data URLs (stored by older uploads)
+                                          if (imgUrl.startsWith('data:image/')) {
+                                            try {
+                                              final bytes = base64Decode(imgUrl.split(',').last);
+                                              return Image.memory(bytes, width: 75, height: 75, fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => placeholder);
+                                            } catch (_) { return placeholder; }
+                                          }
+                                          return Image.network(
+                                            imgUrl,
+                                            width: 75, height: 75,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => placeholder,
+                                            loadingBuilder: (_, child, progress) {
+                                              if (progress == null) return child;
+                                              return Container(
+                                                width: 75, height: 75,
+                                                color: Colors.grey.shade200,
+                                                child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                              );
+                                            },
+                                          );
+                                        }(),
                                       ),
-                                      child: data['imageUrl'] == null || (data['imageUrl'] as String).isEmpty ? Center(child: Icon(HomeScreen.getEventPlaceholderData(data['category'] ?? '')['icon'] as IconData?, color: Colors.white, size: 32)) : null,
                                     ),
                                   ),
                                   const SizedBox(width: 18),

@@ -207,7 +207,7 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
     try {
       final fileName = 'login_assets/${DateTime.now().millisecondsSinceEpoch}.jpg';
       final storageRef = FirebaseStorage.instance.ref().child(fileName);
-      await storageRef.putFile(File(image.path));
+      await storageRef.putData(await image.readAsBytes());
       final downloadUrl = await storageRef.getDownloadURL();
       onUpload(downloadUrl);
     } catch (e) {

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../homescreen.dart';
@@ -187,43 +188,42 @@ class _ParishAllEventsScreenState extends State<ParishAllEventsScreen> {
                           final bool hasValidImage = imageUrl != null &&
                               imageUrl.isNotEmpty &&
                               !imageUrl.contains('via.placeholder.com');
-                          final placeholder = HomeScreen.getEventPlaceholderData(
+                          final placeholderData = HomeScreen.getEventPlaceholderData(
                             data['category']?.toString() ?? '',
                           );
+                          final placeholder = Container(
+                            decoration: BoxDecoration(
+                              gradient: placeholderData['gradient'] as LinearGradient?,
+                            ),
+                            child: Center(
+                              child: Icon(
+                                placeholderData['icon'] as IconData?,
+                                color: Colors.white,
+                                size: 32,
+                              ),
+                            ),
+                          );
 
-                          if (hasValidImage) {
-                            return Image.network(
-                              imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (ctx, err, st) => Container(
-                                decoration: BoxDecoration(
-                                  gradient: placeholder['gradient']
-                                      as LinearGradient?,
-                                ),
-                                child: Center(
-                                  child: Icon(
-                                    placeholder['icon'] as IconData?,
-                                    color: Colors.white,
-                                    size: 32,
-                                  ),
-                                ),
-                              ),
-                            );
-                          } else {
-                            return Container(
-                              decoration: BoxDecoration(
-                                gradient:
-                                    placeholder['gradient'] as LinearGradient?,
-                              ),
-                              child: Center(
-                                child: Icon(
-                                  placeholder['icon'] as IconData?,
-                                  color: Colors.white,
-                                  size: 32,
-                                ),
-                              ),
-                            );
+                          if (!hasValidImage) return placeholder;
+
+                          if (imageUrl.startsWith('data:image/')) {
+                            try {
+                              final bytes = base64Decode(imageUrl.split(',').last);
+                              return Image.memory(
+                                bytes,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => placeholder,
+                              );
+                            } catch (_) {
+                              return placeholder;
+                            }
                           }
+
+                          return Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (ctx, err, st) => placeholder,
+                          );
                         },
                       ),
                     ),
