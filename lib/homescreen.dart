@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sundayschool_app/auth_screen.dart';
@@ -1739,8 +1740,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         final now = DateTime.now();
         final activePrograms = snapshot.data!.docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
+          final startDate = (data['startDate'] as Timestamp?)?.toDate();
           final endDate = (data['endDate'] as Timestamp?)?.toDate();
-          return endDate != null && endDate.isAfter(now);
+          final isStarted = startDate == null || !startDate.isAfter(now);
+          final isNotEnded = endDate != null && endDate.isAfter(now);
+          return isStarted && isNotEnded;
         }).toList();
 
         if (activePrograms.isEmpty) {
@@ -1757,89 +1761,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           return bStart.compareTo(aStart);
         });
 
-        final latestProgram =
-            activePrograms.first.data() as Map<String, dynamic>;
-        final String programName = latestProgram['name'] ?? 'New Program';
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          child: GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const RegistrationDashboard(),
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.purple.shade700, Colors.purple.shade900],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.purple.shade900.withAlpha(77),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(51),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.campaign_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Registration Open!',
-                          style: GoogleFonts.poppins(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          programName,
-                          style: GoogleFonts.poppins(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
+        return ActiveProgramsBanner(activePrograms: activePrograms);
       },
     );
   }
@@ -2801,6 +2723,188 @@ class EventListSkeleton extends StatelessWidget {
           );
         }),
       ),
+    );
+  }
+}
+
+class ActiveProgramsBanner extends StatefulWidget {
+  final List<QueryDocumentSnapshot> activePrograms;
+  const ActiveProgramsBanner({super.key, required this.activePrograms});
+
+  @override
+  State<ActiveProgramsBanner> createState() => _ActiveProgramsBannerState();
+}
+
+class _ActiveProgramsBannerState extends State<ActiveProgramsBanner> {
+  late final PageController _pageController;
+  Timer? _timer;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    if (widget.activePrograms.length > 1) {
+      _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
+        if (!mounted) return;
+        final nextIndex = (_currentIndex + 1) % widget.activePrograms.length;
+        _pageController.animateToPage(
+          nextIndex,
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOutCubic,
+        );
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ActiveProgramsBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.activePrograms.length != widget.activePrograms.length) {
+      _startTimer();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.activePrograms.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 86,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: widget.activePrograms.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final programDoc = widget.activePrograms[index];
+              final programData = programDoc.data() as Map<String, dynamic>;
+              final String programName = programData['name'] ?? 'New Program';
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RegistrationDashboard(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.purple.shade700, Colors.purple.shade900],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.purple.shade900.withAlpha(77),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withAlpha(51),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.campaign_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Registration Open!',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                programName,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        if (widget.activePrograms.length > 1) ...[
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(widget.activePrograms.length, (index) {
+              final isSelected = _currentIndex == index;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: isSelected ? 16 : 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.purple.shade700 : Colors.purple.shade200,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 12),
+        ] else ...[
+          const SizedBox(height: 20),
+        ],
+      ],
     );
   }
 }

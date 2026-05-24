@@ -113,11 +113,12 @@ Future<void> openYamaprarthanakalApp(BuildContext context) async {
 }
 
 Future<void> openBible(BuildContext context) async {
-  // Package name for Yama Prarthanakal app
+  // Package name for POC Bible app
   // IMPORTANT: Verify this matches the actual package name in Play Store
   // You can check by looking at the Play Store URL: https://play.google.com/store/apps/details?id=PACKAGE_NAME
   const packageName = 'org.jesusyouth.poc.activity';
-  const playStoreUrl = '//play.google.com/store/apps/details?id=$packageName';
+  const playStoreUrl =
+      'https://play.google.com/store/apps/details?id=$packageName';
 
   debugPrint('=== Opening Bible App ===');
   debugPrint('Package name: $packageName');

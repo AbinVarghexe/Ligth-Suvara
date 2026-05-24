@@ -79,8 +79,15 @@ class _ProgramsScreenState extends State<ProgramsScreen>
               final themeMal =
                   data['themeMalayalam'] ?? '“നിത്യജീവനിലുള്ള പ്രത്യാശ”';
               final themeEng = data['themeEnglish'] ?? 'Hope in Eternal Life';
-              final List<dynamic> programsList =
+              final List<dynamic> rawList =
                   data['programs'] ?? _getDefaultPrograms();
+              final List<Map<String, dynamic>> programsList =
+                  rawList.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+
+              final List<Map<String, dynamic>> firstFive =
+                  programsList.take(5).toList();
+              final List<Map<String, dynamic>> remaining =
+                  programsList.skip(5).toList();
 
               return SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -118,9 +125,9 @@ class _ProgramsScreenState extends State<ProgramsScreen>
                         ],
                       ),
                     ),
-                    _buildProgramList(
-                      programsList.cast<Map<String, dynamic>>(),
-                    ),
+                    _buildProgramList(firstFive),
+                    if (remaining.isNotEmpty)
+                      _buildMoreButton(context, remaining),
                   ],
                 ),
               );
@@ -276,41 +283,6 @@ class _ProgramsScreenState extends State<ProgramsScreen>
     ];
   }
 
-  IconData _getIconFromName(String iconName) {
-    switch (iconName) {
-      case 'fire':
-        return FontAwesomeIcons.fire;
-      case 'bookOpenReader':
-        return FontAwesomeIcons.bookOpenReader;
-      case 'graduationCap':
-        return FontAwesomeIcons.graduationCap;
-      case 'users':
-        return FontAwesomeIcons.users;
-      case 'circleQuestion':
-        return FontAwesomeIcons.circleQuestion;
-      case 'handsHoldingChild':
-        return FontAwesomeIcons.handsHoldingChild;
-      case 'masksTheater':
-        return FontAwesomeIcons.masksTheater;
-      case 'star':
-        return FontAwesomeIcons.star;
-      case 'church':
-        return FontAwesomeIcons.church;
-      case 'cross':
-        return FontAwesomeIcons.cross;
-      case 'dove':
-        return FontAwesomeIcons.dove;
-      case 'heart':
-        return FontAwesomeIcons.heart;
-      case 'lightbulb':
-        return FontAwesomeIcons.lightbulb;
-      case 'music':
-        return FontAwesomeIcons.music;
-      default:
-        return FontAwesomeIcons.star;
-    }
-  }
-
   Widget _buildProgramList(List<Map<String, dynamic>> programs) {
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
@@ -322,86 +294,95 @@ class _ProgramsScreenState extends State<ProgramsScreen>
         begin = begin.clamp(0.0, 0.8);
         double end = (begin + 0.4).clamp(0.0, 1.0);
 
-        return SlideTransition(
-          position: Tween<Offset>(begin: const Offset(0.1, 0), end: Offset.zero)
-              .animate(
-                CurvedAnimation(
-                  parent: _controller,
-                  curve: Interval(begin, end, curve: Curves.easeOutCubic),
-                ),
-              ),
-          child: FadeTransition(
-            opacity: CurvedAnimation(
-              parent: _controller,
-              curve: Interval(begin, end, curve: Curves.easeOut),
-            ),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: const Color(
-                  0xFFFFFBEB,
-                ).withOpacity(0.4), // Warm glass tint
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: _goldAccent.withOpacity(0.4),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _goldAccent.withOpacity(0.08),
-                    spreadRadius: 1,
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
+        return ProgramCard(
+          program: programs[index],
+          animation: CurvedAnimation(
+            parent: _controller,
+            curve: Interval(begin, end, curve: Curves.easeOutCubic),
+          ),
+        );
+      },
+    );
+  }
 
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-                leading: Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: _primaryBlue.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: _primaryBlue.withOpacity(0.1)),
-                  ),
-                  child: Icon(
-                    _getIconFromName(
-                      programs[index]['iconName']?.toString() ?? 'star',
+  Widget _buildMoreButton(
+    BuildContext context,
+    List<Map<String, dynamic>> remainingPrograms,
+  ) {
+    return SlideTransition(
+      position: Tween<Offset>(begin: const Offset(0.1, 0), end: Offset.zero)
+          .animate(
+            CurvedAnimation(
+              parent: _controller,
+              curve: const Interval(0.7, 1.0, curve: Curves.easeOutCubic),
+            ),
+          ),
+      child: FadeTransition(
+        opacity: CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0.7, 1.0, curve: Curves.easeOut),
+        ),
+        child: Container(
+          margin: const EdgeInsets.only(top: 8, bottom: 24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              colors: [
+                _primaryBlue,
+                _primaryBlue.withOpacity(0.85),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _primaryBlue.withOpacity(0.25),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MoreProgramsScreen(
+                      programs: remainingPrograms,
                     ),
-                    color: _primaryBlue,
-                    size: 24,
                   ),
-                ),
-                title: Text(
-                  programs[index]['title'] as String,
-                  style: GoogleFonts.outfit(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: _primaryBlue,
-                  ),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    programs[index]['desc'] as String,
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF64748B),
-                      height: 1.4,
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'More Programs',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -448,6 +429,305 @@ class _ProgramsScreenState extends State<ProgramsScreen>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProgramCard extends StatefulWidget {
+  final Map<String, dynamic> program;
+  final Animation<double> animation;
+
+  const ProgramCard({
+    super.key,
+    required this.program,
+    required this.animation,
+  });
+
+  @override
+  State<ProgramCard> createState() => _ProgramCardState();
+}
+
+class _ProgramCardState extends State<ProgramCard> {
+  bool _isExpanded = false;
+
+  final Color _primaryBlue = const Color(0xFF1E3A8A);
+  final Color _goldAccent = const Color(0xFFBC8A3A);
+
+  @override
+  Widget build(BuildContext context) {
+    final String title = widget.program['title']?.toString() ?? '';
+    final String desc = widget.program['desc']?.toString() ?? '';
+    final String iconName = widget.program['iconName']?.toString() ?? 'star';
+    final bool isLongDescription = desc.length > 60;
+
+    return SlideTransition(
+      position: Tween<Offset>(begin: const Offset(0.1, 0), end: Offset.zero)
+          .animate(widget.animation),
+      child: FadeTransition(
+        opacity: widget.animation,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFBEB).withOpacity(0.4), // Warm glass tint
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: _goldAccent.withOpacity(0.4),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _goldAccent.withOpacity(0.08),
+                spreadRadius: 1,
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: isLongDescription
+                  ? () {
+                      setState(() {
+                        _isExpanded = !_isExpanded;
+                      });
+                    }
+                  : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: _primaryBlue.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: _primaryBlue.withOpacity(0.1)),
+                      ),
+                      child: Icon(
+                        _getIconFromName(iconName),
+                        color: _primaryBlue,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: GoogleFonts.outfit(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: _primaryBlue,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                            alignment: Alignment.topLeft,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  desc,
+                                  maxLines: _isExpanded ? null : 2,
+                                  overflow: _isExpanded
+                                      ? TextOverflow.visible
+                                      : TextOverflow.ellipsis,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: const Color(0xFF64748B),
+                                    height: 1.4,
+                                  ),
+                                ),
+                                if (isLongDescription) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    _isExpanded ? 'Show less' : 'Read more',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: _goldAccent,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _getIconFromName(String iconName) {
+    switch (iconName) {
+      case 'fire':
+        return FontAwesomeIcons.fire;
+      case 'bookOpenReader':
+        return FontAwesomeIcons.bookOpenReader;
+      case 'graduationCap':
+        return FontAwesomeIcons.graduationCap;
+      case 'users':
+        return FontAwesomeIcons.users;
+      case 'circleQuestion':
+        return FontAwesomeIcons.circleQuestion;
+      case 'handsHoldingChild':
+        return FontAwesomeIcons.handsHoldingChild;
+      case 'masksTheater':
+        return FontAwesomeIcons.masksTheater;
+      case 'star':
+        return FontAwesomeIcons.star;
+      case 'church':
+        return FontAwesomeIcons.church;
+      case 'cross':
+        return FontAwesomeIcons.cross;
+      case 'dove':
+        return FontAwesomeIcons.dove;
+      case 'heart':
+        return FontAwesomeIcons.heart;
+      case 'lightbulb':
+        return FontAwesomeIcons.lightbulb;
+      case 'music':
+        return FontAwesomeIcons.music;
+      default:
+        return FontAwesomeIcons.star;
+    }
+  }
+}
+
+class MoreProgramsScreen extends StatefulWidget {
+  final List<Map<String, dynamic>> programs;
+
+  const MoreProgramsScreen({
+    super.key,
+    required this.programs,
+  });
+
+  @override
+  State<MoreProgramsScreen> createState() => _MoreProgramsScreenState();
+}
+
+class _MoreProgramsScreenState extends State<MoreProgramsScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final Color _primaryBlue = const Color(0xFF1E3A8A);
+  final Color _goldAccent = const Color(0xFFBC8A3A);
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: Text(
+          'More Programs',
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w800,
+            color: _primaryBlue,
+            fontSize: 22,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new, color: _primaryBlue),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: HeavenlyBackground(
+        showImage: true,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 24,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0, bottom: 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: _goldAccent,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'ADDITIONAL PROGRAMS',
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: _primaryBlue.withOpacity(0.8),
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ListView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  itemCount: widget.programs.length,
+                  itemBuilder: (context, index) {
+                    double begin = 0.1 + (index * 0.1);
+                    begin = begin.clamp(0.0, 0.8);
+                    double end = (begin + 0.4).clamp(0.0, 1.0);
+
+                    return ProgramCard(
+                      program: widget.programs[index],
+                      animation: CurvedAnimation(
+                        parent: _controller,
+                        curve: Interval(begin, end, curve: Curves.easeOutCubic),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

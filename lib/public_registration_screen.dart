@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:ui';
 import 'package:flutter/services.dart';
 
 class PublicRegistrationScreen extends StatefulWidget {
@@ -24,13 +23,13 @@ class PublicRegistrationScreen extends StatefulWidget {
 class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _qualificationController = TextEditingController();
-  final _statusController = TextEditingController();
   bool _isLoading = false;
+  bool _isLoadingProgram = true;
+  List<CustomField> _fields = [];
+
+  final Map<String, TextEditingController> _controllers = {};
+  final Map<String, bool> _boolValues = {};
+  final Map<String, String> _selectValues = {};
 
   String _selectedCountryCode = '+91';
   final List<String> _countryCodes = [
@@ -60,18 +59,78 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
       vsync: this,
       duration: const Duration(seconds: 25),
     )..repeat(reverse: true);
+    _fetchProgramFields();
   }
 
   @override
   void dispose() {
     _bgAnimationController?.dispose();
-    _nameController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
-    _addressController.dispose();
-    _qualificationController.dispose();
-    _statusController.dispose();
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  Future<void> _fetchProgramFields() async {
+    setState(() => _isLoadingProgram = true);
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('public_registration_programs')
+          .doc(widget.eventId)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data();
+        if (data != null && data['customFields'] != null) {
+          final List<dynamic> fieldsData = data['customFields'];
+          setState(() {
+            _fields = fieldsData
+                .map((f) => CustomField.fromMap(Map<String, dynamic>.from(f)))
+                .where((f) => f.id != 'academicBackground')
+                .toList();
+          });
+        }
+      }
+
+      if (_fields.isEmpty) {
+        _fields = _getDefaultFields();
+      }
+
+      for (var field in _fields) {
+        if (field.type == 'boolean') {
+          _boolValues[field.id] = false;
+        } else if (field.type == 'select') {
+          if (field.options.isNotEmpty) {
+            _selectValues[field.id] = field.options.first;
+          } else {
+            _selectValues[field.id] = '';
+          }
+        } else {
+          _controllers[field.id] = TextEditingController();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching program fields: $e');
+      setState(() {
+        _fields = _getDefaultFields();
+      });
+      for (var field in _fields) {
+        _controllers[field.id] = TextEditingController();
+      }
+    } finally {
+      setState(() => _isLoadingProgram = false);
+    }
+  }
+
+  List<CustomField> _getDefaultFields() {
+    return [
+      CustomField(id: "name", name: "Full Name", type: "text", isMandatory: true, options: []),
+      CustomField(id: "phone", name: "Phone Number", type: "text", isMandatory: true, options: []),
+      CustomField(id: "email", name: "Email Address", type: "text", isMandatory: false, options: []),
+      CustomField(id: "qualification", name: "Educational Qualification", type: "text", isMandatory: false, options: []),
+      CustomField(id: "currentStatus", name: "Current Status (Student / Working / Etc.)", type: "text", isMandatory: false, options: []),
+      CustomField(id: "address", name: "Residential Address", type: "text", isMandatory: false, options: []),
+    ];
   }
 
   Widget _buildAnimatedOrb({
@@ -144,17 +203,55 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     try {
-      await FirebaseFirestore.instance.collection('public_registrations').add({
+      final Map<String, dynamic> regData = {
         'programId': widget.eventId,
         'programTitle': widget.eventTitle,
-        'name': _nameController.text.trim(),
-        'phone': '$_selectedCountryCode${_phoneController.text.trim()}',
-        'email': _emailController.text.trim(),
-        'address': _addressController.text.trim(),
-        'qualification': _qualificationController.text.trim(),
-        'currentStatus': _statusController.text.trim(),
         'timestamp': FieldValue.serverTimestamp(),
-      });
+      };
+
+      final Map<String, dynamic> customFieldValues = {};
+
+      for (var field in _fields) {
+        dynamic value;
+        if (field.type == 'boolean') {
+          value = _boolValues[field.id] ?? false;
+        } else if (field.type == 'select') {
+          value = _selectValues[field.id] ?? '';
+        } else {
+          final textVal = _controllers[field.id]?.text.trim() ?? '';
+          if (field.type == 'number') {
+            value = num.tryParse(textVal) ?? textVal;
+          } else {
+            value = textVal;
+          }
+        }
+
+        const predefinedKeys = {
+          'name',
+          'phone',
+          'email',
+          'qualification',
+          'currentStatus',
+          'academicBackground',
+          'address'
+        };
+
+        if (predefinedKeys.contains(field.id)) {
+          if (field.id == 'phone') {
+            regData[field.id] = '$_selectedCountryCode$value';
+          } else {
+            regData[field.id] = value;
+          }
+        } else {
+          customFieldValues[field.id] = value;
+        }
+      }
+
+      if (customFieldValues.isNotEmpty) {
+        regData['customFieldValues'] = customFieldValues;
+      }
+
+      await FirebaseFirestore.instance.collection('public_registrations').add(regData);
       if (mounted) _showSuccessDialog();
     } catch (e) {
       if (mounted) {
@@ -398,52 +495,22 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
                                   ),
                                 ],
                                 const SizedBox(height: 36),
-                                _buildField(
-                                  label: 'Full Name',
-                                  controller: _nameController,
-                                  icon: Icons.person_outline_rounded,
-                                  validator: (v) =>
-                                      (v == null || v.trim().isEmpty)
-                                      ? 'Full Name is required'
-                                      : null,
-                                ),
-                                _buildPhoneField(),
-                                _buildField(
-                                  label: 'Email Address',
-                                  controller: _emailController,
-                                  icon: Icons.email_outlined,
-                                  keyboardType: TextInputType.emailAddress,
-                                  validator: (v) => !v!.contains('@')
-                                      ? 'Enter a valid email'
-                                      : null,
-                                ),
-                                _buildField(
-                                  label: 'Residential Address',
-                                  controller: _addressController,
-                                  icon: Icons.home_outlined,
-                                  maxLines: 3,
-                                  validator: (v) =>
-                                      v!.isEmpty ? 'Address is required' : null,
-                                ),
-                                _buildField(
-                                  label: 'Educational Qualification',
-                                  controller: _qualificationController,
-                                  icon: Icons.school_outlined,
-                                  validator: (v) => v!.isEmpty
-                                      ? 'Qualification is required'
-                                      : null,
-                                ),
-                                _buildField(
-                                  label:
-                                      'Current Status (Student / Working / Etc.)',
-                                  controller: _statusController,
-                                  icon: Icons.work_outline_rounded,
-                                  validator: (v) => v!.isEmpty
-                                      ? 'Current status is required'
-                                      : null,
-                                ),
-                                const SizedBox(height: 12),
-                                _buildSubmitButton(),
+                                if (_isLoadingProgram)
+                                  const Center(
+                                    child: Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 40.0),
+                                      child: CircularProgressIndicator(
+                                        color: Color(0xFF1E3A8A),
+                                      ),
+                                    ),
+                                  )
+                                else ...[
+                                  ..._fields.map(
+                                      (field) => _buildDynamicField(field)),
+                                  const SizedBox(height: 12),
+                                  _buildSubmitButton(),
+                                ],
                                 const SizedBox(height: 60),
                               ],
                             ),
@@ -516,15 +583,38 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
     );
   }
 
-  Widget _buildField({
-    required String label,
-    required TextEditingController controller,
-    required IconData icon,
-    int maxLines = 1,
-    TextInputType keyboardType = TextInputType.text,
-    List<TextInputFormatter>? inputFormatters,
-    String? Function(String?)? validator,
-  }) {
+  Widget _buildDynamicField(CustomField field) {
+    if (field.id == 'phone') {
+      return _buildPhoneField(field);
+    } else if (field.type == 'boolean') {
+      return _buildBooleanToggleField(field);
+    } else if (field.type == 'select') {
+      return _buildDropdownField(field);
+    } else {
+      return _buildDynamicTextField(field);
+    }
+  }
+
+  Widget _buildDynamicTextField(CustomField field) {
+    final controller = _controllers[field.id] ?? TextEditingController();
+    final isNumber = field.type == 'number';
+    final isAddress = field.id == 'address';
+
+    IconData icon = Icons.edit_note_rounded;
+    if (field.id == 'name') {
+      icon = Icons.person_outline_rounded;
+    } else if (field.id == 'email') {
+      icon = Icons.email_outlined;
+    } else if (field.id == 'address') {
+      icon = Icons.home_outlined;
+    } else if (field.id == 'qualification' || field.id == 'academicBackground') {
+      icon = Icons.school_outlined;
+    } else if (field.id == 'currentStatus') {
+      icon = Icons.work_outline_rounded;
+    } else if (isNumber) {
+      icon = Icons.numbers_rounded;
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
@@ -532,13 +622,22 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              label,
-              style: GoogleFonts.outfit(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF334155),
-              ),
+            child: Row(
+              children: [
+                Text(
+                  field.name,
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF334155),
+                  ),
+                ),
+                if (field.isMandatory)
+                  const Text(
+                    ' *',
+                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                  ),
+              ],
             ),
           ),
           Container(
@@ -554,9 +653,13 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
             ),
             child: TextFormField(
               controller: controller,
-              maxLines: maxLines,
-              keyboardType: keyboardType,
-              inputFormatters: inputFormatters,
+              maxLines: isAddress ? 3 : 1,
+              keyboardType: isNumber
+                  ? TextInputType.number
+                  : (field.id == 'email' ? TextInputType.emailAddress : TextInputType.text),
+              inputFormatters: isNumber
+                  ? [FilteringTextInputFormatter.digitsOnly]
+                  : null,
               style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w500,
                 color: const Color(0xFF0F172A),
@@ -592,14 +695,22 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
                   horizontal: 20,
                   vertical: 20,
                 ),
-                hintText: 'Enter your $label',
+                hintText: 'Enter your ${field.name}',
                 hintStyle: GoogleFonts.outfit(
                   fontSize: 14,
                   color: Colors.grey.shade400,
                   fontWeight: FontWeight.w400,
                 ),
               ),
-              validator: validator,
+              validator: (v) {
+                if (field.isMandatory && (v == null || v.trim().isEmpty)) {
+                  return '${field.name} is required';
+                }
+                if (field.id == 'email' && v != null && v.trim().isNotEmpty && !v.contains('@')) {
+                  return 'Enter a valid email';
+                }
+                return null;
+              },
             ),
           ),
         ],
@@ -607,7 +718,8 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
     );
   }
 
-  Widget _buildPhoneField() {
+  Widget _buildPhoneField(CustomField field) {
+    final controller = _controllers[field.id] ?? TextEditingController();
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
@@ -615,13 +727,22 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              'Phone Number',
-              style: GoogleFonts.outfit(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF334155),
-              ),
+            child: Row(
+              children: [
+                Text(
+                  field.name,
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF334155),
+                  ),
+                ),
+                if (field.isMandatory)
+                  const Text(
+                    ' *',
+                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                  ),
+              ],
             ),
           ),
           Container(
@@ -636,18 +757,18 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
               ],
             ),
             child: TextFormField(
-              controller: _phoneController,
+              controller: controller,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               maxLength: _selectedCountryCode == '+91'
                   ? 10
-                  : 15, // 10-digit limit for India
+                  : 15,
               style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w500,
                 color: const Color(0xFF0F172A),
               ),
               decoration: InputDecoration(
-                counterText: '', // Hide the counter for a cleaner look
+                counterText: '',
                 prefixIcon: Container(
                   width: 95,
                   margin: const EdgeInsets.only(right: 8),
@@ -723,15 +844,204 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
                 ),
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) {
+                if (field.isMandatory && (v == null || v.trim().isEmpty)) {
                   return 'Phone number is required';
                 }
-                if (_selectedCountryCode == '+91') {
-                  if (v.length != 10) {
-                    return 'Indian phone numbers must be 10 digits';
+                if (v != null && v.trim().isNotEmpty) {
+                  if (_selectedCountryCode == '+91') {
+                    if (v.length != 10) {
+                      return 'Indian phone numbers must be 10 digits';
+                    }
+                  } else {
+                    if (v.length < 7) return 'Enter a valid phone number';
                   }
-                } else {
-                  if (v.length < 7) return 'Enter a valid phone number';
+                }
+                return null;
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBooleanToggleField(CustomField field) {
+    bool currentValue = _boolValues[field.id] ?? false;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Row(
+              children: [
+                Text(
+                  field.name,
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF334155),
+                  ),
+                ),
+                if (field.isMandatory)
+                  const Text(
+                    ' *',
+                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                  ),
+              ],
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Material(
+                color: Colors.transparent,
+                child: SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  value: currentValue,
+                  activeColor: const Color(0xFF1E3A8A),
+                  activeTrackColor: const Color(0xFF1E3A8A).withOpacity(0.2),
+                  inactiveThumbColor: Colors.grey.shade400,
+                  inactiveTrackColor: Colors.grey.shade200,
+                  title: Text(
+                    currentValue ? 'Yes' : 'No',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      color: currentValue ? const Color(0xFF1E3A8A) : const Color(0xFF64748B),
+                      fontSize: 15,
+                    ),
+                  ),
+                  secondary: const Icon(
+                    Icons.rule_rounded,
+                    color: Color(0xFF1E3A8A),
+                    size: 20,
+                  ),
+                  onChanged: (bool value) {
+                    setState(() {
+                      _boolValues[field.id] = value;
+                    });
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDropdownField(CustomField field) {
+    String currentValue = _selectValues[field.id] ?? '';
+    List<String> options = field.options;
+
+    if (options.isNotEmpty && !options.contains(currentValue)) {
+      currentValue = options.first;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Row(
+              children: [
+                Text(
+                  field.name,
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF334155),
+                  ),
+                ),
+                if (field.isMandatory)
+                  const Text(
+                    ' *',
+                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                  ),
+              ],
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: DropdownButtonFormField<String>(
+              value: currentValue.isEmpty && options.isNotEmpty ? options.first : currentValue,
+              dropdownColor: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF0F172A),
+              ),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(
+                  Icons.list_rounded,
+                  color: Color(0xFF1E3A8A),
+                  size: 20,
+                ),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.9),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF1E3A8A),
+                    width: 1.5,
+                  ),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: const BorderSide(color: Colors.red, width: 1),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 20,
+                ),
+              ),
+              items: options.map((option) {
+                return DropdownMenuItem<String>(
+                  value: option,
+                  child: Text(option),
+                );
+              }).toList(),
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() {
+                    _selectValues[field.id] = v;
+                  });
+                }
+              },
+              validator: (v) {
+                if (field.isMandatory && (v == null || v.isEmpty)) {
+                  return 'Please select ${field.name}';
                 }
                 return null;
               },
@@ -782,6 +1092,32 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
           ],
         ),
       ),
+    );
+  }
+}
+
+class CustomField {
+  final String id;
+  final String name;
+  final String type;
+  final bool isMandatory;
+  final List<String> options;
+
+  CustomField({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.isMandatory,
+    required this.options,
+  });
+
+  factory CustomField.fromMap(Map<String, dynamic> map) {
+    return CustomField(
+      id: map['id']?.toString() ?? '',
+      name: map['name']?.toString() ?? '',
+      type: map['type']?.toString() ?? 'text',
+      isMandatory: map['isMandatory'] == true,
+      options: List<String>.from(map['options'] ?? []),
     );
   }
 }

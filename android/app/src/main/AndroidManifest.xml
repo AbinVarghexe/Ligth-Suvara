@@ -21,6 +21,7 @@
         </intent>
         <!-- CORE FIX: Correctly declare query for a specific package -->
         <package android:name="org.praarthana.syromalabaryaamapraarthanakal" />
+        <package android:name="org.jesusyouth.poc.activity" />
     </queries>
 
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>

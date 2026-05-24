@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -26,8 +27,12 @@ class CinematicMessageView extends StatefulWidget {
 class _CinematicMessageViewState extends State<CinematicMessageView>
     with SingleTickerProviderStateMixin {
   late AnimationController controller;
-  late Animation<double> fadeAnim;
-  late Animation<Offset> slideAnim;
+  
+  late Animation<double> profileFade;
+  late Animation<Offset> profileSlide;
+  late Animation<double> messageFade;
+  late Animation<Offset> messageSlide;
+  late Animation<double> quoteScale;
 
   @override
   void initState() {
@@ -35,18 +40,48 @@ class _CinematicMessageViewState extends State<CinematicMessageView>
 
     controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 1600),
     );
 
-    fadeAnim = Tween(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: controller, curve: Curves.easeOut),
+    profileFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: controller,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOutCubic),
+      ),
     );
 
-    slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.2),
+    profileSlide = Tween<Offset>(
+      begin: const Offset(0, 0.25),
       end: Offset.zero,
     ).animate(
-      CurvedAnimation(parent: controller, curve: Curves.easeOut),
+      CurvedAnimation(
+        parent: controller,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    messageFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: controller,
+        curve: const Interval(0.3, 0.8, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    messageSlide = Tween<Offset>(
+      begin: const Offset(0, 0.25),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: controller,
+        curve: const Interval(0.3, 0.8, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    quoteScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: controller,
+        curve: const Interval(0.5, 0.9, curve: Curves.elasticOut),
+      ),
     );
 
     controller.forward();
@@ -81,6 +116,7 @@ class _CinematicMessageViewState extends State<CinematicMessageView>
                   ? CachedNetworkImage(
                       imageUrl: widget.imageUrl,
                       fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
                       placeholder: (context, url) => Container(color: Colors.black),
                       errorWidget: (context, url, error) => Container(
                         color: Colors.grey.shade900,
@@ -90,6 +126,7 @@ class _CinematicMessageViewState extends State<CinematicMessageView>
                   : Image.asset(
                       widget.imageUrl,
                       fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
                     ),
             ),
           ),
@@ -100,131 +137,216 @@ class _CinematicMessageViewState extends State<CinematicMessageView>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withOpacity(0.05),
-                    Colors.white.withOpacity(0.2),
-                    const Color(0xFFFFFBEB).withOpacity(0.9), // Sophisticated Cream
+                    Colors.black.withValues(alpha: 0.05),
+                    Colors.white.withValues(alpha: 0.15),
+                    const Color(0xFFFFFBEB).withValues(alpha: 0.85), // Sophisticated Cream
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  stops: const [0.0, 0.4, 1.0],
+                  stops: const [0.0, 0.35, 1.0],
                 ),
               ),
             ),
           ),
 
-          /// 🔹 CONTENT (Bottom Aligned)
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  /// 🧊 LEADER PROFILE CARD (Glassmorphic)
-                  FadeTransition(
-                    opacity: fadeAnim,
-                    child: SlideTransition(
-                      position: slideAnim,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9), // 🔹 High-opacity light glass
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: const Color(0xFFBC8A3A).withOpacity(0.2), // 🔹 Subtle Gold border
-                                width: 1.2,
+          /// 🔹 FLOATING GOLDEN DUST PARTICLES
+          const Positioned.fill(
+            child: FloatingParticles(),
+          ),
+
+          /// 🔹 CONTENT (Scrollable overlay)
+          Positioned.fill(
+            child: SafeArea(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(24, 80, 24, 40),
+                child: Column(
+                  children: [
+                    SizedBox(height: MediaQuery.of(context).size.height * 0.42),
+                    
+                    /// 🧊 LEADER PROFILE CARD (Glassmorphic)
+                    FadeTransition(
+                      opacity: profileFade,
+                      child: SlideTransition(
+                        position: profileSlide,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.95),
+                                    const Color(0xFFFFFDF9).withValues(alpha: 0.90),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: const Color(0xFFBC8A3A).withValues(alpha: 0.25),
+                                  width: 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF1E3A8A).withValues(alpha: 0.08),
+                                    blurRadius: 25,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                  BoxShadow(
+                                    color: const Color(0xFFBC8A3A).withValues(alpha: 0.04),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              children: [
-                                Text(
-                                  widget.name.toUpperCase(),
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.outfit(
-                                    color: const Color(0xFF1E3A8A), // 🔹 Change to Navy Blue
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: widget.themeColor.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    widget.role,
+                              child: Column(
+                                children: [
+                                  Text(
+                                    widget.name.toUpperCase(),
+                                    textAlign: TextAlign.center,
                                     style: GoogleFonts.outfit(
-                                      color: widget.themeColor,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.5,
+                                      color: const Color(0xFF1E3A8A), // Navy Blue
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.5,
                                     ),
                                   ),
-                                ),
-                              ],
+                                  
+                                  // Fading Gold horizontal separator
+                                  Container(
+                                    width: 100,
+                                    height: 1.5,
+                                    margin: const EdgeInsets.symmetric(vertical: 14),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          const Color(0xFFBC8A3A).withValues(alpha: 0.0),
+                                          const Color(0xFFBC8A3A).withValues(alpha: 0.6),
+                                          const Color(0xFFBC8A3A).withValues(alpha: 0.0),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: widget.themeColor.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(30),
+                                      border: Border.all(
+                                        color: widget.themeColor.withValues(alpha: 0.3),
+                                        width: 1.0,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      widget.role,
+                                      style: GoogleFonts.outfit(
+                                        color: widget.themeColor,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
 
-                  if (hasMessage) ...[
-                    const SizedBox(height: 20),
-                    /// 💬 MESSAGE CARD (Cinematic)
-                    FadeTransition(
-                      opacity: fadeAnim,
-                      child: SlideTransition(
-                        position: slideAnim,
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(28),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.85), // 🔹 High-opacity light glass
+                    if (hasMessage) ...[
+                      const SizedBox(height: 24),
+                      
+                      /// 💬 MESSAGE CARD (Cinematic)
+                      FadeTransition(
+                        opacity: messageFade,
+                        child: SlideTransition(
+                          position: messageSlide,
+                          child: ClipRRect(
                             borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: const Color(0xFFBC8A3A).withOpacity(0.15), // 🔹 Subtle Gold border
-                              width: 1.0,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(Icons.format_quote_rounded,
-                                  color: const Color(0xFFBC8A3A), size: 32), // 🔹 Keep Gold for icons
-                              const SizedBox(height: 16),
-                              Text(
-                                widget.message!,
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.libreBaskerville(
-                                  color: const Color(0xFF334155), // 🔹 Slate Gray for better reading
-                                  fontSize: 17,
-                                  height: 1.6,
-                                  fontStyle: FontStyle.italic,
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.white.withValues(alpha: 0.9),
+                                      const Color(0xFFFFFBEB).withValues(alpha: 0.75),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: const Color(0xFFBC8A3A).withValues(alpha: 0.20),
+                                    width: 1.2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.03),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    Align(
+                                      alignment: Alignment.topLeft,
+                                      child: ScaleTransition(
+                                        scale: quoteScale,
+                                        child: Transform.rotate(
+                                          angle: math.pi, // Rotated 180 degrees to look like opening quote
+                                          child: const Icon(
+                                            Icons.format_quote_rounded,
+                                            color: Color(0xFFBC8A3A),
+                                            size: 38,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                                      child: Text(
+                                        widget.message!,
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.libreBaskerville(
+                                          color: const Color(0xFF334155), // Slate Gray for better reading
+                                          fontSize: 16.5,
+                                          height: 1.75,
+                                          fontStyle: FontStyle.italic,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Align(
+                                      alignment: Alignment.bottomRight,
+                                      child: Icon(
+                                        Icons.format_quote_rounded, // Default points right/down (closing quote)
+                                        color: Color(0xFFBC8A3A),
+                                        size: 30,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
-                  const SizedBox(height: 10),
-                ],
+                ),
               ),
             ),
           ),
@@ -234,7 +356,7 @@ class _CinematicMessageViewState extends State<CinematicMessageView>
             top: 50,
             right: 24,
             child: FadeTransition(
-              opacity: fadeAnim,
+              opacity: profileFade,
               child: GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: ClipRRect(
@@ -244,10 +366,10 @@ class _CinematicMessageViewState extends State<CinematicMessageView>
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.8), // 🔹 White background for button
+                        color: Colors.white.withValues(alpha: 0.8), // White background for button
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: const Color(0xFFBC8A3A).withOpacity(0.2),
+                          color: const Color(0xFFBC8A3A).withValues(alpha: 0.2),
                         ),
                       ),
                       child: const Icon(Icons.close_rounded, color: Color(0xFF1E3A8A), size: 24),
@@ -261,4 +383,107 @@ class _CinematicMessageViewState extends State<CinematicMessageView>
       ),
     );
   }
+}
+
+class FloatingParticles extends StatefulWidget {
+  const FloatingParticles({super.key});
+
+  @override
+  State<FloatingParticles> createState() => _FloatingParticlesState();
+}
+
+class _FloatingParticlesState extends State<FloatingParticles>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<_Particle> _particles = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 15),
+    )..repeat();
+
+    // Seed 22 random golden motes
+    final random = math.Random();
+    for (int i = 0; i < 22; i++) {
+      _particles.add(_Particle(random));
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: _ParticlePainter(_particles, _controller.value),
+        );
+      },
+    );
+  }
+}
+
+class _Particle {
+  late double x;
+  late double y;
+  late double size;
+  late double speed;
+  late double opacity;
+  late double waveFrequency;
+  late double waveAmplitude;
+
+  _Particle(math.Random random) {
+    x = random.nextDouble();
+    y = random.nextDouble();
+    size = random.nextDouble() * 3 + 1.5;
+    speed = random.nextDouble() * 0.08 + 0.03;
+    opacity = random.nextDouble() * 0.35 + 0.15;
+    waveFrequency = random.nextDouble() * 3 * math.pi;
+    waveAmplitude = random.nextDouble() * 0.015 + 0.005;
+  }
+}
+
+class _ParticlePainter extends CustomPainter {
+  final List<_Particle> particles;
+  final double progress;
+
+  _ParticlePainter(this.particles, this.progress);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    const goldColor = Color(0xFFBC8A3A);
+
+    for (var p in particles) {
+      // Rise animation
+      double currentY = (p.y - progress * p.speed) % 1.0;
+      // Sideways drifting wave using sine
+      double currentX = (p.x + math.sin(progress * 2 * math.pi + p.waveFrequency) * p.waveAmplitude) % 1.0;
+
+      double xPos = currentX * size.width;
+      double yPos = currentY * size.height;
+
+      // Soft fade in/out near screen edges
+      double borderFade = 1.0;
+      if (currentY < 0.15) {
+        borderFade = currentY / 0.15;
+      } else if (currentY > 0.85) {
+        borderFade = (1.0 - currentY) / 0.15;
+      }
+
+      paint.color = goldColor.withValues(alpha: p.opacity * borderFade.clamp(0.0, 1.0));
+      canvas.drawCircle(Offset(xPos, yPos), p.size, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ParticlePainter oldDelegate) => true;
 }

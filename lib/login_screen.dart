@@ -1904,8 +1904,8 @@ class _LoginScreenState extends State<LoginScreen>
                                         _buildAnimatedMenuItem(
                                           context,
                                           'Bible',
-                                          FontAwesomeIcons.handsPraying,
-                                          const Color(0xFF0EA5E9),
+                                          Icons.menu_book_rounded,
+                                          const Color(0xFFF59E0B),
                                           () => openBible(context),
                                         ),
                                         _buildAnimatedMenuItem(
