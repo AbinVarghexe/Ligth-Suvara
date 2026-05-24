@@ -149,11 +149,6 @@ class _CinematicMessageViewState extends State<CinematicMessageView>
             ),
           ),
 
-          /// 🔹 FLOATING GOLDEN DUST PARTICLES
-          const Positioned.fill(
-            child: FloatingParticles(),
-          ),
-
           /// 🔹 CONTENT (Scrollable overlay)
           Positioned.fill(
             child: SafeArea(
@@ -383,107 +378,4 @@ class _CinematicMessageViewState extends State<CinematicMessageView>
       ),
     );
   }
-}
-
-class FloatingParticles extends StatefulWidget {
-  const FloatingParticles({super.key});
-
-  @override
-  State<FloatingParticles> createState() => _FloatingParticlesState();
-}
-
-class _FloatingParticlesState extends State<FloatingParticles>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  final List<_Particle> _particles = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 15),
-    )..repeat();
-
-    // Seed 22 random golden motes
-    final random = math.Random();
-    for (int i = 0; i < 22; i++) {
-      _particles.add(_Particle(random));
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return CustomPaint(
-          painter: _ParticlePainter(_particles, _controller.value),
-        );
-      },
-    );
-  }
-}
-
-class _Particle {
-  late double x;
-  late double y;
-  late double size;
-  late double speed;
-  late double opacity;
-  late double waveFrequency;
-  late double waveAmplitude;
-
-  _Particle(math.Random random) {
-    x = random.nextDouble();
-    y = random.nextDouble();
-    size = random.nextDouble() * 3 + 1.5;
-    speed = random.nextDouble() * 0.08 + 0.03;
-    opacity = random.nextDouble() * 0.35 + 0.15;
-    waveFrequency = random.nextDouble() * 3 * math.pi;
-    waveAmplitude = random.nextDouble() * 0.015 + 0.005;
-  }
-}
-
-class _ParticlePainter extends CustomPainter {
-  final List<_Particle> particles;
-  final double progress;
-
-  _ParticlePainter(this.particles, this.progress);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..style = PaintingStyle.fill;
-    const goldColor = Color(0xFFBC8A3A);
-
-    for (var p in particles) {
-      // Rise animation
-      double currentY = (p.y - progress * p.speed) % 1.0;
-      // Sideways drifting wave using sine
-      double currentX = (p.x + math.sin(progress * 2 * math.pi + p.waveFrequency) * p.waveAmplitude) % 1.0;
-
-      double xPos = currentX * size.width;
-      double yPos = currentY * size.height;
-
-      // Soft fade in/out near screen edges
-      double borderFade = 1.0;
-      if (currentY < 0.15) {
-        borderFade = currentY / 0.15;
-      } else if (currentY > 0.85) {
-        borderFade = (1.0 - currentY) / 0.15;
-      }
-
-      paint.color = goldColor.withValues(alpha: p.opacity * borderFade.clamp(0.0, 1.0));
-      canvas.drawCircle(Offset(xPos, yPos), p.size, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _ParticlePainter oldDelegate) => true;
 }

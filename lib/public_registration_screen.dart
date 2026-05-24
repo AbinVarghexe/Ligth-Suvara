@@ -1,7 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:shimmer/shimmer.dart';
 
 class PublicRegistrationScreen extends StatefulWidget {
   final String eventId;
@@ -340,6 +343,58 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
     );
   }
 
+  Widget _buildFormSkeleton() {
+    Widget buildFieldSkeleton() {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 120,
+              height: 16,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              height: 60,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFFE2E8F0),
+      highlightColor: const Color(0xFFF1F5F9),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          buildFieldSkeleton(),
+          buildFieldSkeleton(),
+          buildFieldSkeleton(),
+          const SizedBox(height: 12),
+          Container(
+            height: 60,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -495,16 +550,8 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
                                   ),
                                 ],
                                 const SizedBox(height: 36),
-                                if (_isLoadingProgram)
-                                  const Center(
-                                    child: Padding(
-                                      padding:
-                                          EdgeInsets.symmetric(vertical: 40.0),
-                                      child: CircularProgressIndicator(
-                                        color: Color(0xFF1E3A8A),
-                                      ),
-                                    ),
-                                  )
+                                 if (_isLoadingProgram)
+                                  _buildFormSkeleton()
                                 else ...[
                                   ..._fields.map(
                                       (field) => _buildDynamicField(field)),
@@ -524,10 +571,59 @@ class _PublicRegistrationScreenState extends State<PublicRegistrationScreen>
             ),
           ),
           if (_isLoading)
-            Container(
-              color: Colors.white.withOpacity(0.6),
-              child: const Center(
-                child: CircularProgressIndicator(color: Color(0xFF1E3A8A)),
+            Positioned.fill(
+              child: ClipRRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+                        margin: const EdgeInsets.symmetric(horizontal: 40),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 30,
+                              offset: const Offset(0, 15),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            LoadingAnimationWidget.threeArchedCircle(
+                              color: const Color(0xFF1E3A8A),
+                              size: 50,
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              'Submitting Registration...',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.outfit(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Please hold on a moment',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.outfit(
+                                fontSize: 13,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
         ],
