@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 import 'package:sundayschool_app/providers/content_provider.dart';
 import 'package:sundayschool_app/widgets/heavenly_background.dart';
 import 'package:sundayschool_app/widgets/linkable_text.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 // Brand colors for consistency
 const Color _primaryBlue = Color(0xFF1E3A8A);
@@ -149,9 +151,23 @@ class BroadcastDetailScreen extends StatelessWidget {
                               child: Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  Image.network(
-                                    message.imageUrl!,
+                                  CachedNetworkImage(
+                                    imageUrl: message.imageUrl!,
                                     fit: BoxFit.cover,
+                                    placeholder: (context, url) => Shimmer.fromColors(
+                                      baseColor: Colors.grey.shade300,
+                                      highlightColor: Colors.grey.shade100,
+                                      child: Container(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    errorWidget: (context, url, error) => Container(
+                                      color: Colors.grey.shade300,
+                                      child: const Icon(
+                                        Icons.broken_image,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
                                   ),
                                   Container(
                                     decoration: BoxDecoration(
@@ -586,9 +602,25 @@ class CustomBroadcastTile extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(18),
                       child: message.imageUrl != null
-                          ? Image.network(
-                              message.imageUrl!,
+                          ? CachedNetworkImage(
+                              imageUrl: message.imageUrl!,
                               fit: BoxFit.cover,
+                              placeholder: (context, url) => Shimmer.fromColors(
+                                baseColor: Colors.grey.shade300,
+                                highlightColor: Colors.grey.shade100,
+                                child: Container(
+                                  color: Colors.white,
+                                  width: 60,
+                                  height: 60,
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey.shade300,
+                                child: const Icon(
+                                  Icons.broken_image,
+                                  color: Colors.grey,
+                                ),
+                              ),
                             )
                           : Center(
                               child: Icon(
