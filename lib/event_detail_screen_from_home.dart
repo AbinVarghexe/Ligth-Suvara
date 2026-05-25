@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:sundayschool_app/homescreen.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:sundayschool_app/widgets/full_screen_image_viewer.dart';
+import 'package:sundayschool_app/widgets/linkable_text.dart';
 
 // This is the dedicated screen to show the full details of a single event.
 class EventDetailScreenFromHome extends StatefulWidget {
@@ -230,8 +231,9 @@ class _EventDetailScreenState extends State<EventDetailScreenFromHome> {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
+          LinkableText(
             description,
+            linkColor: const Color(0xFF1E40AF),
             style: GoogleFonts.poppins(
               fontSize: 16,
               height: 1.7,

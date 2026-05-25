@@ -8,6 +8,7 @@ import 'package:sundayschool_app/widgets/full_screen_image_viewer.dart';
 import 'package:provider/provider.dart';
 import 'package:sundayschool_app/providers/content_provider.dart';
 import 'package:sundayschool_app/widgets/heavenly_background.dart';
+import 'package:sundayschool_app/widgets/linkable_text.dart';
 
 // Brand colors for consistency
 const Color _primaryBlue = Color(0xFF1E3A8A);
@@ -240,8 +241,9 @@ class BroadcastDetailScreen extends StatelessWidget {
                       const SizedBox(height: 20),
                       const Divider(height: 1),
                       const SizedBox(height: 24),
-                      Text(
+                      LinkableText(
                         message.body,
+                        linkColor: _primaryBlue,
                         style: GoogleFonts.outfit(
                           fontSize: 17,
                           height: 1.6,

@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:sundayschool_app/widgets/full_screen_image_viewer.dart';
+import 'package:sundayschool_app/widgets/linkable_text.dart';
 
 // --- DATA MODEL ---
 class AppNotification {
@@ -1111,8 +1112,9 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
                   const SizedBox(height: 16),
                   Divider(color: Colors.grey.shade200, thickness: 1.5),
                   const SizedBox(height: 16),
-                  Text(
+                  LinkableText(
                     widget.notification.message,
+                    linkColor: widget.style.color,
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       color: Colors.grey.shade800,

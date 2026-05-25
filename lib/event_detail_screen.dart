@@ -12,6 +12,7 @@ import 'package:sundayschool_app/edit_event_screen.dart';
 import 'package:sundayschool_app/report_generator.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
+import 'package:sundayschool_app/widgets/linkable_text.dart';
 
 // DATA MODEL
 class EventDetailsPageData {
@@ -627,8 +628,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
+          LinkableText(
             description,
+            linkColor: const Color(0xFF1E40AF),
             style: GoogleFonts.poppins(
               fontSize: 16,
               height: 1.7,

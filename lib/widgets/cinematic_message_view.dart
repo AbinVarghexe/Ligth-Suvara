@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:sundayschool_app/widgets/linkable_text.dart';
 
 class CinematicMessageView extends StatefulWidget {
   final String name;
@@ -311,9 +312,10 @@ class _CinematicMessageViewState extends State<CinematicMessageView>
                                     const SizedBox(height: 12),
                                     Padding(
                                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                                      child: Text(
+                                      child: LinkableText(
                                         widget.message!,
                                         textAlign: TextAlign.center,
+                                        linkColor: const Color(0xFFBC8A3A),
                                         style: GoogleFonts.libreBaskerville(
                                           color: const Color(0xFF334155), // Slate Gray for better reading
                                           fontSize: 16.5,
