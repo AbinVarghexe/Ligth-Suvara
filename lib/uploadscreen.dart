@@ -353,8 +353,9 @@ class _UploadScreenState extends State<UploadScreen> {
         _selectedTime!.minute,
       );
 
-      // Fetch user profile to get 'forane'
+      // Fetch user profile to get 'forane' and 'schoolName'
       String? userForane;
+      String? creatorName;
       if (user != null) {
         try {
           final userDoc = await FirebaseFirestore.instance
@@ -363,9 +364,10 @@ class _UploadScreenState extends State<UploadScreen> {
               .get();
           if (userDoc.exists) {
             userForane = userDoc.data()?['forane'];
+            creatorName = userDoc.data()?['schoolName'] ?? userDoc.data()?['schoolname'] ?? userDoc.data()?['name'];
           }
         } catch (e) {
-          debugPrint('Error fetching user forane: $e');
+          debugPrint('Error fetching user info: $e');
         }
       }
 
@@ -379,7 +381,9 @@ class _UploadScreenState extends State<UploadScreen> {
         'category': _selectedCategory,
         'forane': userForane,
         if (!_isEditing) 'creatorId': user!.uid,
+        if (!_isEditing && creatorName != null) 'creatorSchoolName': creatorName,
         if (!_isEditing) 'isPublic': user!.uid == 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2',
+        if (!_isEditing) 'status': user!.uid == 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2' ? 'approved' : 'pending',
         // createdAt is only written once at creation time
         if (!_isEditing) 'createdAt': FieldValue.serverTimestamp(),
         // updatedAt is refreshed on both create AND every subsequent edit

@@ -249,9 +249,15 @@ class _AdminAllEventsScreenState extends State<AdminAllEventsScreen> {
     bool currentStatus,
   ) async {
     try {
-      await FirebaseFirestore.instance.collection('events').doc(eventId).update(
-        {'isPublic': !currentStatus},
-      );
+      final Map<String, dynamic> updates = {
+        'isPublic': !currentStatus,
+      };
+      if (!currentStatus) {
+        updates['status'] = 'approved';
+      } else {
+        updates['status'] = 'rejected';
+      }
+      await FirebaseFirestore.instance.collection('events').doc(eventId).update(updates);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -22,6 +22,7 @@ import 'package:sundayschool_app/animator/registration_dashboard.dart';
 import 'package:sundayschool_app/animator/school_my_registrations_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 enum SortOption { newestFirst, alphabetical }
 
@@ -2209,12 +2210,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(16),
                             child: hasImage
-                                ? Image.network(
-                                    imageUrl,
+                                ? CachedNetworkImage(
+                                    imageUrl: imageUrl,
                                     fit: BoxFit.cover,
-                                    cacheWidth: 160,
-                                    cacheHeight: 160,
-                                    errorBuilder: (ctx, err, st) => Container(
+                                    memCacheWidth: 160,
+                                    memCacheHeight: 160,
+                                    placeholder: (context, url) => Container(
+                                      color: Colors.grey.shade100,
+                                      child: const Center(
+                                        child: SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        ),
+                                      ),
+                                    ),
+                                    errorWidget: (ctx, url, err) => Container(
                                       decoration: BoxDecoration(
                                         gradient:
                                             placeholder['gradient']
@@ -2548,10 +2559,15 @@ class _HighlightEventCardState extends State<HighlightEventCard> {
                   fit: StackFit.expand,
                   children: [
                     if (data['imageUrl'] != null)
-                      Image.network(
-                        data['imageUrl']!,
+                      CachedNetworkImage(
+                        imageUrl: data['imageUrl']!,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
+                        placeholder: (context, url) => Shimmer.fromColors(
+                          baseColor: Colors.grey.shade300,
+                          highlightColor: Colors.grey.shade100,
+                          child: Container(color: Colors.white),
+                        ),
+                        errorWidget: (context, url, error) {
                           final placeholder =
                               HomeScreen.getEventPlaceholderData(
                                 data['category'] ?? '',

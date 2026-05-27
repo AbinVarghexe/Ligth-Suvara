@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:ui'; // Required for ImageFilter
@@ -30,6 +31,8 @@ import 'package:sundayschool_app/event_detail_screen_from_home.dart';
 import 'package:provider/provider.dart'; // Import provider
 import 'package:sundayschool_app/providers/content_provider.dart'; // Import ContentProvider
 import 'package:sundayschool_app/homescreen.dart';
+import 'package:sundayschool_app/video_resources_guide_screen.dart';
+import 'package:sundayschool_app/video_resources_screen.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -50,6 +53,7 @@ class _LoginScreenState extends State<LoginScreen>
   int _currentRegIndex = 0; // Track current registration program index
   Stream<QuerySnapshot>? _publicProgramsStream;
   Timer? _bannerTimer; // 🔹 Timer for 3-second auto-play
+  final Map<String, Uint8List> _base64Cache = {};
 
   Widget _buildVerseSection(Map<String, dynamic> config) {
     if (config.isEmpty || config['verseText'] == null) {
@@ -1370,6 +1374,7 @@ class _LoginScreenState extends State<LoginScreen>
                   );
 
                   return Container(
+                    key: ValueKey('broadcast_carousel_${provider.broadcasts[index].id}'),
                     width: MediaQuery.of(context).size.width,
                     margin: const EdgeInsets.symmetric(horizontal: 5.0),
                     child: _buildUpdateCard(
@@ -1465,6 +1470,9 @@ class _LoginScreenState extends State<LoginScreen>
                           ? CachedNetworkImage(
                               imageUrl: imageUrl,
                               fit: BoxFit.cover,
+                              key: ValueKey(imageUrl),
+                              fadeInDuration: Duration.zero,
+                              fadeOutDuration: Duration.zero,
                               placeholder: (context, url) =>
                                   Container(color: Colors.white10),
                               errorWidget: (context, url, error) =>
@@ -1634,9 +1642,9 @@ class _LoginScreenState extends State<LoginScreen>
                   final doc = provider.events[index];
                   final data = doc.data() as Map<String, dynamic>;
                   final imageUrl = data['imageUrl'];
-                  debugPrint('Event ${doc.id} imageUrl: $imageUrl');
 
                   return GestureDetector(
+                    key: ValueKey('event_carousel_${doc.id}'),
                     onTap: () {
                       // Navigate to Detail Screen
                       Navigator.push(
@@ -1671,9 +1679,20 @@ class _LoginScreenState extends State<LoginScreen>
       if (imageUrl.startsWith('data:image/')) {
         // Base64 data URL stored by older admin uploads
         try {
-          final bytes = base64Decode(imageUrl.split(',').last);
-          imageWidget = Image.memory(bytes, fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => placeholder);
+          Uint8List bytes;
+          if (_base64Cache.containsKey(imageUrl)) {
+            bytes = _base64Cache[imageUrl]!;
+          } else {
+            bytes = base64Decode(imageUrl.split(',').last);
+            _base64Cache[imageUrl] = bytes;
+          }
+          imageWidget = Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            key: ValueKey(imageUrl),
+            errorBuilder: (_, __, ___) => placeholder,
+          );
         } catch (_) {
           imageWidget = placeholder;
         }
@@ -1681,6 +1700,9 @@ class _LoginScreenState extends State<LoginScreen>
         imageWidget = CachedNetworkImage(
           imageUrl: imageUrl,
           fit: BoxFit.cover,
+          key: ValueKey(imageUrl),
+          fadeInDuration: Duration.zero,
+          fadeOutDuration: Duration.zero,
           placeholder: (context, url) => Container(color: Colors.grey.shade200),
           errorWidget: (context, url, error) => Container(
             decoration: BoxDecoration(
@@ -1880,55 +1902,93 @@ class _LoginScreenState extends State<LoginScreen>
                                     ),
 
                                     const SizedBox(height: 24),
-                                    GridView.count(
-                                      crossAxisCount: 2,
-                                      shrinkWrap: true,
-                                      physics:
-                                          const NeverScrollableScrollPhysics(),
-                                      mainAxisSpacing: 16,
-                                      crossAxisSpacing: 16,
-                                      childAspectRatio: 1.1,
-                                      children: [
-                                        _buildAnimatedMenuItem(
-                                          context,
-                                          'Catechism',
-                                          Icons.auto_stories_rounded,
-                                          const Color(0xFF6366F1),
-                                          () => Navigator.push(
-                                            context,
-                                            CustomPageRoute(
-                                              child: const CatechismScreen(),
+                                    LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final itemWidth = (constraints.maxWidth - 32) / 3;
+                                        return Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                SizedBox(
+                                                  width: itemWidth,
+                                                  child: _buildAnimatedMenuItem(
+                                                    context,
+                                                    'Catechism',
+                                                    Icons.auto_stories_rounded,
+                                                    const Color(0xFF6366F1),
+                                                    () => Navigator.push(
+                                                      context,
+                                                      CustomPageRoute(
+                                                        child: const CatechismScreen(),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  width: itemWidth,
+                                                  child: _buildAnimatedMenuItem(
+                                                    context,
+                                                    'Bible',
+                                                    Icons.menu_book_rounded,
+                                                    const Color(0xFFF59E0B),
+                                                    () => openBible(context),
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  width: itemWidth,
+                                                  child: _buildAnimatedMenuItem(
+                                                    context,
+                                                    'Japamala',
+                                                    Icons.volunteer_activism_rounded,
+                                                    const Color(0xFFEC4899),
+                                                    () => Navigator.push(
+                                                      context,
+                                                      CustomPageRoute(
+                                                        child: const JapamalaScreen(),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                          ),
-                                        ),
-                                        _buildAnimatedMenuItem(
-                                          context,
-                                          'Bible',
-                                          Icons.menu_book_rounded,
-                                          const Color(0xFFF59E0B),
-                                          () => openBible(context),
-                                        ),
-                                        _buildAnimatedMenuItem(
-                                          context,
-                                          'Japamala',
-                                          Icons.volunteer_activism_rounded,
-                                          const Color(0xFFEC4899),
-                                          () => Navigator.push(
-                                            context,
-                                            CustomPageRoute(
-                                              child: const JapamalaScreen(),
+                                            const SizedBox(height: 16),
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                SizedBox(
+                                                  width: itemWidth,
+                                                  child: _buildAnimatedMenuItem(
+                                                    context,
+                                                    'Yama\nPrarthanakal',
+                                                    FontAwesomeIcons.handsPraying,
+                                                    const Color(0xFF0EA5E9),
+                                                    () =>
+                                                        openYamaprarthanakalApp(context),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 16),
+                                                SizedBox(
+                                                  width: itemWidth,
+                                                  child: _buildAnimatedMenuItem(
+                                                    context,
+                                                    'Videos',
+                                                    Icons.play_circle_fill_rounded,
+                                                    const Color(0xFFEF4444),
+                                                    () => Navigator.push(
+                                                      context,
+                                                      CustomPageRoute(
+                                                        child: const VideoResourcesScreen(),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                          ),
-                                        ),
-                                        _buildAnimatedMenuItem(
-                                          context,
-                                          'Yamaprarthanakal',
-                                          FontAwesomeIcons.handsPraying,
-                                          const Color(0xFF0EA5E9),
-                                          () =>
-                                              openYamaprarthanakalApp(context),
-                                        ),
-                                      ],
+                                          ],
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
@@ -1984,11 +2044,13 @@ class _LoginScreenState extends State<LoginScreen>
             fit: BoxFit.scaleDown,
             child: Text(
               title,
-              maxLines: 1,
+              maxLines: 2,
+              textAlign: TextAlign.center,
               style: GoogleFonts.outfit(
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFF1E3A8A),
+                height: 1.1,
               ),
             ),
           ),

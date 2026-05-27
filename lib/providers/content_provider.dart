@@ -15,16 +15,24 @@ class ContentProvider with ChangeNotifier {
   Map<String, dynamic> _loginConfig = {};
   Map<String, dynamic> get loginConfig => _loginConfig;
 
+  // Cache for Theme & Programs Config
+  Map<String, dynamic> _themeProgramsConfig = {};
+  Map<String, dynamic> get themeProgramsConfig => _themeProgramsConfig;
+
   bool _isLoadingBroadcasts = false;
   bool get isLoadingBroadcasts => _isLoadingBroadcasts;
 
   bool _isLoadingEvents = false;
   bool get isLoadingEvents => _isLoadingEvents;
 
+  bool _isLoadingThemePrograms = false;
+  bool get isLoadingThemePrograms => _isLoadingThemePrograms;
+
   // Stream Subscriptions
   StreamSubscription? _broadcastSubscription;
   StreamSubscription? _eventSubscription;
   StreamSubscription? _loginConfigSubscription;
+  StreamSubscription? _themeProgramsSubscription;
 
   // Define limits consistent with UI
   static const int _broadcastLimit = 10;
@@ -42,10 +50,13 @@ class ContentProvider with ChangeNotifier {
       _eventSubscription = null;
       await _broadcastSubscription?.cancel();
       _broadcastSubscription = null;
+      await _themeProgramsSubscription?.cancel();
+      _themeProgramsSubscription = null;
     }
     fetchBroadcasts();
     fetchEvents();
     fetchLoginConfig();
+    fetchThemeProgramsConfig();
   }
 
   void fetchBroadcasts() {
@@ -129,11 +140,40 @@ class ContentProvider with ChangeNotifier {
         );
   }
 
+  void fetchThemeProgramsConfig() {
+    if (_themeProgramsSubscription != null) return;
+
+    if (_themeProgramsConfig.isEmpty) {
+      _isLoadingThemePrograms = true;
+      notifyListeners();
+    }
+
+    _themeProgramsSubscription = FirebaseFirestore.instance
+        .collection('settings')
+        .doc('theme_programs')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (snapshot.exists) {
+              _themeProgramsConfig = snapshot.data() as Map<String, dynamic>;
+              _isLoadingThemePrograms = false;
+              notifyListeners();
+            }
+          },
+          onError: (e) {
+            debugPrint("Error fetching theme programs config: $e");
+            _isLoadingThemePrograms = false;
+            notifyListeners();
+          },
+        );
+  }
+
   @override
   void dispose() {
     _broadcastSubscription?.cancel();
     _eventSubscription?.cancel();
     _loginConfigSubscription?.cancel();
+    _themeProgramsSubscription?.cancel();
     super.dispose();
   }
 }

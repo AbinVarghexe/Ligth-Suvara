@@ -20,6 +20,13 @@ class _AnimatorDashboardScreenState extends State<AnimatorDashboardScreen> {
 
   String? _profileImageUrl; // Keep this for the AppBar icon
 
+  String formatAcademicYear(String yearStr) {
+    final year = int.tryParse(yearStr);
+    if (year == null) return yearStr;
+    final nextYearLastTwo = ((year + 1) % 100).toString().padLeft(2, '0');
+    return '$year-$nextYearLastTwo';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -319,7 +326,7 @@ class _AnimatorDashboardScreenState extends State<AnimatorDashboardScreen> {
                               parish: parish,
                               sundaySchool: sundaySchool,
                               schoolId: assignmentMap['schoolUserId'] ?? '',
-                              assignmentYear: assignmentMap['year'] as String?,
+                              assignmentYear: assignmentMap['year']?.toString(),
                             ),
                           ),
                         );
@@ -361,7 +368,7 @@ class _AnimatorDashboardScreenState extends State<AnimatorDashboardScreen> {
                                         ),
                                         if (assignmentMap['year'] != null)
                                           TextSpan(
-                                            text: ' (${assignmentMap['year']})',
+                                            text: ' (${formatAcademicYear(assignmentMap['year']!.toString())})',
                                             style: GoogleFonts.poppins(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w600,

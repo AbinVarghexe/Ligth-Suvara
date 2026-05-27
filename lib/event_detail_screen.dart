@@ -13,6 +13,7 @@ import 'package:sundayschool_app/report_generator.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:sundayschool_app/widgets/linkable_text.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 // DATA MODEL
 class EventDetailsPageData {
@@ -269,7 +270,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       }
 
       final reportData = {...eventData, 'creatorSchoolName': creatorSchoolName};
-      
+
       // 1. Show a loading dialog while pre-fetching assets
       if (mounted) {
         showDialog(
@@ -277,7 +278,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           barrierDismissible: false,
           builder: (context) => AlertDialog(
             backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             content: Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
               child: Column(
@@ -308,7 +311,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
       // 4. Open the System Print/Save Dialog
       await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => await generateEventReport(reportData, preFetchedAssets: assets, format: format),
+        onLayout: (PdfPageFormat format) async => await generateEventReport(
+          reportData,
+          preFetchedAssets: assets,
+          format: format,
+        ),
         name: 'Event_Report_${widget.eventId}',
       );
     } catch (e) {
@@ -485,7 +492,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         delegate: SliverChildListDelegate([
           () {
             final String? rawImageUrl = data['imageUrl'];
-            final bool hasValidImage = rawImageUrl != null &&
+            final bool hasValidImage =
+                rawImageUrl != null &&
                 rawImageUrl.isNotEmpty &&
                 !rawImageUrl.contains('via.placeholder.com');
             final String finalImageUrl = hasValidImage ? rawImageUrl : '';
@@ -498,15 +506,18 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 height: 220,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  gradient: HomeScreen.getEventPlaceholderData(
-                    data['category'] ?? '',
-                  )['gradient'] as LinearGradient?,
+                  gradient:
+                      HomeScreen.getEventPlaceholderData(
+                            data['category'] ?? '',
+                          )['gradient']
+                          as LinearGradient?,
                 ),
                 child: Center(
                   child: Icon(
                     HomeScreen.getEventPlaceholderData(
-                      data['category'] ?? '',
-                    )['icon'] as IconData?,
+                          data['category'] ?? '',
+                        )['icon']
+                        as IconData?,
                     size: 80,
                     color: Colors.white,
                   ),
@@ -523,15 +534,18 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   errorBuilder: (_, __, ___) => Container(
                     height: 220,
                     decoration: BoxDecoration(
-                      gradient: HomeScreen.getEventPlaceholderData(
-                        data['category'] ?? '',
-                      )['gradient'] as LinearGradient?,
+                      gradient:
+                          HomeScreen.getEventPlaceholderData(
+                                data['category'] ?? '',
+                              )['gradient']
+                              as LinearGradient?,
                     ),
                     child: Center(
                       child: Icon(
                         HomeScreen.getEventPlaceholderData(
-                          data['category'] ?? '',
-                        )['icon'] as IconData?,
+                              data['category'] ?? '',
+                            )['icon']
+                            as IconData?,
                         size: 60,
                         color: Colors.white,
                       ),
@@ -542,31 +556,31 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 imageContent = const SizedBox.shrink();
               }
             } else {
-              imageContent = Image.network(
-                finalImageUrl,
+              imageContent = CachedNetworkImage(
+                imageUrl: finalImageUrl,
                 fit: BoxFit.cover,
                 height: 220,
                 width: double.infinity,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    height: 220,
-                    color: Colors.grey.shade100,
-                    child: const Center(child: CircularProgressIndicator()),
-                  );
-                },
-                errorBuilder: (c, o, s) => Container(
+                placeholder: (context, url) => Container(
+                  height: 220,
+                  color: Colors.grey.shade100,
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+                errorWidget: (c, o, s) => Container(
                   height: 220,
                   decoration: BoxDecoration(
-                    gradient: HomeScreen.getEventPlaceholderData(
-                      data['category'] ?? '',
-                    )['gradient'] as LinearGradient?,
+                    gradient:
+                        HomeScreen.getEventPlaceholderData(
+                              data['category'] ?? '',
+                            )['gradient']
+                            as LinearGradient?,
                   ),
                   child: Center(
                     child: Icon(
                       HomeScreen.getEventPlaceholderData(
-                        data['category'] ?? '',
-                      )['icon'] as IconData?,
+                            data['category'] ?? '',
+                          )['icon']
+                          as IconData?,
                       size: 60,
                       color: Colors.white,
                     ),
@@ -580,8 +594,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   ? 'event_image_${widget.eventId}'
                   : 'event_icon_${widget.eventId}',
               child: GestureDetector(
-                // Only allow full-screen tap for real network URLs (base64 is too large)
-                onTap: (finalImageUrl.isNotEmpty && !isBase64)
+                // Allow full-screen tap for all valid image URLs (including base64)
+                onTap: finalImageUrl.isNotEmpty
                     ? () {
                         Navigator.of(context).push(
                           MaterialPageRoute(

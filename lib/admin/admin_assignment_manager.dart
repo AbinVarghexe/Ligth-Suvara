@@ -22,11 +22,29 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
   // School ID -> Set of Years it is assigned for
   Map<String, Set<String>> _assignedSchoolsByYear = {};
   bool _isLoadingSchools = true;
-  String _selectedYear = DateTime.now().year.toString();
+  String _selectedYear = '';
+
+  String _getAcademicYear() {
+    final now = DateTime.now();
+    final cutOff = DateTime(now.year, 5, 15); // May 15
+    if (now.isBefore(cutOff) || now.isAtSameMomentAs(cutOff)) {
+      return (now.year - 1).toString();
+    }
+    return now.year.toString();
+  }
+
+  /// Formats a year string like "2025" into "2025-26" for display.
+  String formatAcademicYear(String year) {
+    final y = int.tryParse(year);
+    if (y == null) return year;
+    final nextYear = (y + 1) % 100;
+    return '$y-${nextYear.toString().padLeft(2, '0')}';
+  }
 
   @override
   void initState() {
     super.initState();
+    _selectedYear = _getAcademicYear();
     _fetchSchools();
     _listenToAssignments();
   }
@@ -66,7 +84,7 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
           if (item is Map && item['schoolUserId'] != null) {
             final schoolId = item['schoolUserId'] as String;
             final year =
-                item['year'] as String? ?? DateTime.now().year.toString();
+                item['year']?.toString() ?? _getAcademicYear();
 
             if (!assignedMap.containsKey(schoolId)) {
               assignedMap[schoolId] = {};
@@ -227,7 +245,7 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
                   final validSchools = _allSchools.where((doc) {
                     final assignmentYear =
                         oldAssignment['year']?.toString() ??
-                        DateTime.now().year.toString();
+                        _getAcademicYear();
                     final assignedYears = _assignedSchoolsByYear[doc.id];
                     final isAssignedForYear =
                         assignedYears != null &&
@@ -313,7 +331,7 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
             'Unknown School',
         'parish': schoolData['parish'] ?? 'Unknown Parish',
         'forane': schoolData['forane'] ?? 'Unknown Forane',
-        'year': oldAssignment['year'] ?? DateTime.now().year.toString(),
+        'year': oldAssignment['year'] ?? _getAcademicYear(),
       };
 
       final docRef = _firestore
@@ -465,7 +483,7 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
                               return DropdownMenuItem(
                                 value: year,
                                 child: Text(
-                                  year,
+                                  formatAcademicYear(year),
                                   style: GoogleFonts.poppins(
                                     fontWeight: FontWeight.bold,
                                     color: Colors.blue.shade900,

@@ -7,15 +7,22 @@ import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 
 // 1. The main generation function
-Future<Uint8List> generateEventReport(Map<String, dynamic> eventData, {Map<String, String>? preFetchedAssets, required PdfPageFormat format}) async {
+Future<Uint8List> generateEventReport(
+  Map<String, dynamic> eventData, {
+  Map<String, String>? preFetchedAssets,
+  required PdfPageFormat format,
+}) async {
   // --- DATA PREPARATION ---
   final title = eventData['title'] ?? 'Event Report';
   final place = eventData['place'] ?? 'N/A';
   final description = eventData['description'] ?? 'No description provided.';
   final category = (eventData['category'] ?? 'N/A').toUpperCase();
 
-  final date = eventData['timestamp'] != null && eventData['timestamp'] is Timestamp
-      ? DateFormat('MMMM d, yyyy, h:mm a').format(eventData['timestamp'].toDate())
+  final date =
+      eventData['timestamp'] != null && eventData['timestamp'] is Timestamp
+      ? DateFormat(
+          'MMMM d, yyyy, h:mm a',
+        ).format(eventData['timestamp'].toDate())
       : 'Date Unavailable';
 
   final creatorSchoolName = eventData['creatorSchoolName'] ?? 'N/A';
@@ -28,7 +35,9 @@ Future<Uint8List> generateEventReport(Map<String, dynamic> eventData, {Map<Strin
   // If assets were not pre-fetched, load them now (fallback)
   if (preFetchedAssets == null) {
     try {
-      final ByteData logoData = await rootBundle.load('assets/images/reportlogo.jpg');
+      final ByteData logoData = await rootBundle.load(
+        'assets/images/reportlogo.jpg',
+      );
       logoBase64 = base64Encode(logoData.buffer.asUint8List());
     } catch (e) {
       print('Error loading logo for PDF: $e');
@@ -38,7 +47,9 @@ Future<Uint8List> generateEventReport(Map<String, dynamic> eventData, {Map<Strin
       try {
         final Uri? uri = Uri.tryParse(imageUrl);
         if (uri != null && uri.hasScheme) {
-          final response = await http.get(uri).timeout(const Duration(seconds: 3));
+          final response = await http
+              .get(uri)
+              .timeout(const Duration(seconds: 3));
           if (response.statusCode == 200) {
             heroBase64 = base64Encode(response.bodyBytes);
           }
@@ -49,10 +60,13 @@ Future<Uint8List> generateEventReport(Map<String, dynamic> eventData, {Map<Strin
     }
   }
 
-  final String reportGeneratedOn = DateFormat('yyyy-MM-dd').format(DateTime.now());
+  final String reportGeneratedOn = DateFormat(
+    'yyyy-MM-dd',
+  ).format(DateTime.now());
 
   // --- HTML CONSTRUCT (TABLE-BASED FOR MAXIMUM COMPATIBILITY) ---
-  final String htmlContent = '''
+  final String htmlContent =
+      '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -174,14 +188,18 @@ Future<Uint8List> generateEventReport(Map<String, dynamic> eventData, {Map<Strin
 }
 
 /// Pre-fetches the logo and hero image to improve PDF generation speed
-Future<Map<String, String>> preFetchReportAssets(Map<String, dynamic> eventData) async {
+Future<Map<String, String>> preFetchReportAssets(
+  Map<String, dynamic> eventData,
+) async {
   String logoBase64 = '';
   String heroBase64 = '';
 
   try {
     // Load Logo
     try {
-      final ByteData logoData = await rootBundle.load('assets/images/reportlogo.jpg');
+      final ByteData logoData = await rootBundle.load(
+        'assets/images/reportlogo.jpg',
+      );
       logoBase64 = base64Encode(logoData.buffer.asUint8List());
     } catch (e) {
       print('Pre-fetch: Error loading logo: $e');
@@ -193,7 +211,9 @@ Future<Map<String, String>> preFetchReportAssets(Map<String, dynamic> eventData)
       try {
         final Uri? uri = Uri.tryParse(imageUrl);
         if (uri != null && uri.hasScheme) {
-          final response = await http.get(uri).timeout(const Duration(seconds: 3));
+          final response = await http
+              .get(uri)
+              .timeout(const Duration(seconds: 3));
           if (response.statusCode == 200) {
             heroBase64 = base64Encode(response.bodyBytes);
           }
@@ -206,8 +226,5 @@ Future<Map<String, String>> preFetchReportAssets(Map<String, dynamic> eventData)
     print('Major pre-fetch failure: $e');
   }
 
-  return {
-    'logo': logoBase64,
-    'hero': heroBase64,
-  };
+  return {'logo': logoBase64, 'hero': heroBase64};
 }

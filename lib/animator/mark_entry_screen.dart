@@ -43,11 +43,20 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
   String _docId = '';
   String _currentYear = '';
 
+  String _getAcademicYear() {
+    final now = DateTime.now();
+    final cutOff = DateTime(now.year, 5, 15); // May 15
+    if (now.isBefore(cutOff) || now.isAtSameMomentAs(cutOff)) {
+      return (now.year - 1).toString();
+    }
+    return now.year.toString();
+  }
+
   @override
   void initState() {
     super.initState();
-    // Use the assigned year if available, otherwise fallback to current year
-    final year = widget.assignmentYear ?? DateTime.now().year.toString();
+    // Use the assigned year if available, otherwise fallback to current academic year
+    final year = widget.assignmentYear ?? _getAcademicYear();
     _currentYear = year;
     _docId = '${widget.schoolId}_$year';
 
@@ -617,6 +626,7 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
                                       initialValue: _marks[qId]?.toString(),
                                       style: GoogleFonts.inter(fontSize: 16),
                                       keyboardType: TextInputType.number,
+                                      autovalidateMode: AutovalidateMode.onUserInteraction,
                                       decoration: InputDecoration(
                                         labelText: isMandatory
                                             ? 'Mark ${maxMark != null ? '(Max: $maxMark)' : ''} *'
@@ -674,8 +684,12 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
                                         if (mark == null) {
                                           return 'Invalid number';
                                         }
+                                        if (mark < 0) {
+                                          return 'Must be >= 0';
+                                        }
                                         if (maxMark != null &&
-                                            (mark < 0 || mark > maxMark)) {
+                                            maxMark > 0 &&
+                                            mark > maxMark) {
                                           return 'Max mark is $maxMark';
                                         }
                                         return null;
@@ -790,6 +804,7 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
                                               style: GoogleFonts.inter(
                                                 fontSize: 14,
                                               ),
+                                              autovalidateMode: AutovalidateMode.onUserInteraction,
                                               decoration: InputDecoration(
                                                 labelText: isMandatory
                                                     ? 'Mark ${subMaxMark != null && subMaxMark > 0 ? '(Max: $subMaxMark)' : '(Unlimited)'} *'
@@ -863,9 +878,12 @@ class _MarkEntryScreenState extends State<MarkEntryScreen> {
                                                 if (mark == null) {
                                                   return 'Invalid';
                                                 }
+                                                if (mark < 0) {
+                                                  return 'Must be >= 0';
+                                                }
                                                 if (subMaxMark != null &&
-                                                    (mark < 0 ||
-                                                        mark > subMaxMark)) {
+                                                    subMaxMark > 0 &&
+                                                    mark > subMaxMark) {
                                                   return 'Max $subMaxMark';
                                                 }
                                                 return null;

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -65,6 +66,17 @@ class FullScreenImageViewer extends StatelessWidget {
   }
 
   Widget _buildImage() {
+    if (imageUrl.startsWith('data:image/')) {
+      try {
+        final bytes = base64Decode(imageUrl.split(',').last);
+        return Image.memory(
+          bytes,
+          fit: BoxFit.contain,
+        );
+      } catch (_) {
+        // Fallback to error view
+      }
+    }
     return Image.network(
       imageUrl,
       fit: BoxFit.contain,

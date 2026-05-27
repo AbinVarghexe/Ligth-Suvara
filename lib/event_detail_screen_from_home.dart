@@ -7,6 +7,7 @@ import 'package:sundayschool_app/homescreen.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:sundayschool_app/widgets/full_screen_image_viewer.dart';
 import 'package:sundayschool_app/widgets/linkable_text.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 // This is the dedicated screen to show the full details of a single event.
 class EventDetailScreenFromHome extends StatefulWidget {
@@ -151,23 +152,20 @@ class _EventDetailScreenState extends State<EventDetailScreenFromHome> {
                   imageWidget = placeholder;
                 }
               } else {
-                imageWidget = Image.network(
-                  finalImageUrl,
+                imageWidget = CachedNetworkImage(
+                  imageUrl: finalImageUrl,
                   fit: BoxFit.cover,
                   height: 220,
                   width: double.infinity,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      height: 220,
-                      width: double.infinity,
-                      color: Colors.grey.shade100,
-                      child: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  },
-                  errorBuilder: (c, o, s) => placeholder,
+                  placeholder: (context, url) => Container(
+                    height: 220,
+                    width: double.infinity,
+                    color: Colors.grey.shade100,
+                    child: const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                  errorWidget: (c, o, s) => placeholder,
                 );
               }
             } else {
@@ -175,7 +173,7 @@ class _EventDetailScreenState extends State<EventDetailScreenFromHome> {
             }
 
             return GestureDetector(
-              onTap: (finalImageUrl.isNotEmpty && !isBase64)
+              onTap: finalImageUrl.isNotEmpty
                   ? () {
                       Navigator.push(
                         context,

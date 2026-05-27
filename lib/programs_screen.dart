@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:sundayschool_app/providers/content_provider.dart';
 import 'package:sundayschool_app/widgets/heavenly_background.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -60,20 +62,13 @@ class _ProgramsScreenState extends State<ProgramsScreen>
       body: HeavenlyBackground(
         showImage: true,
         child: SafeArea(
-          child: FutureBuilder<DocumentSnapshot>(
-            future: FirebaseFirestore.instance
-                .collection('settings')
-                .doc('theme_programs')
-                .get(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+          child: Consumer<ContentProvider>(
+            builder: (context, provider, child) {
+              if (provider.isLoadingThemePrograms && provider.themeProgramsConfig.isEmpty) {
                 return _buildShimmerLoading();
               }
 
-              Map<String, dynamic> data = {};
-              if (snapshot.hasData && snapshot.data!.exists) {
-                data = snapshot.data!.data() as Map<String, dynamic>;
-              }
+              final data = provider.themeProgramsConfig;
 
               final themeYear = data['themeYear'] ?? '2025-2026';
               final themeMal =
