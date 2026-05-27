@@ -22,7 +22,6 @@ import 'package:sundayschool_app/catechism_screen.dart';
 // Note: This import was missing in your provided code but is used in the carousel.
 // Ensure this file exists and is correct.
 
-import 'package:sundayschool_app/bible.dart';
 import 'package:sundayschool_app/japamala.dart';
 import 'package:sundayschool_app/home_events.dart';
 
@@ -31,12 +30,12 @@ import 'package:sundayschool_app/event_detail_screen_from_home.dart';
 import 'package:provider/provider.dart'; // Import provider
 import 'package:sundayschool_app/providers/content_provider.dart'; // Import ContentProvider
 import 'package:sundayschool_app/homescreen.dart';
-import 'package:sundayschool_app/video_resources_guide_screen.dart';
 import 'package:sundayschool_app/video_resources_screen.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:sundayschool_app/widgets/heavenly_background.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -51,6 +50,7 @@ class _LoginScreenState extends State<LoginScreen>
   _bgAnimationController; // Nullable to avoid LateInitializationError on hot reload
   int _selectedIndex = 0; // 0: Home, 1: Resources, 2: Programs
   int _currentRegIndex = 0; // Track current registration program index
+  int _currentBroadcastIndex = 0; // Track current updates index
   Stream<QuerySnapshot>? _publicProgramsStream;
   Timer? _bannerTimer; // 🔹 Timer for 3-second auto-play
   final Map<String, Uint8List> _base64Cache = {};
@@ -1278,13 +1278,63 @@ class _LoginScreenState extends State<LoginScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Latest Updates',
-                    style: GoogleFonts.outfit(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1E3A8A), // App Blue
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Latest Updates',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF8A6623), // App Gold-Brown
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      // Elegant Flourish Divider
+                      SizedBox(
+                        width: 140,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                height: 1.2,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      const Color(0xFFD4AF37).withValues(alpha: 0.0),
+                                      const Color(0xFFD4AF37).withValues(alpha: 0.8),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 6.0),
+                              child: Text(
+                                '⚜', // Ornate flourish symbol
+                                style: TextStyle(
+                                  color: Color(0xFFD4AF37),
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                height: 1.2,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      const Color(0xFFD4AF37).withValues(alpha: 0.8),
+                                      const Color(0xFFD4AF37).withValues(alpha: 0.0),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   TextButton(
                     onPressed: () {
@@ -1315,7 +1365,7 @@ class _LoginScreenState extends State<LoginScreen>
                 ],
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             // Content
             if (provider.isLoadingBroadcasts && provider.broadcasts.isEmpty)
               SizedBox(
@@ -1343,61 +1393,110 @@ class _LoginScreenState extends State<LoginScreen>
                 style: GoogleFonts.poppins(color: Colors.grey),
               )
             else
-              CarouselSlider.builder(
-                itemCount: provider.broadcasts.length,
-                options: CarouselOptions(
-                  height: 110,
-                  autoPlay: true,
-                  viewportFraction: 0.9,
-                  enlargeCenterPage: true,
-                  enableInfiniteScroll: true,
-                  autoPlayInterval: const Duration(seconds: 4),
-                ),
-                itemBuilder: (context, index, realIndex) {
-                  final data =
-                      provider.broadcasts[index].data() as Map<String, dynamic>;
-                  final title = data['title'] ?? 'Update';
-                  final timestamp =
-                      (data['timestamp'] as Timestamp?)?.toDate() ??
-                      DateTime.now();
-                  final imageUrl = data['imageUrl'] as String?;
-                  final body = data['body'] ?? '';
-
-                  final iconData = _getIconData(title);
-
-                  final message = BroadcastMessage(
-                    id: provider.broadcasts[index].id,
-                    title: title,
-                    body: body,
-                    timestamp: timestamp,
-                    imageUrl: imageUrl,
-                  );
-
-                  return Container(
-                    key: ValueKey('broadcast_carousel_${provider.broadcasts[index].id}'),
-                    width: MediaQuery.of(context).size.width,
-                    margin: const EdgeInsets.symmetric(horizontal: 5.0),
-                    child: _buildUpdateCard(
-                      context: context,
-                      title: title,
-                      date: DateFormat('MMM d, yyyy').format(timestamp),
-                      iconData: iconData,
-                      imageUrl: imageUrl,
-                      heroTag: imageUrl != null
-                          ? 'broadcast_image_${provider.broadcasts[index].id}'
-                          : 'broadcast_icon_${provider.broadcasts[index].id}',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                BroadcastDetailScreen(message: message),
-                          ),
-                        );
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CarouselSlider.builder(
+                    itemCount: provider.broadcasts.length,
+                    options: CarouselOptions(
+                      height: 265,
+                      autoPlay: true,
+                      viewportFraction: 0.75,
+                      enlargeCenterPage: false,
+                      enableInfiniteScroll: true,
+                      autoPlayInterval: const Duration(seconds: 5),
+                      padEnds: false,
+                      onPageChanged: (index, reason) {
+                        setState(() {
+                          _currentBroadcastIndex = index;
+                        });
                       },
                     ),
-                  );
-                },
+                    itemBuilder: (context, index, realIndex) {
+                      final data =
+                          provider.broadcasts[index].data() as Map<String, dynamic>;
+                      final title = data['title'] ?? 'Update';
+                      final timestamp =
+                          (data['timestamp'] as Timestamp?)?.toDate() ??
+                          DateTime.now();
+                      final imageUrl = data['imageUrl'] as String?;
+                      final body = data['body'] ?? '';
+
+                      final iconData = _getIconData(title);
+
+                      final message = BroadcastMessage(
+                        id: provider.broadcasts[index].id,
+                        title: title,
+                        body: body,
+                        timestamp: timestamp,
+                        imageUrl: imageUrl,
+                      );
+
+                      return Container(
+                        key: ValueKey(
+                          'broadcast_carousel_${provider.broadcasts[index].id}',
+                        ),
+                        margin: const EdgeInsets.only(right: 14.0),
+                        child: _buildUpdateCard(
+                          context: context,
+                          title: title,
+                          date: DateFormat('MMMM d, yyyy').format(timestamp),
+                          body: body,
+                          iconData: iconData,
+                          imageUrl: imageUrl,
+                          heroTag: imageUrl != null
+                              ? 'broadcast_image_${provider.broadcasts[index].id}'
+                              : 'broadcast_icon_${provider.broadcasts[index].id}',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    BroadcastDetailScreen(message: message),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      provider.broadcasts.length,
+                      (index) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                        width: _currentBroadcastIndex == index ? 11.0 : 8.0,
+                        height: _currentBroadcastIndex == index ? 11.0 : 8.0,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: _currentBroadcastIndex == index
+                                ? const [
+                                    Color(0xFFFFEA79), // Bright gold center
+                                    Color(0xFFD4AF37), // Metallic gold mid
+                                    Color(0xFF8A6623), // Bronze gold edge
+                                  ]
+                                : const [
+                                    Color(0xFFE2E8F0),
+                                    Color(0xFFCBD5E1),
+                                  ],
+                            center: const Alignment(-0.3, -0.3),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 4,
+                              offset: const Offset(1, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
           ],
         );
@@ -1409,6 +1508,7 @@ class _LoginScreenState extends State<LoginScreen>
     required BuildContext context,
     required String title,
     required String date,
+    required String body,
     required Map<String, dynamic> iconData,
     String? imageUrl,
     String? heroTag,
@@ -1416,115 +1516,193 @@ class _LoginScreenState extends State<LoginScreen>
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Container(
-            padding: const EdgeInsets.all(12.0),
-            decoration: BoxDecoration(
-              color: const Color(
-                0xFFFFFBEB,
-              ).withValues(alpha: 0.25), // Transparent Glass Feel
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: const Color(
-                  0xFFFDE68A,
-                ).withValues(alpha: 0.4), // Subtle Gold Border
-                width: 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFFBF953F), // Gold shadow
+              Color(0xFFFCF6BA), // Gold bright highlight
+              Color(0xFFB38728), // Gold mid tone
+              Color(0xFFFBF5B7), // Gold core bright
+              Color(0xFFAA771C), // Gold dark bronze
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFBF953F).withValues(alpha: 0.25),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
             ),
-            child: Row(
-              children: [
-                // 💎 Elegant Icon/Image Pod
-                Hero(
-                  tag: heroTag ?? UniqueKey().toString(),
+          ],
+        ),
+        padding: const EdgeInsets.all(2.0), // Border thickness
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFFFFFFFF),
+                Color(0xFFFFFDF5),
+                Color(0xFFFAF3E0), // Cream marble feel
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 💎 Image inside ornate gold frame
+              Expanded(
+                flex: 7,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 2.0),
                   child: Container(
-                    width: 60,
-                    height: 60,
+                    width: double.infinity,
+                    height: double.infinity,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: LinearGradient(
+                      gradient: const LinearGradient(
                         colors: [
-                          const Color(
-                            0xFFBC8A3A,
-                          ).withValues(alpha: 0.9), // Gold
-                          const Color(
-                            0xFFFDE68A,
-                          ).withValues(alpha: 0.7), // Amber
+                          Color(0xFFBF953F),
+                          Color(0xFFFCF6BA),
+                          Color(0xFFAA771C),
                         ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
                       ),
-                    ),
-                    child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(1.5), // Inner border
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14.5),
                       child: imageUrl != null && imageUrl.isNotEmpty
                           ? CachedNetworkImage(
                               imageUrl: imageUrl,
                               fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
                               key: ValueKey(imageUrl),
                               fadeInDuration: Duration.zero,
                               fadeOutDuration: Duration.zero,
                               placeholder: (context, url) =>
                                   Container(color: Colors.white10),
                               errorWidget: (context, url, error) =>
-                                  _buildUpdateIcon(iconData, 28),
+                                  _buildUpdateCardDefaultBg(iconData),
                             )
-                          : _buildUpdateIcon(iconData, 28),
+                          : _buildUpdateCardDefaultBg(iconData),
                     ),
                   ),
                 ),
-                const SizedBox(width: 14),
+              ),
 
-                // 📝 Content
-                Expanded(
-                  child: Column(
+              // 📝 Content portion
+              Expanded(
+                flex: 5,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14.0, 4.0, 14.0, 10.0),
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.outfit(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF1E3A8A), // Deep Royal Blue
-                          letterSpacing: -0.2,
+                      // Text details on the left
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.outfit(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF8A6623), // Gold-Brown text
+                                height: 1.15,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              date,
+                              style: GoogleFonts.outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFFB38F4D), // Muted gold-brown date
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Expanded(
+                              child: Text(
+                                body,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF5C5446), // Muted dark brown body text
+                                  height: 1.2,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        date,
-                        style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(
-                            0xFFBC8A3A,
-                          ).withValues(alpha: 0.9), // Muted Gold
+                      const SizedBox(width: 8),
+                      // 3D Golden Cross Icon on the right
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Image.asset(
+                          'assets/images/gold_cross_icon.png',
+                          height: 46,
+                          width: 32,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(
+                              FontAwesomeIcons.cross,
+                              color: Color(0xFFD4AF37),
+                              size: 26,
+                            );
+                          },
                         ),
                       ),
                     ],
                   ),
                 ),
-
-                // ➡️ Subtle Arrow
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 14,
-                  color: const Color(0xFFBC8A3A).withValues(alpha: 0.5),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUpdateCardDefaultBg(Map<String, dynamic> iconData) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFFBF953F),
+            Color(0xFFFCF6BA),
+            Color(0xFFAA771C),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          iconData['icon'] as IconData?,
+          color: Colors.white,
+          size: 32,
         ),
       ),
     );
@@ -1795,6 +1973,11 @@ class _LoginScreenState extends State<LoginScreen>
 
   // --- ANIMATED RESOURCES POPUP ---
   void _showResourcesPopup(BuildContext context) {
+    final contentProvider = Provider.of<ContentProvider>(context, listen: false);
+    final calendarConfig = contentProvider.calendarConfig;
+    final pdfUrl = calendarConfig['pdfUrl'] ?? calendarConfig['calendarUrl'] ?? calendarConfig['url'] ?? '';
+    final buttonTitle = calendarConfig['buttonTitle'] ?? calendarConfig['title'] ?? calendarConfig['buttonText'] ?? 'Calendar';
+
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -1904,12 +2087,15 @@ class _LoginScreenState extends State<LoginScreen>
                                     const SizedBox(height: 24),
                                     LayoutBuilder(
                                       builder: (context, constraints) {
-                                        final itemWidth = (constraints.maxWidth - 32) / 3;
+                                        final itemWidth =
+                                            (constraints.maxWidth - 32) / 3;
                                         return Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
                                               children: [
                                                 SizedBox(
                                                   width: itemWidth,
@@ -1921,7 +2107,8 @@ class _LoginScreenState extends State<LoginScreen>
                                                     () => Navigator.push(
                                                       context,
                                                       CustomPageRoute(
-                                                        child: const CatechismScreen(),
+                                                        child:
+                                                            const CatechismScreen(),
                                                       ),
                                                     ),
                                                   ),
@@ -1941,12 +2128,14 @@ class _LoginScreenState extends State<LoginScreen>
                                                   child: _buildAnimatedMenuItem(
                                                     context,
                                                     'Japamala',
-                                                    Icons.volunteer_activism_rounded,
+                                                    Icons
+                                                        .volunteer_activism_rounded,
                                                     const Color(0xFFEC4899),
                                                     () => Navigator.push(
                                                       context,
                                                       CustomPageRoute(
-                                                        child: const JapamalaScreen(),
+                                                        child:
+                                                            const JapamalaScreen(),
                                                       ),
                                                     ),
                                                   ),
@@ -1955,33 +2144,68 @@ class _LoginScreenState extends State<LoginScreen>
                                             ),
                                             const SizedBox(height: 16),
                                             Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
                                               children: [
                                                 SizedBox(
                                                   width: itemWidth,
                                                   child: _buildAnimatedMenuItem(
                                                     context,
                                                     'Yama\nPrarthanakal',
-                                                    FontAwesomeIcons.handsPraying,
+                                                    FontAwesomeIcons
+                                                        .handsPraying,
                                                     const Color(0xFF0EA5E9),
                                                     () =>
-                                                        openYamaprarthanakalApp(context),
+                                                        openYamaprarthanakalApp(
+                                                          context,
+                                                        ),
                                                   ),
                                                 ),
-                                                const SizedBox(width: 16),
                                                 SizedBox(
                                                   width: itemWidth,
                                                   child: _buildAnimatedMenuItem(
                                                     context,
                                                     'Videos',
-                                                    Icons.play_circle_fill_rounded,
+                                                    Icons
+                                                        .play_circle_fill_rounded,
                                                     const Color(0xFFEF4444),
                                                     () => Navigator.push(
                                                       context,
                                                       CustomPageRoute(
-                                                        child: const VideoResourcesScreen(),
+                                                        child:
+                                                            const VideoResourcesScreen(),
                                                       ),
                                                     ),
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  width: itemWidth,
+                                                  child: _buildAnimatedMenuItem(
+                                                    context,
+                                                    buttonTitle,
+                                                    Icons.calendar_month_rounded,
+                                                    const Color(0xFFBC8A3A),
+                                                    () async {
+                                                      if (pdfUrl.isNotEmpty) {
+                                                        final Uri uri = Uri.parse(pdfUrl);
+                                                        if (await canLaunchUrl(uri)) {
+                                                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                                        } else {
+                                                          if (context.mounted) {
+                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                              const SnackBar(content: Text('Could not open PDF file.')),
+                                                            );
+                                                          }
+                                                        }
+                                                      } else {
+                                                        if (context.mounted) {
+                                                          ScaffoldMessenger.of(context).showSnackBar(
+                                                            const SnackBar(content: Text('Calendar not configured.')),
+                                                          );
+                                                        }
+                                                      }
+                                                    },
                                                   ),
                                                 ),
                                               ],
@@ -2018,6 +2242,11 @@ class _LoginScreenState extends State<LoginScreen>
     Color color,
     VoidCallback onTap,
   ) {
+    String displayTitle = title;
+    if (title.contains(' ') && !title.contains('\n') && title.length > 8) {
+      displayTitle = title.replaceFirst(' ', '\n');
+    }
+
     return GestureDetector(
       onTap: () {
         Navigator.pop(context); // Close dialog first
@@ -2043,7 +2272,7 @@ class _LoginScreenState extends State<LoginScreen>
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              title,
+              displayTitle,
               maxLines: 2,
               textAlign: TextAlign.center,
               style: GoogleFonts.outfit(

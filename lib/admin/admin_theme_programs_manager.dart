@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:io';
 
 class AdminThemeProgramsManager extends StatefulWidget {
   const AdminThemeProgramsManager({super.key});
@@ -114,7 +113,8 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
       } else {
         // DEFINE DEFAULTS IF DOC MISSING (Visibility Fix)
         _verseTitleController.text = 'DAILY VERSE';
-        _verseTextController.text = 'Thy word is a lamp unto my feet, and a light unto my path.';
+        _verseTextController.text =
+            'Thy word is a lamp unto my feet, and a light unto my path.';
         _verseRefController.text = 'Psalm 119:105';
         _verseBgController.text = '';
         _carouselItems = [
@@ -122,23 +122,25 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
             'name': 'BISHOP',
             'role': 'Diocese of Suvara',
             'label': 'MESSAGE',
-            'image': 'https://firebasestorage.googleapis.com/v0/b/sundayschool-app.appspot.com/o/placeholder%2Fbishop.png?alt=media',
-            'message': 'Welcome to our Sunday School portal.'
+            'image':
+                'https://firebasestorage.googleapis.com/v0/b/sundayschool-app.appspot.com/o/placeholder%2Fbishop.png?alt=media',
+            'message': 'Welcome to our Sunday School portal.',
           },
           {
             'name': 'DIRECTOR',
             'role': 'Catechetical Centre',
             'label': 'INVITATION',
-            'image': 'https://firebasestorage.googleapis.com/v0/b/sundayschool-app.appspot.com/o/placeholder%2Fdirector.png?alt=media',
-            'message': 'Explore our programs and register today.'
-          }
+            'image':
+                'https://firebasestorage.googleapis.com/v0/b/sundayschool-app.appspot.com/o/placeholder%2Fdirector.png?alt=media',
+            'message': 'Explore our programs and register today.',
+          },
         ];
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading data: $e')));
       }
     } finally {
       if (mounted) {
@@ -155,26 +157,26 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
           .collection('settings')
           .doc('theme_programs')
           .set({
-        'themeYear': _yearController.text.trim(),
-        'themeMalayalam': _malayalamController.text.trim(),
-        'themeEnglish': _englishController.text.trim(),
-        'programs': _programs,
-      }, SetOptions(merge: true));
+            'themeYear': _yearController.text.trim(),
+            'themeMalayalam': _malayalamController.text.trim(),
+            'themeEnglish': _englishController.text.trim(),
+            'programs': _programs,
+          }, SetOptions(merge: true));
 
       // Save Login Screen Config
       await FirebaseFirestore.instance
           .collection('settings')
           .doc('login_screen_config')
           .set({
-        'verseTitle': _verseTitleController.text.trim(),
-        'verseText': _verseTextController.text.trim(),
-        'verseRef': _verseRefController.text.trim(),
-        'verseBgImage': _verseBgController.text.trim(),
-        'verseTextColor': _verseTextColor,
-        'verseTitleBgColor': _verseTitleBgColor,
-        'hideVerseText': _hideVerseText,
-        'carousel': _carouselItems,
-      }, SetOptions(merge: true));
+            'verseTitle': _verseTitleController.text.trim(),
+            'verseText': _verseTextController.text.trim(),
+            'verseRef': _verseRefController.text.trim(),
+            'verseBgImage': _verseBgController.text.trim(),
+            'verseTextColor': _verseTextColor,
+            'verseTitleBgColor': _verseTitleBgColor,
+            'hideVerseText': _hideVerseText,
+            'carousel': _carouselItems,
+          }, SetOptions(merge: true));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -186,9 +188,9 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving data: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving data: $e')));
       }
     } finally {
       if (mounted) {
@@ -205,16 +207,17 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
 
     setState(() => _isSaving = true);
     try {
-      final fileName = 'login_assets/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final fileName =
+          'login_assets/${DateTime.now().millisecondsSinceEpoch}.jpg';
       final storageRef = FirebaseStorage.instance.ref().child(fileName);
       await storageRef.putData(await image.readAsBytes());
       final downloadUrl = await storageRef.getDownloadURL();
       onUpload(downloadUrl);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
       }
     } finally {
       if (mounted) {
@@ -230,8 +233,9 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
     final descController = TextEditingController(
       text: index != null ? _programs[index]['desc'] : '',
     );
-    String selectedIcon =
-        index != null ? (_programs[index]['iconName'] ?? 'star') : 'star';
+    String selectedIcon = index != null
+        ? (_programs[index]['iconName'] ?? 'star')
+        : 'star';
 
     showDialog(
       context: context,
@@ -261,7 +265,9 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
                     TextField(
                       controller: descController,
                       maxLines: 3,
-                      decoration: const InputDecoration(labelText: 'Description'),
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Wrap(
@@ -270,7 +276,8 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
                         return IconButton(
                           icon: Icon(_availableIcons[k]),
                           color: selectedIcon == k ? Colors.blue : Colors.grey,
-                          onPressed: () => setDialogState(() => selectedIcon = k),
+                          onPressed: () =>
+                              setDialogState(() => selectedIcon = k),
                         );
                       }).toList(),
                     ),
@@ -321,14 +328,18 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
     final msgController = TextEditingController(
       text: index != null ? _carouselItems[index]['message'] : '',
     );
-    String currentImageUrl = index != null ? _carouselItems[index]['image'] : '';
+    String currentImageUrl = index != null
+        ? _carouselItems[index]['image']
+        : '';
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             title: Text(index == null ? 'Add Carousel Slide' : 'Edit Slide'),
             content: SingleChildScrollView(
               child: Column(
@@ -339,7 +350,11 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
                       padding: const EdgeInsets.only(bottom: 16),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(currentImageUrl, height: 100, fit: BoxFit.cover),
+                        child: Image.network(
+                          currentImageUrl,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ElevatedButton.icon(
@@ -352,7 +367,9 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
                   const SizedBox(height: 12),
                   TextField(
                     controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Name (e.g. Bishop)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Name (e.g. Bishop)',
+                    ),
                   ),
                   TextField(
                     controller: roleController,
@@ -365,7 +382,9 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
                   TextField(
                     controller: msgController,
                     maxLines: 5,
-                    decoration: const InputDecoration(labelText: 'Message Content'),
+                    decoration: const InputDecoration(
+                      labelText: 'Message Content',
+                    ),
                   ),
                 ],
               ),
@@ -413,7 +432,10 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
       appBar: AppBar(
         title: Text(
           'Theme & Info',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.bold,
+            color: Colors.blue.shade900,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -433,7 +455,11 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
             const Center(
               child: Padding(
                 padding: EdgeInsets.only(right: 16),
-                child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
               ),
             )
           else
@@ -446,10 +472,7 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildAppThemeTab(),
-          _buildLoginScreenTab(),
-        ],
+        children: [_buildAppThemeTab(), _buildLoginScreenTab()],
       ),
     );
   }
@@ -461,15 +484,27 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader('Theme of the Year'),
-          TextField(controller: _yearController, decoration: const InputDecoration(labelText: 'Year')),
-          TextField(controller: _malayalamController, decoration: const InputDecoration(labelText: 'Malayalam Theme')),
-          TextField(controller: _englishController, decoration: const InputDecoration(labelText: 'English Theme')),
+          TextField(
+            controller: _yearController,
+            decoration: const InputDecoration(labelText: 'Year'),
+          ),
+          TextField(
+            controller: _malayalamController,
+            decoration: const InputDecoration(labelText: 'Malayalam Theme'),
+          ),
+          TextField(
+            controller: _englishController,
+            decoration: const InputDecoration(labelText: 'English Theme'),
+          ),
           const SizedBox(height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildSectionHeader('Our Programs'),
-              IconButton(icon: const Icon(Icons.add_circle, color: Colors.blue), onPressed: () => _showProgramDialog()),
+              IconButton(
+                icon: const Icon(Icons.add_circle, color: Colors.blue),
+                onPressed: () => _showProgramDialog(),
+              ),
             ],
           ),
           ListView.builder(
@@ -479,7 +514,10 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
             itemBuilder: (context, i) => ListTile(
               title: Text(_programs[i]['title']),
               subtitle: Text(_programs[i]['desc'], maxLines: 1),
-              trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => setState(() => _programs.removeAt(i))),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () => setState(() => _programs.removeAt(i)),
+              ),
               onTap: () => _showProgramDialog(index: i),
             ),
           ),
@@ -502,7 +540,9 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
               labelStyle: GoogleFonts.outfit(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
-                color: _getVerseTextColor(_verseTextColor), // Assuming _getVerseTextColor takes the color string
+                color: _getVerseTextColor(
+                  _verseTextColor,
+                ), // Assuming _getVerseTextColor takes the color string
                 letterSpacing: 2.0,
                 shadows: [
                   if (_verseBgController.text.isNotEmpty)
@@ -511,26 +551,70 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
               ),
             ),
           ),
-          TextField(controller: _verseTextController, maxLines: 2, decoration: const InputDecoration(labelText: 'Verse Text')),
-          TextField(controller: _verseRefController, decoration: const InputDecoration(labelText: 'Verse Reference')),
+          TextField(
+            controller: _verseTextController,
+            maxLines: 2,
+            decoration: const InputDecoration(labelText: 'Verse Text'),
+          ),
+          TextField(
+            controller: _verseRefController,
+            decoration: const InputDecoration(labelText: 'Verse Reference'),
+          ),
           const SizedBox(height: 12),
-          Text('Title Background:', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(
+            'Title Background:',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
-              _buildColorOption('transparent', Colors.transparent, 'None', isTitleBg: true),
+              _buildColorOption(
+                'transparent',
+                Colors.transparent,
+                'None',
+                isTitleBg: true,
+              ),
               const SizedBox(width: 12),
-              _buildColorOption('white', Colors.white, 'White', isTitleBg: true),
+              _buildColorOption(
+                'white',
+                Colors.white,
+                'White',
+                isTitleBg: true,
+              ),
               const SizedBox(width: 12),
-              _buildColorOption('black', Colors.black, 'Black', isTitleBg: true),
+              _buildColorOption(
+                'black',
+                Colors.black,
+                'Black',
+                isTitleBg: true,
+              ),
               const SizedBox(width: 12),
-              _buildColorOption('gold', const Color(0xFFBC8A3A), 'Gold', isTitleBg: true),
+              _buildColorOption(
+                'gold',
+                const Color(0xFFBC8A3A),
+                'Gold',
+                isTitleBg: true,
+              ),
               const SizedBox(width: 12),
-              _buildColorOption('blue', const Color(0xFF1E3A8A), 'Blue', isTitleBg: true),
+              _buildColorOption(
+                'blue',
+                const Color(0xFF1E3A8A),
+                'Blue',
+                isTitleBg: true,
+              ),
             ],
           ),
           const SizedBox(height: 16),
-          Text('Text Color:', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(
+            'Text Color:',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -549,10 +633,21 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
               padding: const EdgeInsets.only(bottom: 8),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(_verseBgController.text, height: 100, width: double.infinity, fit: BoxFit.cover),
+                child: Image.network(
+                  _verseBgController.text,
+                  height: 100,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
-          Text('Background Photo:', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(
+            'Background Photo:',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -567,7 +662,10 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
                 const SizedBox(width: 12),
                 TextButton.icon(
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  label: const Text('Remove', style: TextStyle(color: Colors.red)),
+                  label: const Text(
+                    'Remove',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   onPressed: () => setState(() => _verseBgController.text = ''),
                 ),
               ],
@@ -575,11 +673,23 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
           ),
           const SizedBox(height: 16),
           // 🔹 VISIBILITY FOCUS CONTROLS
-          Text('Visibility Focus:', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(
+            'Visibility Focus:',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 8),
           SwitchListTile(
-            title: Text('Hide Verse Text', style: GoogleFonts.outfit(fontSize: 14)),
-            subtitle: Text('Show background image with 100% clarity', style: GoogleFonts.outfit(fontSize: 12)),
+            title: Text(
+              'Hide Verse Text',
+              style: GoogleFonts.outfit(fontSize: 14),
+            ),
+            subtitle: Text(
+              'Show background image with 100% clarity',
+              style: GoogleFonts.outfit(fontSize: 12),
+            ),
             value: _hideVerseText,
             onChanged: (v) => setState(() => _hideVerseText = v),
           ),
@@ -588,7 +698,10 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildSectionHeader('Carousel Slides'),
-              IconButton(icon: const Icon(Icons.add_circle, color: Colors.blue), onPressed: () => _showCarouselDialog()),
+              IconButton(
+                icon: const Icon(Icons.add_circle, color: Colors.blue),
+                onPressed: () => _showCarouselDialog(),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -607,14 +720,14 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
                 return const SizedBox.shrink();
               }
               return ListTile(
-                leading: item['image'].toString().startsWith('http') 
-                  ? CircleAvatar(backgroundImage: NetworkImage(item['image']))
-                  : const CircleAvatar(child: Icon(Icons.person)),
+                leading: item['image'].toString().startsWith('http')
+                    ? CircleAvatar(backgroundImage: NetworkImage(item['image']))
+                    : const CircleAvatar(child: Icon(Icons.person)),
                 title: Text(item['name'] ?? 'Untitled'),
                 subtitle: Text(item['role'] ?? '', maxLines: 1),
                 trailing: IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red), 
-                  onPressed: () => setState(() => _carouselItems.removeAt(i))
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => setState(() => _carouselItems.removeAt(i)),
                 ),
                 onTap: () => _showCarouselDialog(index: i),
               );
@@ -630,14 +743,22 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         title,
-        style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+        style: GoogleFonts.outfit(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.blue.shade900,
+        ),
       ),
     );
   }
 
   Widget _buildLeaderMessageCard(String title, String roleKeyword) {
-    int index = _carouselItems.indexWhere((item) => (item['role'] ?? '').toString().toLowerCase().contains(roleKeyword.toLowerCase()));
-    
+    int index = _carouselItems.indexWhere(
+      (item) => (item['role'] ?? '').toString().toLowerCase().contains(
+        roleKeyword.toLowerCase(),
+      ),
+    );
+
     if (index == -1) return const SizedBox.shrink();
 
     final item = _carouselItems[index];
@@ -654,10 +775,17 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
           backgroundColor: Colors.grey.shade100,
           backgroundImage: (item['image'] ?? '').toString().startsWith('http')
               ? NetworkImage(item['image'])
-              : const AssetImage('assets/images/leader_placeholder.png') as ImageProvider,
+              : const AssetImage('assets/images/leader_placeholder.png')
+                    as ImageProvider,
         ),
-        title: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-        subtitle: Text('Edit ${item['role']}\'s message', style: GoogleFonts.outfit(fontSize: 12)),
+        title: Text(
+          title,
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          'Edit ${item['role']}\'s message',
+          style: GoogleFonts.outfit(fontSize: 12),
+        ),
         trailing: TextButton(
           onPressed: () => _showCarouselDialog(index: index),
           child: const Text('Edit'),
@@ -666,8 +794,15 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
     );
   }
 
-  Widget _buildColorOption(String value, Color color, String label, {bool isTitleBg = false}) {
-    bool isSelected = isTitleBg ? (_verseTitleBgColor == value) : (_verseTextColor == value);
+  Widget _buildColorOption(
+    String value,
+    Color color,
+    String label, {
+    bool isTitleBg = false,
+  }) {
+    bool isSelected = isTitleBg
+        ? (_verseTitleBgColor == value)
+        : (_verseTextColor == value);
     return InkWell(
       onTap: () => setState(() {
         if (isTitleBg) {
@@ -682,14 +817,27 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
             width: 30,
             height: 30,
             decoration: BoxDecoration(
-              color: color == Colors.transparent ? Colors.grey.withOpacity(0.1) : color,
+              color: color == Colors.transparent
+                  ? Colors.grey.withOpacity(0.1)
+                  : color,
               shape: BoxShape.circle,
-              border: Border.all(color: isSelected ? Colors.blue : Colors.grey.shade400, width: isSelected ? 3 : 1),
+              border: Border.all(
+                color: isSelected ? Colors.blue : Colors.grey.shade400,
+                width: isSelected ? 3 : 1,
+              ),
             ),
-            child: color == Colors.transparent ? const Icon(Icons.block, size: 16, color: Colors.grey) : null,
+            child: color == Colors.transparent
+                ? const Icon(Icons.block, size: 16, color: Colors.grey)
+                : null,
           ),
           const SizedBox(height: 4),
-          Text(label, style: GoogleFonts.outfit(fontSize: 10, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+          Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 10,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
         ],
       ),
     );
@@ -697,10 +845,15 @@ class _AdminThemeProgramsManagerState extends State<AdminThemeProgramsManager>
 
   Color _getVerseTextColor(String colorStr) {
     switch (colorStr) {
-      case 'black': return Colors.black;
-      case 'gold': return const Color(0xFFBC8A3A);
-      case 'blue': return const Color(0xFF1E3A8A);
-      case 'white': default: return Colors.white;
+      case 'black':
+        return Colors.black;
+      case 'gold':
+        return const Color(0xFFBC8A3A);
+      case 'blue':
+        return const Color(0xFF1E3A8A);
+      case 'white':
+      default:
+        return Colors.white;
     }
   }
 }

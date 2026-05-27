@@ -1,1 +1,3 @@
-import 'dart:io'; void main() { print('Cannot use firestore without flutter run'); }
+void main() {
+  print('Cannot use firestore without flutter run');
+}

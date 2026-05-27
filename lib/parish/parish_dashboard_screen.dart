@@ -6,7 +6,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart'; // Added shimmer
 import 'dart:ui'; // Added Import for BackdropFilter
-import 'dart:math' as math;
 import 'package:sundayschool_app/login_screen.dart';
 import 'package:sundayschool_app/event_detail_screen_from_home.dart';
 import 'package:sundayschool_app/parish/parish_program_list_screen.dart';
@@ -1030,19 +1029,26 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                                               !imageUrl.contains(
                                                 'via.placeholder.com',
                                               );
-                                          final placeholder = _buildParishImagePlaceholderWidget(
-                                            category: category,
-                                          );
+                                          final placeholder =
+                                              _buildParishImagePlaceholderWidget(
+                                                category: category,
+                                              );
 
-                                          if (!hasValidImage) return placeholder;
+                                          if (!hasValidImage)
+                                            return placeholder;
 
-                                          if (imageUrl.startsWith('data:image/')) {
+                                          if (imageUrl.startsWith(
+                                            'data:image/',
+                                          )) {
                                             try {
-                                              final bytes = base64Decode(imageUrl.split(',').last);
+                                              final bytes = base64Decode(
+                                                imageUrl.split(',').last,
+                                              );
                                               return Image.memory(
                                                 bytes,
                                                 fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) => placeholder,
+                                                errorBuilder: (_, __, ___) =>
+                                                    placeholder,
                                               );
                                             } catch (_) {
                                               return placeholder;
@@ -1053,11 +1059,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                                             imageUrl,
                                             fit: BoxFit.cover,
                                             errorBuilder:
-                                                (
-                                                  context,
-                                                  error,
-                                                  stackTrace,
-                                                ) =>
+                                                (context, error, stackTrace) =>
                                                     placeholder,
                                           );
                                         }(),
@@ -1762,7 +1764,9 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
     required bool isIncoming,
     String? phone,
   }) {
-    final Color accentColor = isIncoming ? Colors.indigo.shade600 : Colors.orange.shade600;
+    final Color accentColor = isIncoming
+        ? Colors.indigo.shade600
+        : Colors.orange.shade600;
 
     showDialog(
       context: context,
@@ -1784,14 +1788,22 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 32,
+                      horizontal: 24,
+                    ),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [accentColor, accentColor.withValues(alpha: 0.8)],
+                        colors: [
+                          accentColor,
+                          accentColor.withValues(alpha: 0.8),
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(30),
+                      ),
                     ),
                     child: Column(
                       children: [
@@ -1800,10 +1812,14 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                            ),
                           ),
                           child: Icon(
-                            isIncoming ? Icons.login_rounded : Icons.logout_rounded,
+                            isIncoming
+                                ? Icons.login_rounded
+                                : Icons.logout_rounded,
                             color: Colors.white,
                             size: 40,
                           ),
@@ -1868,7 +1884,9 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                               backgroundColor: Colors.blue.shade900,
                               foregroundColor: Colors.white,
                               elevation: 8,
-                              shadowColor: Colors.blue.shade900.withValues(alpha: 0.3),
+                              shadowColor: Colors.blue.shade900.withValues(
+                                alpha: 0.3,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
@@ -1954,7 +1972,11 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                 color: Colors.green.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.call_rounded, color: Colors.green, size: 20),
+              child: const Icon(
+                Icons.call_rounded,
+                color: Colors.green,
+                size: 20,
+              ),
             ),
           ),
       ],

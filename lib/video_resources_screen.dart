@@ -7,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:sundayschool_app/utils/app_launcher.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class VideoResourcesScreen extends StatefulWidget {
   const VideoResourcesScreen({super.key});
@@ -96,10 +96,7 @@ class _VideoResourcesScreenState extends State<VideoResourcesScreen>
       colors: [Color(0xFFD4AF37), Color(0xFFAA7C11)], // Gold to Dark Gold
     ),
   ];
-  YoutubePlayerController? _ytController;
-  String? _activeVideoId;
-  String? _activeVideoTitle;
-  Offset _playerOffset = const Offset(16, 80);
+
 
   @override
   void initState() {
@@ -113,7 +110,6 @@ class _VideoResourcesScreenState extends State<VideoResourcesScreen>
   @override
   void dispose() {
     _fadeController.dispose();
-    _ytController?.dispose();
     super.dispose();
   }
 
@@ -136,35 +132,11 @@ class _VideoResourcesScreenState extends State<VideoResourcesScreen>
     });
   }
 
-  void _playYoutubeVideo(String videoId, String title) {
-    if (_ytController != null) {
-      if (_activeVideoId == videoId) {
-        return;
-      }
-      _ytController!.dispose();
+  void _playYoutubeVideo(String videoId, String title) async {
+    final url = Uri.parse('https://www.youtube.com/watch?v=$videoId');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
     }
-
-    setState(() {
-      _activeVideoId = videoId;
-      _activeVideoTitle = title;
-      _ytController = YoutubePlayerController(
-        initialVideoId: videoId,
-        flags: const YoutubePlayerFlags(
-          autoPlay: true,
-          mute: false,
-          enableCaption: true,
-        ),
-      );
-    });
-  }
-
-  void _closeVideoPlayer() {
-    setState(() {
-      _activeVideoId = null;
-      _activeVideoTitle = null;
-      _ytController?.dispose();
-      _ytController = null;
-    });
   }
 
   @override
@@ -172,12 +144,10 @@ class _VideoResourcesScreenState extends State<VideoResourcesScreen>
     const navyColor = Color(0xFF1E3A8A);
 
     return PopScope(
-      canPop: _selectedClass == null && _activeVideoId == null,
+      canPop: _selectedClass == null,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) {
-          if (_activeVideoId != null) {
-            _closeVideoPlayer();
-          } else if (_selectedClass != null) {
+          if (_selectedClass != null) {
             _backToGrid();
           }
         }
@@ -210,9 +180,7 @@ class _VideoResourcesScreenState extends State<VideoResourcesScreen>
                     size: 18,
                   ),
                   onPressed: () {
-                    if (_activeVideoId != null) {
-                      _closeVideoPlayer();
-                    } else if (_selectedClass != null) {
+                    if (_selectedClass != null) {
                       _backToGrid();
                     } else {
                       Navigator.pop(context);
@@ -235,137 +203,20 @@ class _VideoResourcesScreenState extends State<VideoResourcesScreen>
           centerTitle: true,
           // dev actions icon button removed
         ),
-        body: Stack(
-          children: [
-            FadeTransition(
-              opacity: _fadeController,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: _selectedClass == null
-                    ? _buildMainClassGrid(navyColor)
-                    : _buildClassResourcesView(navyColor),
-              ),
-            ),
-            _buildFloatingMiniPlayer(context, navyColor),
-          ],
+        body: FadeTransition(
+          opacity: _fadeController,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _selectedClass == null
+                ? _buildMainClassGrid(navyColor)
+                : _buildClassResourcesView(navyColor),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildFloatingMiniPlayer(BuildContext context, Color navyColor) {
-    if (_ytController == null || _activeVideoId == null) {
-      return const SizedBox.shrink();
-    }
 
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final double playerWidth = (screenWidth > 600) ? 360 : 280;
-
-    return Positioned(
-      right: _playerOffset.dx,
-      bottom: _playerOffset.dy,
-      child: Container(
-        width: playerWidth,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade200, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            GestureDetector(
-              onPanUpdate: (details) {
-                setState(() {
-                  _playerOffset = Offset(
-                    (_playerOffset.dx - details.delta.dx).clamp(16, screenWidth - playerWidth - 16),
-                    (_playerOffset.dy - details.delta.dy).clamp(16, screenHeight - 240),
-                  );
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: navyColor,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(18),
-                    topRight: Radius.circular(18),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      FontAwesomeIcons.youtube,
-                      color: Colors.red,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _activeVideoTitle ?? 'Video Player',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.outfit(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.drag_indicator_rounded,
-                      color: Colors.white.withValues(alpha: 0.6),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: _closeVideoPlayer,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close_rounded,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(18),
-                bottomRight: Radius.circular(18),
-              ),
-              child: YoutubePlayer(
-                controller: _ytController!,
-                showVideoProgressIndicator: true,
-                progressIndicatorColor: Colors.red,
-                progressColors: const ProgressBarColors(
-                  playedColor: Colors.red,
-                  handleColor: Colors.redAccent,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // --- VIEW 1: BEAUTIFUL CLASS TILES/GRID ---
   Widget _buildMainClassGrid(Color navyColor) {

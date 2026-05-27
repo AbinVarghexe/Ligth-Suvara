@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:sundayschool_app/providers/content_provider.dart';
 import 'package:sundayschool_app/widgets/heavenly_background.dart';
@@ -64,7 +63,8 @@ class _ProgramsScreenState extends State<ProgramsScreen>
         child: SafeArea(
           child: Consumer<ContentProvider>(
             builder: (context, provider, child) {
-              if (provider.isLoadingThemePrograms && provider.themeProgramsConfig.isEmpty) {
+              if (provider.isLoadingThemePrograms &&
+                  provider.themeProgramsConfig.isEmpty) {
                 return _buildShimmerLoading();
               }
 
@@ -76,13 +76,16 @@ class _ProgramsScreenState extends State<ProgramsScreen>
               final themeEng = data['themeEnglish'] ?? 'Hope in Eternal Life';
               final List<dynamic> rawList =
                   data['programs'] ?? _getDefaultPrograms();
-              final List<Map<String, dynamic>> programsList =
-                  rawList.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+              final List<Map<String, dynamic>> programsList = rawList
+                  .map((item) => Map<String, dynamic>.from(item as Map))
+                  .toList();
 
-              final List<Map<String, dynamic>> firstFive =
-                  programsList.take(5).toList();
-              final List<Map<String, dynamic>> remaining =
-                  programsList.skip(5).toList();
+              final List<Map<String, dynamic>> firstFive = programsList
+                  .take(5)
+                  .toList();
+              final List<Map<String, dynamic>> remaining = programsList
+                  .skip(5)
+                  .toList();
 
               return SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -322,10 +325,7 @@ class _ProgramsScreenState extends State<ProgramsScreen>
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             gradient: LinearGradient(
-              colors: [
-                _primaryBlue,
-                _primaryBlue.withOpacity(0.85),
-              ],
+              colors: [_primaryBlue, _primaryBlue.withOpacity(0.85)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -345,14 +345,16 @@ class _ProgramsScreenState extends State<ProgramsScreen>
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => MoreProgramsScreen(
-                      programs: remainingPrograms,
-                    ),
+                    builder: (context) =>
+                        MoreProgramsScreen(programs: remainingPrograms),
                   ),
                 );
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 16,
+                  horizontal: 24,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -458,8 +460,10 @@ class _ProgramCardState extends State<ProgramCard> {
     final bool isLongDescription = desc.length > 60;
 
     return SlideTransition(
-      position: Tween<Offset>(begin: const Offset(0.1, 0), end: Offset.zero)
-          .animate(widget.animation),
+      position: Tween<Offset>(
+        begin: const Offset(0.1, 0),
+        end: Offset.zero,
+      ).animate(widget.animation),
       child: FadeTransition(
         opacity: widget.animation,
         child: Container(
@@ -467,10 +471,7 @@ class _ProgramCardState extends State<ProgramCard> {
           decoration: BoxDecoration(
             color: const Color(0xFFFFFBEB).withOpacity(0.4), // Warm glass tint
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: _goldAccent.withOpacity(0.4),
-              width: 1.5,
-            ),
+            border: Border.all(color: _goldAccent.withOpacity(0.4), width: 1.5),
             boxShadow: [
               BoxShadow(
                 color: _goldAccent.withOpacity(0.08),
@@ -505,7 +506,9 @@ class _ProgramCardState extends State<ProgramCard> {
                       decoration: BoxDecoration(
                         color: _primaryBlue.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: _primaryBlue.withOpacity(0.1)),
+                        border: Border.all(
+                          color: _primaryBlue.withOpacity(0.1),
+                        ),
                       ),
                       child: Icon(
                         _getIconFromName(iconName),
@@ -613,10 +616,7 @@ class _ProgramCardState extends State<ProgramCard> {
 class MoreProgramsScreen extends StatefulWidget {
   final List<Map<String, dynamic>> programs;
 
-  const MoreProgramsScreen({
-    super.key,
-    required this.programs,
-  });
+  const MoreProgramsScreen({super.key, required this.programs});
 
   @override
   State<MoreProgramsScreen> createState() => _MoreProgramsScreenState();
@@ -670,10 +670,7 @@ class _MoreProgramsScreenState extends State<MoreProgramsScreen>
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 24,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

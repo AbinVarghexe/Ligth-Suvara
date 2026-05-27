@@ -11,10 +11,13 @@ class ContentProvider with ChangeNotifier {
   List<QueryDocumentSnapshot> _events = [];
   List<QueryDocumentSnapshot> get events => _events;
 
+  // Cache for Calendar Config
+  Map<String, dynamic> _calendarConfig = {};
+  Map<String, dynamic> get calendarConfig => _calendarConfig;
+
   // Cache for Login Screen Config
   Map<String, dynamic> _loginConfig = {};
   Map<String, dynamic> get loginConfig => _loginConfig;
-
   // Cache for Theme & Programs Config
   Map<String, dynamic> _themeProgramsConfig = {};
   Map<String, dynamic> get themeProgramsConfig => _themeProgramsConfig;
@@ -33,6 +36,7 @@ class ContentProvider with ChangeNotifier {
   StreamSubscription? _eventSubscription;
   StreamSubscription? _loginConfigSubscription;
   StreamSubscription? _themeProgramsSubscription;
+  StreamSubscription? _calendarSubscription;
 
   // Define limits consistent with UI
   static const int _broadcastLimit = 10;
@@ -52,11 +56,14 @@ class ContentProvider with ChangeNotifier {
       _broadcastSubscription = null;
       await _themeProgramsSubscription?.cancel();
       _themeProgramsSubscription = null;
+      await _calendarSubscription?.cancel();
+      _calendarSubscription = null;
     }
     fetchBroadcasts();
     fetchEvents();
     fetchLoginConfig();
     fetchThemeProgramsConfig();
+    fetchCalendarConfig();
   }
 
   void fetchBroadcasts() {
@@ -107,7 +114,8 @@ class ContentProvider with ChangeNotifier {
               if (data == null) return false;
               final isPublic = data['isPublic'] ?? false;
               final creatorId = data['creatorId'] as String?;
-              return isPublic == true || creatorId == 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2';
+              return isPublic == true ||
+                  creatorId == 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2';
             }).toList();
             _isLoadingEvents = false;
             notifyListeners();
@@ -168,12 +176,33 @@ class ContentProvider with ChangeNotifier {
         );
   }
 
+  void fetchCalendarConfig() {
+    if (_calendarSubscription != null) return;
+
+    _calendarSubscription = FirebaseFirestore.instance
+        .collection('settings')
+        .doc('calendar')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (snapshot.exists) {
+              _calendarConfig = snapshot.data() as Map<String, dynamic>;
+              notifyListeners();
+            }
+          },
+          onError: (e) {
+            debugPrint("Error fetching calendar config: $e");
+          },
+        );
+  }
+
   @override
   void dispose() {
     _broadcastSubscription?.cancel();
     _eventSubscription?.cancel();
     _loginConfigSubscription?.cancel();
     _themeProgramsSubscription?.cancel();
+    _calendarSubscription?.cancel();
     super.dispose();
   }
 }

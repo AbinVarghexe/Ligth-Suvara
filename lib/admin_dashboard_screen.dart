@@ -214,11 +214,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     if (mounted) setState(() => _isStatsLoading = true);
 
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('events').get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('events')
+          .get();
       final allEvents = snapshot.docs;
       final total = allEvents.length;
       final public = allEvents.where((doc) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final isPub = data['isPublic'] ?? false;
         final creator = data['creatorId'] as String?;
         return isPub == true || creator == 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2';
@@ -235,7 +237,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load statistics: $e'), backgroundColor: Colors.red.shade600),
+          SnackBar(
+            content: Text('Failed to load statistics: $e'),
+            backgroundColor: Colors.red.shade600,
+          ),
         );
       }
     } finally {
@@ -248,13 +253,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
               gradient: LinearGradient(
-                begin: Alignment.topLeft, end: Alignment.bottomRight,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: [Colors.blue.shade50, Colors.white],
               ),
             ),
@@ -266,17 +274,41 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.blue.shade900, borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.sort, color: Colors.white, size: 24),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade900,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.sort,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 16),
-                    Text('Sort Events', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.blue.shade900)),
+                    Text(
+                      'Sort Events',
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        color: Colors.blue.shade900,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 20),
-                _buildSortOption('Newest First', Icons.access_time, SortOption.newestFirst, context),
+                _buildSortOption(
+                  'Newest First',
+                  Icons.access_time,
+                  SortOption.newestFirst,
+                  context,
+                ),
                 const SizedBox(height: 12),
-                _buildSortOption('Alphabetical (A-Z)', Icons.sort_by_alpha, SortOption.alphabetical, context),
+                _buildSortOption(
+                  'Alphabetical (A-Z)',
+                  Icons.sort_by_alpha,
+                  SortOption.alphabetical,
+                  context,
+                ),
               ],
             ),
           ),
@@ -285,7 +317,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  Widget _buildSortOption(String title, IconData icon, SortOption value, BuildContext context) {
+  Widget _buildSortOption(
+    String title,
+    IconData icon,
+    SortOption value,
+    BuildContext context,
+  ) {
     final isSelected = _currentSortOption == value;
     return InkWell(
       onTap: () {
@@ -298,13 +335,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue.shade900 : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isSelected ? Colors.blue.shade900 : Colors.grey.shade300, width: 2),
+          border: Border.all(
+            color: isSelected ? Colors.blue.shade900 : Colors.grey.shade300,
+            width: 2,
+          ),
         ),
         child: Row(
           children: [
             Icon(icon, color: isSelected ? Colors.white : Colors.blue.shade900),
             const SizedBox(width: 16),
-            Expanded(child: Text(title, style: GoogleFonts.outfit(color: isSelected ? Colors.white : Colors.blue.shade900, fontWeight: FontWeight.w600))),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.outfit(
+                  color: isSelected ? Colors.white : Colors.blue.shade900,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
             if (isSelected) const Icon(Icons.check_circle, color: Colors.white),
           ],
         ),
@@ -321,18 +369,44 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(child: _buildGradientStatCard('Total Events', _totalEvents, Icons.event_note_rounded, [Colors.blue.shade700, Colors.blue.shade900])),
+                  Expanded(
+                    child: _buildGradientStatCard(
+                      'Total Events',
+                      _totalEvents,
+                      Icons.event_note_rounded,
+                      [Colors.blue.shade700, Colors.blue.shade900],
+                    ),
+                  ),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildGradientStatCard('Public', _publicEvents, Icons.public_rounded, [Colors.green.shade600, Colors.green.shade800])),
+                  Expanded(
+                    child: _buildGradientStatCard(
+                      'Public',
+                      _publicEvents,
+                      Icons.public_rounded,
+                      [Colors.green.shade600, Colors.green.shade800],
+                    ),
+                  ),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildGradientStatCard('Drafts', _draftEvents, Icons.drafts_rounded, [Colors.orange.shade600, Colors.orange.shade800])),
+                  Expanded(
+                    child: _buildGradientStatCard(
+                      'Drafts',
+                      _draftEvents,
+                      Icons.drafts_rounded,
+                      [Colors.orange.shade600, Colors.orange.shade800],
+                    ),
+                  ),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildGradientStatCard(String title, int count, IconData icon, List<Color> gradientColors) {
+  Widget _buildGradientStatCard(
+    String title,
+    int count,
+    IconData icon,
+    List<Color> gradientColors,
+  ) {
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 1000),
       curve: Curves.easeOutQuart,
@@ -350,7 +424,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                       colors: [
                         Colors.white.withValues(alpha: 0.6), // Luminous peak
                         Colors.white.withValues(alpha: 0.25),
@@ -358,7 +433,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     ),
                     borderRadius: BorderRadius.circular(30),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.55), // Bright Luminous edge
+                      color: Colors.white.withValues(
+                        alpha: 0.55,
+                      ), // Bright Luminous edge
                       width: 1.8,
                     ),
                     boxShadow: [
@@ -378,7 +455,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [gradientColors[0], gradientColors[1]],
-                            begin: Alignment.topLeft, end: Alignment.bottomRight,
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
                           shape: BoxShape.circle,
                           boxShadow: [
@@ -395,13 +473,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       Text(
                         (count * value).toInt().toString(),
                         style: GoogleFonts.plusJakartaSans(
-                          fontSize: 38, 
-                          fontWeight: FontWeight.w900, 
+                          fontSize: 38,
+                          fontWeight: FontWeight.w900,
                           color: const Color(0xFF1E293B), // Deep Midnight
                           shadows: [
                             Shadow(
-                              color: Colors.white.withValues(alpha: 0.5), 
-                              offset: const Offset(1, 1), 
+                              color: Colors.white.withValues(alpha: 0.5),
+                              offset: const Offset(1, 1),
                               blurRadius: 4,
                             ),
                           ],
@@ -409,11 +487,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        title, 
+                        title,
                         style: GoogleFonts.outfit(
-                          fontSize: 14, 
-                          color: const Color(0xFF1E293B).withValues(alpha: 0.8), // High-visibility label
-                          fontWeight: FontWeight.w800, 
+                          fontSize: 14,
+                          color: const Color(
+                            0xFF1E293B,
+                          ).withValues(alpha: 0.8), // High-visibility label
+                          fontWeight: FontWeight.w800,
                           letterSpacing: 0.8,
                         ),
                       ),
@@ -436,13 +516,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.65), // Luminous frosted base
+            color: Colors.white.withValues(
+              alpha: 0.65,
+            ), // Luminous frosted base
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.7), width: 1.8),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.7),
+              width: 1.8,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12), 
-                blurRadius: 25, 
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 25,
                 offset: const Offset(0, 12),
               ),
             ],
@@ -461,23 +546,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     curve: Curves.fastOutSlowIn,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
-                      gradient: isSelected 
-                        ? const LinearGradient(
-                            colors: [Color(0xFFD4AF37), Color(0xFFF9D423)], 
-                            begin: Alignment.topLeft, end: Alignment.bottomRight,
-                          ) 
-                        : null,
+                      gradient: isSelected
+                          ? const LinearGradient(
+                              colors: [Color(0xFFD4AF37), Color(0xFFF9D423)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
                       borderRadius: BorderRadius.circular(22),
-                      boxShadow: isSelected 
-                        ? [BoxShadow(color: const Color(0xFFD4AF37).withValues(alpha: 0.45), blurRadius: 15, offset: const Offset(0, 6))] 
-                        : null,
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFFD4AF37,
+                                ).withValues(alpha: 0.45),
+                                blurRadius: 15,
+                                offset: const Offset(0, 6),
+                              ),
+                            ]
+                          : null,
                     ),
                     child: Center(
                       child: Text(
-                        _categories[index], 
+                        _categories[index],
                         style: GoogleFonts.plusJakartaSans(
-                          color: isSelected ? Colors.black87 : const Color(0xFF1E293B).withValues(alpha: 0.6), // High-visibility inactive
-                          fontWeight: FontWeight.w900, 
+                          color: isSelected
+                              ? Colors.black87
+                              : const Color(0xFF1E293B).withValues(
+                                  alpha: 0.6,
+                                ), // High-visibility inactive
+                          fontWeight: FontWeight.w900,
                           fontSize: 15,
                           letterSpacing: 0.8,
                         ),
@@ -501,14 +599,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white.withValues(alpha: 0.9),
-        title: Text('Logout', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text(
+          'Logout',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+        ),
         content: const Text('Are you sure you want to logout?'),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             child: const Text('Logout'),
           ),
         ],
@@ -519,12 +629,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         try {
-          final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-          NotificationService().unsubscribeAll(user.uid, userDoc.data()?['role']?.toString()).catchError((e) => debugPrint(e.toString()));
-        } catch (e) { debugPrint(e.toString()); }
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+          NotificationService()
+              .unsubscribeAll(user.uid, userDoc.data()?['role']?.toString())
+              .catchError((e) => debugPrint(e.toString()));
+        } catch (e) {
+          debugPrint(e.toString());
+        }
       }
       await FirebaseAuth.instance.signOut();
-      if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => const LoginScreen()), (route) => false);
+      if (mounted)
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
     }
   }
 
@@ -570,9 +691,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             const SizedBox(height: 32),
             ShaderMask(
               shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFFD4AF37), Color(0xFFF9D423), Color(0xFFD4AF37)],
+                colors: [
+                  Color(0xFFD4AF37),
+                  Color(0xFFF9D423),
+                  Color(0xFFD4AF37),
+                ],
                 stops: [0.0, 0.5, 1.0],
-                begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ).createShader(bounds),
               child: Text(
                 "Event Management",
@@ -582,7 +708,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   color: Colors.white, // Colors will be masked by ShaderMask
                   letterSpacing: -1.0, // Modern tight spacing
                   shadows: [
-                    Shadow(color: Colors.black.withValues(alpha: 0.4), offset: const Offset(1, 2), blurRadius: 6),
+                    Shadow(
+                      color: Colors.black.withValues(alpha: 0.4),
+                      offset: const Offset(1, 2),
+                      blurRadius: 6,
+                    ),
                   ],
                 ),
               ),
@@ -591,7 +721,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             Text(
               "Manage and monitor all events",
               style: GoogleFonts.outfit(
-                color: const Color(0xFF1E293B).withValues(alpha: 0.85), 
+                color: const Color(0xFF1E293B).withValues(alpha: 0.85),
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.2, // Airy modern vibe
@@ -606,21 +736,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "Latest Events", 
+                  "Latest Events",
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 26, 
-                    fontWeight: FontWeight.w900, 
-                    color: const Color(0xFF1E293B), // High-visibility Midnight Blue
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(
+                      0xFF1E293B,
+                    ), // High-visibility Midnight Blue
                     letterSpacing: -0.5,
                   ),
                 ),
                 TextButton(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminAllEventsScreen())),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminAllEventsScreen(),
+                    ),
+                  ),
                   child: Text(
-                    "View All", 
+                    "View All",
                     style: GoogleFonts.outfit(
-                      color: const Color(0xFFD4AF37), 
-                      fontWeight: FontWeight.w900, 
+                      color: const Color(0xFFD4AF37),
+                      fontWeight: FontWeight.w900,
                       fontSize: 18,
                     ),
                   ),
@@ -638,16 +775,38 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Widget _buildAllEventsList() {
     final selectedCategory = _categories[_selectedCategoryIndex];
-    Query baseQuery = FirebaseFirestore.instance.collection('events').orderBy('timestamp', descending: true);
-    if (selectedCategory != 'ALL') baseQuery = baseQuery.where('category', isEqualTo: selectedCategory.toLowerCase());
+    Query baseQuery = FirebaseFirestore.instance
+        .collection('events')
+        .orderBy('timestamp', descending: true);
+    if (selectedCategory != 'ALL')
+      baseQuery = baseQuery.where(
+        'category',
+        isEqualTo: selectedCategory.toLowerCase(),
+      );
 
     return StreamBuilder<QuerySnapshot>(
       stream: baseQuery.limit(3).snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const EventListSkeleton();
-        if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.white)));
+        if (snapshot.connectionState == ConnectionState.waiting)
+          return const EventListSkeleton();
+        if (snapshot.hasError)
+          return Center(
+            child: Text(
+              'Error: ${snapshot.error}',
+              style: const TextStyle(color: Colors.white),
+            ),
+          );
         final docs = snapshot.data!.docs;
-        if (docs.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(20), child: Text("No events found", style: TextStyle(color: Colors.white70))));
+        if (docs.isEmpty)
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Text(
+                "No events found",
+                style: TextStyle(color: Colors.white70),
+              ),
+            ),
+          );
 
         return ListView.builder(
           shrinkWrap: true,
@@ -656,7 +815,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           itemBuilder: (context, index) {
             var eventDoc = docs[index];
             var data = eventDoc.data() as Map<String, dynamic>;
-            bool isPublic = (data['isPublic'] ?? false) || (data['creatorId'] == 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2');
+            bool isPublic =
+                (data['isPublic'] ?? false) ||
+                (data['creatorId'] == 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2');
             return TweenAnimationBuilder<double>(
               duration: Duration(milliseconds: 300 + (index * 100)),
               tween: Tween(begin: 0.0, end: 1.0),
@@ -674,15 +835,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                           child: Container(
                             padding: const EdgeInsets.all(18),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.65), // Milky Luminous Visibility
+                              color: Colors.white.withValues(
+                                alpha: 0.65,
+                              ), // Milky Luminous Visibility
                               borderRadius: BorderRadius.circular(30),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.7), width: 1.8),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                width: 1.8,
+                              ),
                               boxShadow: [
-                                BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 20, offset: const Offset(0, 10)),
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.12),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                ),
                               ],
                             ),
                             child: InkWell(
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EventDetailScreen(eventId: eventDoc.id))),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      EventDetailScreen(eventId: eventDoc.id),
+                                ),
+                              ),
                               child: Row(
                                 children: [
                                   Hero(
@@ -690,37 +866,75 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(22),
                                       child: SizedBox(
-                                        width: 75, height: 75,
+                                        width: 75,
+                                        height: 75,
                                         child: () {
-                                          final imgUrl = (data['imageUrl'] ?? '') as String;
-                                          final placeholderData = HomeScreen.getEventPlaceholderData(data['category'] ?? '');
+                                          final imgUrl =
+                                              (data['imageUrl'] ?? '')
+                                                  as String;
+                                          final placeholderData =
+                                              HomeScreen.getEventPlaceholderData(
+                                                data['category'] ?? '',
+                                              );
                                           final placeholder = Container(
-                                            width: 75, height: 75,
+                                            width: 75,
+                                            height: 75,
                                             decoration: BoxDecoration(
-                                              gradient: placeholderData['gradient'] as LinearGradient?,
+                                              gradient:
+                                                  placeholderData['gradient']
+                                                      as LinearGradient?,
                                             ),
-                                            child: Center(child: Icon(placeholderData['icon'] as IconData?, color: Colors.white, size: 32)),
+                                            child: Center(
+                                              child: Icon(
+                                                placeholderData['icon']
+                                                    as IconData?,
+                                                color: Colors.white,
+                                                size: 32,
+                                              ),
+                                            ),
                                           );
-                                          if (imgUrl.isEmpty) return placeholder;
+                                          if (imgUrl.isEmpty)
+                                            return placeholder;
                                           // Handle base64 data URLs (stored by older uploads)
-                                          if (imgUrl.startsWith('data:image/')) {
+                                          if (imgUrl.startsWith(
+                                            'data:image/',
+                                          )) {
                                             try {
-                                              final bytes = base64Decode(imgUrl.split(',').last);
-                                              return Image.memory(bytes, width: 75, height: 75, fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) => placeholder);
-                                            } catch (_) { return placeholder; }
+                                              final bytes = base64Decode(
+                                                imgUrl.split(',').last,
+                                              );
+                                              return Image.memory(
+                                                bytes,
+                                                width: 75,
+                                                height: 75,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) =>
+                                                    placeholder,
+                                              );
+                                            } catch (_) {
+                                              return placeholder;
+                                            }
                                           }
                                           return Image.network(
                                             imgUrl,
-                                            width: 75, height: 75,
+                                            width: 75,
+                                            height: 75,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => placeholder,
+                                            errorBuilder: (_, __, ___) =>
+                                                placeholder,
                                             loadingBuilder: (_, child, progress) {
-                                              if (progress == null) return child;
+                                              if (progress == null)
+                                                return child;
                                               return Container(
-                                                width: 75, height: 75,
+                                                width: 75,
+                                                height: 75,
                                                 color: Colors.grey.shade200,
-                                                child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                                child: const Center(
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                ),
                                               );
                                             },
                                           );
@@ -731,33 +945,54 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                   const SizedBox(width: 18),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          data['title'] ?? 'No Title', 
+                                          data['title'] ?? 'No Title',
                                           style: GoogleFonts.plusJakartaSans(
-                                            fontWeight: FontWeight.w900, 
-                                            fontSize: 19, 
-                                            color: const Color(0xFF1E293B), // High-visibility project title
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 19,
+                                            color: const Color(
+                                              0xFF1E293B,
+                                            ), // High-visibility project title
                                             letterSpacing: -0.3,
                                           ),
-                                          maxLines: 1, 
+                                          maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                         const SizedBox(height: 10),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
                                           decoration: BoxDecoration(
-                                            color: isPublic ? Colors.green.shade500.withValues(alpha: 0.15) : Colors.amber.shade700.withValues(alpha: 0.12), 
-                                            borderRadius: BorderRadius.circular(12), 
-                                            border: Border.all(color: isPublic ? Colors.green.shade600.withValues(alpha: 0.6) : Colors.amber.shade800.withValues(alpha: 0.7), width: 1.2),
+                                            color: isPublic
+                                                ? Colors.green.shade500
+                                                      .withValues(alpha: 0.15)
+                                                : Colors.amber.shade700
+                                                      .withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(
+                                              color: isPublic
+                                                  ? Colors.green.shade600
+                                                        .withValues(alpha: 0.6)
+                                                  : Colors.amber.shade800
+                                                        .withValues(alpha: 0.7),
+                                              width: 1.2,
+                                            ),
                                           ),
                                           child: Text(
-                                            isPublic ? "Published" : "Draft", 
+                                            isPublic ? "Published" : "Draft",
                                             style: GoogleFonts.plusJakartaSans(
-                                              color: isPublic ? Colors.green.shade700 : Colors.amber.shade900, 
-                                              fontSize: 12, 
-                                              fontWeight: FontWeight.w900, 
+                                              color: isPublic
+                                                  ? Colors.green.shade700
+                                                  : Colors.amber.shade900,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w900,
                                               letterSpacing: 1.0,
                                             ),
                                           ),
@@ -765,7 +1000,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                       ],
                                     ),
                                   ),
-                                  Icon(Icons.chevron_right_rounded, color: const Color(0xFF1E293B).withValues(alpha: 0.5), size: 34),
+                                  Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: const Color(
+                                      0xFF1E293B,
+                                    ).withValues(alpha: 0.5),
+                                    size: 34,
+                                  ),
                                 ],
                               ),
                             ),
@@ -800,7 +1041,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               ],
             ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1.5),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.4),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.1),
@@ -817,27 +1061,35 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildAppBarAction(
-                    icon: Icons.refresh_rounded, 
-                    color: _isStatsLoading ? Colors.black26 : Colors.black87, 
-                    onPressed: _isStatsLoading ? null : _fetchAndSetStatistics, 
+                    icon: Icons.refresh_rounded,
+                    color: _isStatsLoading ? Colors.black26 : Colors.black87,
+                    onPressed: _isStatsLoading ? null : _fetchAndSetStatistics,
                     tooltip: 'Refresh Statistics',
                   ),
                   _buildAppBarAction(
-                    icon: Icons.notifications_active_rounded, 
-                    color: Colors.black87, 
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminNotificationScreen())), 
+                    icon: Icons.notifications_active_rounded,
+                    color: Colors.black87,
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminNotificationScreen(),
+                      ),
+                    ),
                     tooltip: 'Send Notification',
                   ),
                 ],
               ),
-              
+
               // ✨ Center Logo (Adaptive)
               Expanded(
                 child: Center(
                   child: Hero(
                     tag: 'app_logo',
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(16),
@@ -864,14 +1116,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildAppBarAction(
-                    icon: Icons.sort_rounded, 
-                    color: Colors.black87, 
-                    onPressed: _showSortDialog, 
+                    icon: Icons.sort_rounded,
+                    color: Colors.black87,
+                    onPressed: _showSortDialog,
                     tooltip: 'Sort Events',
                   ),
                   const SizedBox(width: 4),
                   _buildHeaderIconButton(
-                    const Icon(Icons.logout_rounded, color: Color(0xFF1E3A8A), size: 22), 
+                    const Icon(
+                      Icons.logout_rounded,
+                      color: Color(0xFF1E3A8A),
+                      size: 22,
+                    ),
                     _handleLogout,
                   ),
                 ],
@@ -900,7 +1156,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Widget _bottomNav() {
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 16 + MediaQuery.paddingOf(context).bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        16 + MediaQuery.paddingOf(context).bottom,
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(35),
         child: BackdropFilter(
@@ -908,9 +1169,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.35), // Higher visibility 'milky' glass
+              color: Colors.white.withValues(
+                alpha: 0.35,
+              ), // Higher visibility 'milky' glass
               borderRadius: BorderRadius.circular(35),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.5),
+                width: 1.5,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.15),
@@ -946,33 +1212,48 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFD4AF37).withValues(alpha: 0.12) : Colors.transparent,
+          color: isSelected
+              ? const Color(0xFFD4AF37).withValues(alpha: 0.12)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
-          border: isSelected 
-            ? Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.5), width: 1.0) 
-            : null,
+          border: isSelected
+              ? Border.all(
+                  color: const Color(0xFFD4AF37).withValues(alpha: 0.5),
+                  width: 1.0,
+                )
+              : null,
         ),
         child: Icon(
-          icon, 
-          color: isSelected ? const Color(0xFFB8860B) : const Color(0xFF1E293B).withValues(alpha: 0.6), // Rich Gold vs Midnight Blue
+          icon,
+          color: isSelected
+              ? const Color(0xFFB8860B)
+              : const Color(
+                  0xFF1E293B,
+                ).withValues(alpha: 0.6), // Rich Gold vs Midnight Blue
           size: 26,
         ),
       ),
     );
   }
 
-  Widget _buildAppBarAction({required IconData icon, required Color color, required VoidCallback? onPressed, required String tooltip}) {
+  Widget _buildAppBarAction({
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onPressed,
+    required String tooltip,
+  }) {
     return InkWell(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(12),
       child: Tooltip(
         message: tooltip,
         child: Padding(
-          padding: const EdgeInsets.all(8.0), // More compact than IconButton's 48px
+          padding: const EdgeInsets.all(
+            8.0,
+          ), // More compact than IconButton's 48px
           child: Icon(icon, color: color, size: 24),
         ),
       ),
     );
   }
-
 }
