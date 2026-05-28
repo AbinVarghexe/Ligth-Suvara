@@ -314,6 +314,7 @@ class _BroadcastScreenState extends State<BroadcastScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  int _limit = 6;
 
   @override
   void initState() {
@@ -442,7 +443,7 @@ class _BroadcastScreenState extends State<BroadcastScreen>
             stream: FirebaseFirestore.instance
                 .collection('broadcasts')
                 .orderBy('timestamp', descending: true)
-                .limit(30)
+                .limit(_limit + 1)
                 .snapshots(),
             builder: (context, snapshot) {
               final provider = Provider.of<ContentProvider>(
@@ -474,7 +475,10 @@ class _BroadcastScreenState extends State<BroadcastScreen>
               final List<Widget> timelineWidgets = [];
               String? lastHeader = '';
 
-              for (int i = 0; i < messages.length; i++) {
+              final int displayCount = messages.length > _limit ? _limit : messages.length;
+              final bool hasMore = messages.length > _limit;
+
+              for (int i = 0; i < displayCount; i++) {
                 var message = messages[i];
                 String currentHeader = _getTimelineHeader(message.timestamp);
 
@@ -494,6 +498,53 @@ class _BroadcastScreenState extends State<BroadcastScreen>
                         vertical: 8.0,
                       ),
                       child: CustomBroadcastTile(message: message, index: i),
+                    ),
+                  ),
+                );
+              }
+
+              if (hasMore) {
+                timelineWidgets.add(
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20.0,
+                      vertical: 24.0,
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _goldAccent.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: OutlinedButton(
+                        onPressed: () {
+                          setState(() {
+                            _limit += 6;
+                          });
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: _goldAccent, width: 1.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          backgroundColor: Colors.white.withOpacity(0.8),
+                        ),
+                        child: Text(
+                          'View More',
+                          style: GoogleFonts.outfit(
+                            color: _primaryBlue,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 );

@@ -8,12 +8,19 @@ import 'package:sundayschool_app/homescreen.dart';
 import 'package:sundayschool_app/widgets/heavenly_background.dart';
 import 'package:shimmer/shimmer.dart';
 
-class HomeEventsScreen extends StatelessWidget {
+class HomeEventsScreen extends StatefulWidget {
   const HomeEventsScreen({super.key});
 
+  @override
+  State<HomeEventsScreen> createState() => _HomeEventsScreenState();
+}
+
+class _HomeEventsScreenState extends State<HomeEventsScreen> {
   // Defines the primary brand colors for consistency
   static const Color _primaryBlue = Color(0xFF1E3A8A); // Deep Royal Blue
   static const Color _goldAccent = Color(0xFFBC8A3A); // Gold Accent
+
+  int _limit = 6;
 
   @override
   Widget build(BuildContext context) {
@@ -51,11 +58,13 @@ class HomeEventsScreen extends StatelessWidget {
                   .collection('events')
                   .where('isPublic', isEqualTo: true)
                   .orderBy('timestamp', descending: true)
+                  .limit(_limit + 1)
                   .snapshots(),
               FirebaseFirestore.instance
                   .collection('events')
                   .where('creatorId', isEqualTo: 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2')
                   .orderBy('timestamp', descending: true)
+                  .limit(_limit + 1)
                   .snapshots(),
             ]),
             builder: (context, snapshot) {
@@ -77,8 +86,12 @@ class HomeEventsScreen extends StatelessWidget {
               final docs = uniqueDocs.values.toList();
               // Sort by timestamp descending
               docs.sort((a, b) {
-                final aTime = (a.data() as Map<String, dynamic>?)?['timestamp'] as Timestamp?;
-                final bTime = (b.data() as Map<String, dynamic>?)?['timestamp'] as Timestamp?;
+                final aTime =
+                    (a.data() as Map<String, dynamic>?)?['timestamp']
+                        as Timestamp?;
+                final bTime =
+                    (b.data() as Map<String, dynamic>?)?['timestamp']
+                        as Timestamp?;
                 if (aTime == null && bTime == null) return 0;
                 if (aTime == null) return 1;
                 if (bTime == null) return -1;
@@ -89,15 +102,64 @@ class HomeEventsScreen extends StatelessWidget {
                 return _buildEmptyState(context);
               }
 
+              final int displayCount = docs.length > _limit
+                  ? _limit
+                  : docs.length;
+              final bool hasMore = docs.length > _limit;
+
               return ListView.separated(
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 24,
                 ),
-                itemCount: docs.length,
+                itemCount: displayCount + (hasMore ? 1 : 0),
                 separatorBuilder: (_, __) => const SizedBox(height: 24),
                 itemBuilder: (context, index) {
+                  if (index == displayCount) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
+                      child: Container(
+                        width: double.infinity,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _goldAccent.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              _limit += 6;
+                            });
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(
+                              color: _goldAccent,
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            backgroundColor: Colors.white.withOpacity(0.8),
+                          ),
+                          child: Text(
+                            'View More',
+                            style: GoogleFonts.outfit(
+                              color: _primaryBlue,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
                   final doc = docs[index];
                   return _buildEventCard(context, doc);
                 },
@@ -161,15 +223,18 @@ class HomeEventsScreen extends StatelessWidget {
                       () {
                         final placeholder = Container(
                           decoration: BoxDecoration(
-                            gradient: HomeScreen.getEventPlaceholderData(
-                              data['category'] ?? '',
-                            )['gradient'] as LinearGradient?,
+                            gradient:
+                                HomeScreen.getEventPlaceholderData(
+                                      data['category'] ?? '',
+                                    )['gradient']
+                                    as LinearGradient?,
                           ),
                           child: Center(
                             child: Icon(
                               HomeScreen.getEventPlaceholderData(
-                                data['category'] ?? '',
-                              )['icon'] as IconData?,
+                                    data['category'] ?? '',
+                                  )['icon']
+                                  as IconData?,
                               color: Colors.white,
                               size: 50,
                             ),
@@ -180,11 +245,14 @@ class HomeEventsScreen extends StatelessWidget {
 
                         if (imageUrl.startsWith('data:image/')) {
                           try {
-                            final bytes = base64Decode(imageUrl.split(',').last);
+                            final bytes = base64Decode(
+                              imageUrl.split(',').last,
+                            );
                             return Image.memory(
                               bytes,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stack) => placeholder,
+                              errorBuilder: (context, error, stack) =>
+                                  placeholder,
                             );
                           } catch (_) {
                             return placeholder;
@@ -200,9 +268,7 @@ class HomeEventsScreen extends StatelessWidget {
                             return Shimmer.fromColors(
                               baseColor: Colors.grey.shade300,
                               highlightColor: Colors.white,
-                              child: Container(
-                                color: Colors.white,
-                              ),
+                              child: Container(color: Colors.white),
                             );
                           },
                         );
@@ -371,4 +437,3 @@ class HomeEventsScreen extends StatelessWidget {
     );
   }
 }
-

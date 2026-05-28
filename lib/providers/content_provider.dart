@@ -39,8 +39,8 @@ class ContentProvider with ChangeNotifier {
   StreamSubscription? _calendarSubscription;
 
   // Define limits consistent with UI
-  static const int _broadcastLimit = 10;
-  static const int _eventLimit = 5;
+  static const int _broadcastLimit = 4;
+  static const int _eventLimit = 4;
 
   ContentProvider() {
     // Start listening on initialization
