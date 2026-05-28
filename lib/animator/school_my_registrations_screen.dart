@@ -63,12 +63,14 @@ class SchoolMyRegistrationsScreen extends StatelessWidget {
           final Map<String, String> programIds = {};
           // Check lock status per program (if any entry is locked, program is locked)
           final Map<String, bool> programLocked = {};
+          final Map<String, String> programTypes = {};
 
           for (final doc in snapshot.data!.docs) {
             final data = doc.data() as Map<String, dynamic>;
             final pName = data['programName'] as String? ?? 'Unknown';
             final pId = data['programId'] as String? ?? '';
             final status = data['status'] as String? ?? 'pending';
+            final type = data['type']?.toString() ?? 'student';
 
             final isCountOnly = data['isCountOnly'] == true;
             final studentCount = isCountOnly
@@ -77,6 +79,7 @@ class SchoolMyRegistrationsScreen extends StatelessWidget {
 
             programCounts[pName] = (programCounts[pName] ?? 0) + studentCount;
             programIds[pName] = pId;
+            programTypes[pName] = type;
             if (status == 'locked') {
               programLocked[pName] = true;
             }
@@ -91,6 +94,8 @@ class SchoolMyRegistrationsScreen extends StatelessWidget {
               final pName = programs[index];
               final count = programCounts[pName]!;
               final isLocked = programLocked[pName] ?? false;
+              final type = programTypes[pName] ?? 'student';
+              final bool isTeacher = type == 'teacher';
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -136,7 +141,7 @@ class SchoolMyRegistrationsScreen extends StatelessWidget {
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        '$count Member${count == 1 ? '' : 's'} Registered',
+                        '$count ${isTeacher ? 'Teacher' : 'Student'}${count == 1 ? '' : 's'} Registered',
                         style: GoogleFonts.poppins(
                           fontSize: 13,
                           color: Colors.grey.shade600,
@@ -269,6 +274,8 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
   void _showActionSheet(String docId, Map<String, dynamic> data) {
     if (widget.isLocked) return;
     final bool isCountOnly = data['isCountOnly'] == true;
+    final String type = data['type']?.toString() ?? 'student';
+    final bool isTeacher = type == 'teacher';
 
     showModalBottomSheet(
       context: context,
@@ -332,7 +339,7 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                   ),
                 ),
                 title: Text(
-                  'Enter Member Details',
+                  isTeacher ? 'Enter Teacher Details' : 'Enter Student Details',
                   style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
                 ),
                 onTap: () {
@@ -496,6 +503,8 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
   void _showEditBottomSheet(String docId, Map<String, dynamic> data) {
     if (widget.isLocked) return;
     final bool isCountOnly = data['isCountOnly'] == true;
+    final String type = data['type']?.toString() ?? 'student';
+    final bool isTeacher = type == 'teacher';
 
     final nameController = TextEditingController(
       text: data['studentName']?.toString() ?? '',
@@ -524,7 +533,9 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                isCountOnly ? 'Edit Member Count' : 'Edit Member',
+                isCountOnly 
+                    ? (isTeacher ? 'Edit Teacher Count' : 'Edit Student Count') 
+                    : (isTeacher ? 'Edit Teacher Details' : 'Edit Student Details'),
                 style: GoogleFonts.poppins(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -537,7 +548,7 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                   controller: countController,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Number of Members',
+                    labelText: isTeacher ? 'Number of Teachers' : 'Number of Students',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -548,7 +559,7 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                 TextField(
                   controller: nameController,
                   decoration: InputDecoration(
-                    labelText: 'Name',
+                    labelText: isTeacher ? 'Teacher Name' : 'Student Name',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -559,7 +570,7 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                   controller: phoneController,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
-                    labelText: 'Phone',
+                    labelText: isTeacher ? 'Teacher Phone' : 'Student Phone',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -696,6 +707,8 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
 
               final bool isCountOnly = data['isCountOnly'] == true;
               final int studentCount = data['studentCount'] ?? 1;
+              final String itemType = data['type']?.toString() ?? 'student';
+              final bool isItemTeacher = itemType == 'teacher';
 
               return Container(
                 decoration: BoxDecoration(
@@ -724,7 +737,7 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                   ),
                   title: Text(
                     isCountOnly
-                        ? '$studentCount Member${studentCount == 1 ? '' : 's'} (Count Only)'
+                        ? '$studentCount ${isItemTeacher ? 'Teacher' : 'Student'}${studentCount == 1 ? '' : 's'} (Count Only)'
                         : (data['studentName'] ?? 'Unknown'),
                     style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
                   ),
