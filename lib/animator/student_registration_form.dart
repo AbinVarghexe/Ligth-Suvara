@@ -311,8 +311,8 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
           isSuccess: true,
           title: "Registration Successful!",
           message: _isCountOnly
-              ? 'Successfully registered ${_countController.text.trim()} ${isTeacher ? 'teachers' : ((int.tryParse(_countController.text.trim()) ?? 0) == 1 ? 'member' : 'members')}!'
-              : 'Successfully registered ${_studentEntries.length} ${isTeacher ? 'teachers' : (_studentEntries.length == 1 ? 'member' : 'members')}!',
+              ? 'Successfully registered ${_countController.text.trim()} ${isTeacher ? 'teachers' : 'students'}!'
+              : 'Successfully registered ${_studentEntries.length} ${isTeacher ? 'teachers' : 'students'}!',
         );
         if (mounted) Navigator.pop(context);
       }
@@ -455,7 +455,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
           tooltip: 'Back',
         ),
         title: Text(
-          'Register ${isTeacher ? 'Teacher' : 'Member'}',
+          'Register ${isTeacher ? 'Teacher' : 'Student'}',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -731,7 +731,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                                   : Text(
                                       _isCountOnly
                                           ? 'Submit Count Registration'
-                                          : 'Submit ${isTeacher ? 'Teacher' : 'Member'} Registrations (${_studentEntries.length})',
+                                          : 'Submit ${isTeacher ? 'Teacher' : 'Student'} Registrations (${_studentEntries.length})',
                                       style: GoogleFonts.poppins(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -769,7 +769,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
           Icon(Icons.groups_rounded, size: 60, color: Colors.blue.shade900),
           const SizedBox(height: 16),
           Text(
-            'Total ${isTeacher ? 'Teachers' : 'Members'}',
+            'Total ${isTeacher ? 'Teachers' : 'Students'}',
             style: GoogleFonts.poppins(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -778,7 +778,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Enter the total number of ${isTeacher ? 'teachers' : 'members'} participating',
+            'Enter the total number of ${isTeacher ? 'teachers' : 'students'} participating',
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               fontSize: 13,
@@ -854,7 +854,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${isTeacher ? 'Teacher' : 'Member'} ${index + 1}',
+                        '${isTeacher ? 'Teacher' : 'Student'} ${index + 1}',
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -880,7 +880,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
 
                   String label = field.name;
                   if (field.name.toLowerCase() == 'name') {
-                    label = '${isTeacher ? 'Teacher' : 'Member'} Name';
+                    label = '${isTeacher ? 'Teacher' : 'Student'} Name';
                   }
 
                   return Padding(

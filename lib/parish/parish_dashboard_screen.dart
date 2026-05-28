@@ -2062,9 +2062,11 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
         final docs = snapshot.data!.docs;
         // Group by Program Name
         final Map<String, int> programCounts = {};
+        final Map<String, String> programTypes = {};
         for (var doc in docs) {
           final data = doc.data() as Map<String, dynamic>;
           final programName = data['programName'] ?? 'Unknown Program';
+          final type = data['type']?.toString() ?? 'student';
 
           final isCountOnly = data['isCountOnly'] == true;
           final studentCount = isCountOnly
@@ -2073,6 +2075,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
 
           programCounts[programName] =
               (programCounts[programName] ?? 0) + studentCount;
+          programTypes[programName] = type;
         }
 
         final programs = programCounts.keys.toList();
@@ -2172,7 +2175,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '$count Member${count == 1 ? '' : 's'}',
+                                  '$count ${programTypes[programName] == 'teacher' ? 'Teacher' : 'Student'}${count == 1 ? '' : 's'}',
                                   style: GoogleFonts.poppins(
                                     fontSize: 14,
                                     color: Colors.grey.shade600,

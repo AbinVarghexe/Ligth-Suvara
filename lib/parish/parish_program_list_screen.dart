@@ -113,7 +113,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
     }
   }
 
-  void _lockProgram() async {
+  void _lockProgram(bool isTeacher) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -122,7 +122,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
           style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
         ),
         content: Text(
-          'This will approve all current members and prevent any further registrations from the school for this program. This cannot be undone by the school registration.',
+          'This will approve all current ${isTeacher ? 'teachers' : 'students'} and prevent any further registrations from the school for this program. This cannot be undone by the school registration.',
           style: GoogleFonts.poppins(),
         ),
         actions: [
@@ -263,6 +263,8 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
   void _showEditBottomSheet(String docId, Map<String, dynamic> data) {
     if (_isSaving) return;
     final bool isCountOnly = data['isCountOnly'] == true;
+    final String type = data['type']?.toString() ?? 'student';
+    final bool isTeacher = type == 'teacher';
     final nameController = TextEditingController(
       text: data['studentName']?.toString() ?? '',
     );
@@ -306,7 +308,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  isCountOnly ? 'Edit Member Count' : 'Edit Registration',
+                  isCountOnly ? (isTeacher ? 'Edit Teacher Count' : 'Edit Student Count') : 'Edit Registration',
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -317,14 +319,14 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                 if (isCountOnly)
                   _buildTextField(
                     controller: countController,
-                    label: 'Number of Members',
+                    label: isTeacher ? 'Number of Teachers' : 'Number of Students',
                     icon: Icons.groups_rounded,
                     keyboardType: TextInputType.number,
                   )
                 else ...[
                   _buildTextField(
                     controller: nameController,
-                    label: 'Member Name',
+                    label: isTeacher ? 'Teacher Name' : 'Student Name',
                     icon: Icons.person_outline_rounded,
                   ),
                   const SizedBox(height: 16),
@@ -631,6 +633,11 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
         final bool isLocked =
             docs.isNotEmpty && docs.first['status'] == 'locked';
 
+        final String type = docs.isNotEmpty
+            ? (docs.first.data() as Map<String, dynamic>)['type']?.toString() ?? 'student'
+            : 'student';
+        final bool isTeacher = type == 'teacher';
+
         return Scaffold(
           backgroundColor: Colors.grey[50],
           appBar: AppBar(
@@ -670,7 +677,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  onPressed: _lockProgram,
+                  onPressed: () => _lockProgram(isTeacher),
                 ),
               if (isLocked)
                 TextButton.icon(
@@ -708,7 +715,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No members found',
+                        'No registrations found',
                         style: GoogleFonts.poppins(
                           color: Colors.grey[500],
                           fontSize: 16,
@@ -727,6 +734,8 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                     final bool isItemLocked = data['status'] == 'locked';
                     final bool isCountOnly = data['isCountOnly'] == true;
                     final int studentCount = data['studentCount'] ?? 1;
+                    final itemType = data['type']?.toString() ?? 'student';
+                    final bool isItemTeacher = itemType == 'teacher';
 
                     final studentName = data['studentName']?.toString() ?? 'U';
                     final initial = studentName.isNotEmpty
@@ -778,7 +787,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                     children: [
                                       Text(
                                         isCountOnly
-                                            ? '$studentCount Member${studentCount == 1 ? '' : 's'} (Count Only)'
+                                            ? '$studentCount ${isItemTeacher ? 'Teacher' : 'Student'}${studentCount == 1 ? '' : 's'} (Count Only)'
                                             : studentName,
                                         style: GoogleFonts.poppins(
                                           fontWeight: FontWeight.bold,
@@ -795,13 +804,16 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                             color: Colors.grey[600],
                                           ),
                                           const SizedBox(width: 4),
-                                          Text(
-                                            isCountOnly
-                                                ? 'No details provided'
-                                                : '${data['studentPhone'] ?? 'N/A'}',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 13,
-                                              color: Colors.grey[600],
+                                          Expanded(
+                                            child: Text(
+                                              isCountOnly
+                                                  ? 'No details provided'
+                                                  : '${data['studentPhone'] ?? 'N/A'}',
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 13,
+                                                color: Colors.grey[600],
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                         ],
