@@ -136,7 +136,7 @@ class SchoolMyRegistrationsScreen extends StatelessWidget {
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        '$count Students Registered',
+                        '$count Member${count == 1 ? '' : 's'} Registered',
                         style: GoogleFonts.poppins(
                           fontSize: 13,
                           color: Colors.grey.shade600,
@@ -332,7 +332,7 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                   ),
                 ),
                 title: Text(
-                  'Enter Student Details',
+                  'Enter Member Details',
                   style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
                 ),
                 onTap: () {
@@ -524,7 +524,7 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                isCountOnly ? 'Edit Student Count' : 'Edit Student',
+                isCountOnly ? 'Edit Member Count' : 'Edit Member',
                 style: GoogleFonts.poppins(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -537,7 +537,7 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                   controller: countController,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Number of Students',
+                    labelText: 'Number of Members',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -724,7 +724,7 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                   ),
                   title: Text(
                     isCountOnly
-                        ? '$studentCount Students (Count Only)'
+                        ? '$studentCount Member${studentCount == 1 ? '' : 's'} (Count Only)'
                         : (data['studentName'] ?? 'Unknown'),
                     style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
                   ),

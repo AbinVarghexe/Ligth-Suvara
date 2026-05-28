@@ -31,6 +31,7 @@ import 'package:provider/provider.dart'; // Import provider
 import 'package:sundayschool_app/providers/content_provider.dart'; // Import ContentProvider
 import 'package:sundayschool_app/homescreen.dart';
 import 'package:sundayschool_app/video_resources_screen.dart';
+import 'package:sundayschool_app/calendar_webview_screen.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -2186,18 +2187,17 @@ class _LoginScreenState extends State<LoginScreen>
                                                     buttonTitle,
                                                     Icons.calendar_month_rounded,
                                                     const Color(0xFFBC8A3A),
-                                                    () async {
+                                                    () {
                                                       if (pdfUrl.isNotEmpty) {
-                                                        final Uri uri = Uri.parse(pdfUrl);
-                                                        if (await canLaunchUrl(uri)) {
-                                                          await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                                        } else {
-                                                          if (context.mounted) {
-                                                            ScaffoldMessenger.of(context).showSnackBar(
-                                                              const SnackBar(content: Text('Could not open PDF file.')),
-                                                            );
-                                                          }
-                                                        }
+                                                        Navigator.push(
+                                                          context,
+                                                          CustomPageRoute(
+                                                            child: CalendarWebViewScreen(
+                                                              url: pdfUrl,
+                                                              title: buttonTitle,
+                                                            ),
+                                                          ),
+                                                        );
                                                       } else {
                                                         if (context.mounted) {
                                                           ScaffoldMessenger.of(context).showSnackBar(

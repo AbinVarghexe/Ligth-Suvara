@@ -2172,7 +2172,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '$count Student${count == 1 ? '' : 's'}',
+                                  '$count Member${count == 1 ? '' : 's'}',
                                   style: GoogleFonts.poppins(
                                     fontSize: 14,
                                     color: Colors.grey.shade600,

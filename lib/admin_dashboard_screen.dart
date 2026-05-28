@@ -778,14 +778,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     Query baseQuery = FirebaseFirestore.instance
         .collection('events')
         .orderBy('timestamp', descending: true);
-    if (selectedCategory != 'ALL')
-      baseQuery = baseQuery.where(
-        'category',
-        isEqualTo: selectedCategory.toLowerCase(),
-      );
 
     return StreamBuilder<QuerySnapshot>(
-      stream: baseQuery.limit(3).snapshots(),
+      stream: baseQuery.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting)
           return const EventListSkeleton();
@@ -796,8 +791,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               style: const TextStyle(color: Colors.white),
             ),
           );
-        final docs = snapshot.data!.docs;
-        if (docs.isEmpty)
+        
+        final allDocs = snapshot.data!.docs;
+        final filteredDocs = selectedCategory == 'ALL'
+            ? allDocs
+            : allDocs.where((doc) {
+                final data = doc.data() as Map<String, dynamic>?;
+                if (data == null) return false;
+                final cat = (data['category'] ?? '').toString().toUpperCase();
+                return cat == selectedCategory.toUpperCase();
+              }).toList();
+
+        final displayDocs = filteredDocs.take(3).toList();
+
+        if (displayDocs.isEmpty)
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(20),
@@ -811,9 +818,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: docs.length,
+          itemCount: displayDocs.length,
           itemBuilder: (context, index) {
-            var eventDoc = docs[index];
+            var eventDoc = displayDocs[index];
             var data = eventDoc.data() as Map<String, dynamic>;
             bool isPublic =
                 (data['isPublic'] ?? false) ||

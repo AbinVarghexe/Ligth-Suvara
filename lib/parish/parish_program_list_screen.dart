@@ -122,7 +122,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
           style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
         ),
         content: Text(
-          'This will approve all current students and prevent any further registrations from the school for this program. This cannot be undone by the school registration.',
+          'This will approve all current members and prevent any further registrations from the school for this program. This cannot be undone by the school registration.',
           style: GoogleFonts.poppins(),
         ),
         actions: [
@@ -306,7 +306,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  isCountOnly ? 'Edit Student Count' : 'Edit Registration',
+                  isCountOnly ? 'Edit Member Count' : 'Edit Registration',
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -317,14 +317,14 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                 if (isCountOnly)
                   _buildTextField(
                     controller: countController,
-                    label: 'Number of Students',
+                    label: 'Number of Members',
                     icon: Icons.groups_rounded,
                     keyboardType: TextInputType.number,
                   )
                 else ...[
                   _buildTextField(
                     controller: nameController,
-                    label: 'Student Name',
+                    label: 'Member Name',
                     icon: Icons.person_outline_rounded,
                   ),
                   const SizedBox(height: 16),
@@ -708,7 +708,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No students found',
+                        'No members found',
                         style: GoogleFonts.poppins(
                           color: Colors.grey[500],
                           fontSize: 16,
@@ -778,7 +778,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                     children: [
                                       Text(
                                         isCountOnly
-                                            ? '$studentCount Students (Count Only)'
+                                            ? '$studentCount Member${studentCount == 1 ? '' : 's'} (Count Only)'
                                             : studentName,
                                         style: GoogleFonts.poppins(
                                           fontWeight: FontWeight.bold,
