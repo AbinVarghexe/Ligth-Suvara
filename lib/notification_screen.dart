@@ -8,6 +8,7 @@ import 'package:rxdart/rxdart.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:sundayschool_app/widgets/full_screen_image_viewer.dart';
 import 'package:sundayschool_app/widgets/linkable_text.dart';
+import 'package:sundayschool_app/utils/app_launcher.dart';
 
 // --- DATA MODEL ---
 class AppNotification {
@@ -19,6 +20,8 @@ class AppNotification {
   final bool isRead;
   final bool isFromBroadcasts;
   final String? imageUrl; // Added imageUrl support
+  final String? link;
+  final String? type;
 
   AppNotification.fromDoc(
     DocumentSnapshot doc,
@@ -43,7 +46,9 @@ class AppNotification {
                        as List<dynamic>? ??
                    [])
                .contains(currentUserId),
-       imageUrl = (doc.data() as Map<String, dynamic>?)?['imageUrl'] as String?;
+       imageUrl = (doc.data() as Map<String, dynamic>?)?['imageUrl'] as String?,
+       link = (doc.data() as Map<String, dynamic>?)?['link'] as String?,
+       type = (doc.data() as Map<String, dynamic>?)?['type'] as String?;
 
   bool get isBroadcast => recipientId == 'all';
   bool get isPublic => isFromBroadcasts;
@@ -412,8 +417,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                         return _buildEmptyState();
                       }
 
-                      final notificationsDocs = snapshot.data![0].docs;
-                      final broadcastsDocs = snapshot.data![1].docs;
+                      final notificationsDocs = snapshot.data![0].docs.where((doc) {
+                        final data = doc.data() as Map<String, dynamic>?;
+                        return data?['notificationOnly'] != true;
+                      }).toList();
+                      final broadcastsDocs = snapshot.data![1].docs.where((doc) {
+                        final data = doc.data() as Map<String, dynamic>?;
+                        return data?['notificationOnly'] != true;
+                      }).toList();
                       final allDocs = [...notificationsDocs, ...broadcastsDocs];
 
                       allDocs.sort((a, b) {
@@ -1120,6 +1131,58 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
                       color: Colors.grey.shade800,
                       height: 1.8,
                     ),
+                  ),
+                  Builder(
+                    builder: (context) {
+                      final bool isUpdateAnnouncement = widget.notification.type == 'update' || widget.notification.title.toLowerCase().contains('update');
+                      final String? updateUrl = (widget.notification.link != null && widget.notification.link!.isNotEmpty)
+                          ? widget.notification.link
+                          : (isUpdateAnnouncement ? 'https://play.google.com/store/apps/details?id=in.cse.ajce.sundayschool' : null);
+
+                      if (updateUrl == null) return const SizedBox.shrink();
+
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 24.0),
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6), Color(0xFF1E3A8A)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF1E3A8A).withOpacity(0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton.icon(
+                            onPressed: () => AppLauncher.launchURL(updateUrl),
+                            icon: const Icon(Icons.system_update_alt_rounded, color: Colors.white),
+                            label: Text(
+                              'Update App via Play Store',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(vertical: 18),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 40),
                 ],

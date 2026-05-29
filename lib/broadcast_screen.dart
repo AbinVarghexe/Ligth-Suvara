@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sundayschool_app/utils/app_launcher.dart';
 import 'package:sundayschool_app/widgets/full_screen_image_viewer.dart';
 import 'package:provider/provider.dart';
 import 'package:sundayschool_app/providers/content_provider.dart';
@@ -23,6 +24,8 @@ class BroadcastMessage {
   final String body;
   final DateTime timestamp;
   final String? imageUrl;
+  final String? link;
+  final String? type;
 
   BroadcastMessage.fromDoc(DocumentSnapshot doc)
     : id = doc.id,
@@ -32,7 +35,9 @@ class BroadcastMessage {
           ((doc.data() as Map<String, dynamic>?)?['timestamp'] as Timestamp?)
               ?.toDate() ??
           DateTime.now(),
-      imageUrl = (doc.data() as Map<String, dynamic>?)?['imageUrl'];
+      imageUrl = (doc.data() as Map<String, dynamic>?)?['imageUrl'],
+      link = (doc.data() as Map<String, dynamic>?)?['link'] as String?,
+      type = (doc.data() as Map<String, dynamic>?)?['type'] as String?;
 
   BroadcastMessage({
     required this.id,
@@ -40,6 +45,8 @@ class BroadcastMessage {
     required this.body,
     required this.timestamp,
     this.imageUrl,
+    this.link,
+    this.type,
   });
 }
 
@@ -268,6 +275,57 @@ class BroadcastDetailScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 40),
+                      Builder(
+                        builder: (context) {
+                          final bool isUpdateAnnouncement = message.type == 'update' || message.title.toLowerCase().contains('update');
+                          final String? updateUrl = (message.link != null && message.link!.isNotEmpty)
+                              ? message.link
+                              : (isUpdateAnnouncement ? 'https://play.google.com/store/apps/details?id=in.cse.ajce.sundayschool' : null);
+
+                          if (updateUrl == null) return const SizedBox.shrink();
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16.0),
+                            child: Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFBC8A3A), Color(0xFFE2B755), Color(0xFFBC8A3A)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFBC8A3A).withOpacity(0.4),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: ElevatedButton.icon(
+                                onPressed: () => AppLauncher.launchURL(updateUrl),
+                                icon: const Icon(Icons.system_update_alt_rounded, color: Colors.white),
+                                label: Text(
+                                  'Update App via Play Store',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  padding: const EdgeInsets.symmetric(vertical: 18),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20)),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(

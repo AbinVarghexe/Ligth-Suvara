@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 
 class ContentProvider with ChangeNotifier {
   // Cache for Broadcasts (Latest Updates)
@@ -82,7 +85,10 @@ class ContentProvider with ChangeNotifier {
         .snapshots()
         .listen(
           (snapshot) {
-            _broadcasts = snapshot.docs;
+            _broadcasts = snapshot.docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>?;
+              return data?['notificationOnly'] != true;
+            }).toList();
             _isLoadingBroadcasts = false;
             notifyListeners();
           },
@@ -188,12 +194,44 @@ class ContentProvider with ChangeNotifier {
             if (snapshot.exists) {
               _calendarConfig = snapshot.data() as Map<String, dynamic>;
               notifyListeners();
+              _prefetchCalendarPdf();
             }
           },
           onError: (e) {
             debugPrint("Error fetching calendar config: $e");
           },
         );
+  }
+
+  void _prefetchCalendarPdf() async {
+    final pdfUrl = _calendarConfig['pdfUrl'] ?? _calendarConfig['calendarUrl'] ?? _calendarConfig['url'] ?? '';
+    if (pdfUrl.isEmpty) return;
+    
+    final lowerUrl = pdfUrl.toLowerCase();
+    final isPdf = lowerUrl.contains('.pdf') || 
+                 lowerUrl.contains('firebasestorage') ||
+                 lowerUrl.contains('/o/');
+    if (!isPdf) return;
+
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final urlHash = pdfUrl.hashCode.toString();
+      final localFile = File('${directory.path}/calendar_cache_$urlHash.pdf');
+
+      if (await localFile.exists()) {
+        debugPrint('Calendar PDF is already cached (prefetched).');
+        return;
+      }
+
+      debugPrint('Pre-fetching calendar PDF in background: $pdfUrl');
+      final response = await http.get(Uri.parse(pdfUrl));
+      if (response.statusCode == 200) {
+        await localFile.writeAsBytes(response.bodyBytes);
+        debugPrint('Successfully pre-fetched and cached calendar PDF.');
+      }
+    } catch (e) {
+      debugPrint('Error pre-fetching calendar PDF: $e');
+    }
   }
 
   @override

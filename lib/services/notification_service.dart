@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:sundayschool_app/utils/app_launcher.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -18,6 +19,18 @@ class NotificationService {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
+
+  void _handleRemoteMessageClick(RemoteMessage message) {
+    final link = message.data['link'] as String?;
+    if (link != null && link.isNotEmpty) {
+      _handleNotificationClick(link);
+    }
+  }
+
+  void _handleNotificationClick(String link) {
+    debugPrint('Redirecting notification click to link: $link');
+    AppLauncher.launchURL(link);
+  }
 
   Future<void> init() async {
     // 1. Request permissions (for iOS, though handled automatically by FCM plugin on Android mostly, good practice)
@@ -39,15 +52,31 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Handle notification tap
         debugPrint('Notification tapped: ${response.payload}');
+        if (response.payload != null && response.payload!.isNotEmpty) {
+          _handleNotificationClick(response.payload!);
+        }
       },
     );
 
-    // 3. Configure FCM background handler
+    // 3. Add listener for when the app is in the background and opened via notification
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      debugPrint('FCM notification clicked in background: ${message.messageId}');
+      _handleRemoteMessageClick(message);
+    });
+
+    // 4. Add handler for when the app is terminated and launched via notification
+    FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
+      if (message != null) {
+        debugPrint('FCM notification clicked from terminated state: ${message.messageId}');
+        _handleRemoteMessageClick(message);
+      }
+    });
+
+    // 5. Configure FCM background handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    // 4. Configure FCM foreground handler
+    // 6. Configure FCM foreground handler
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('Got a message whilst in the foreground!');
       debugPrint('Message data: ${message.data}');
@@ -60,7 +89,7 @@ class NotificationService {
       }
     });
 
-    // 5. Get Fcm Token (Optional - for debugging)
+    // 7. Get Fcm Token (Optional - for debugging)
     String? token = await _firebaseMessaging.getToken();
     debugPrint("FCM Token: $token");
 
@@ -175,7 +204,7 @@ class NotificationService {
             styleInformation: bigPictureStyleInformation,
           ),
         ),
-        payload: message.data.toString(),
+        payload: message.data['link'] ?? '',
       );
     }
   }

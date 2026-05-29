@@ -211,6 +211,144 @@ class SchoolProgramDetailScreen extends StatefulWidget {
 
 class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
   bool _isSaving = false;
+  List<CustomField> _studentFields = [];
+  List<CustomField> _teacherFields = [];
+  bool _isLoadingFields = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProgramFields();
+  }
+
+  Future<void> _loadProgramFields() async {
+    try {
+      final programDoc = await FirebaseFirestore.instance
+          .collection('programs')
+          .doc(widget.programId)
+          .get();
+
+      if (programDoc.exists) {
+        final data = programDoc.data();
+        if (data != null) {
+          final List<dynamic>? rawStudentFields = data['studentFields'];
+          if (rawStudentFields != null) {
+            _studentFields = rawStudentFields
+                .map((f) => CustomField.fromMap(Map<String, dynamic>.from(f as Map)))
+                .toList();
+          }
+          final List<dynamic>? rawTeacherFields = data['teacherFields'];
+          if (rawTeacherFields != null) {
+            _teacherFields = rawTeacherFields
+                .map((f) => CustomField.fromMap(Map<String, dynamic>.from(f as Map)))
+                .toList();
+          }
+        }
+      }
+
+      // Fallbacks if not set
+      if (_studentFields.isEmpty) {
+        _studentFields = [
+          CustomField(id: 'name', name: 'Name', type: 'text', isMandatory: true),
+          CustomField(id: 'phone', name: 'Phone', type: 'phone', isMandatory: true),
+          CustomField(id: 'studentClass', name: 'Class', type: 'text', isMandatory: false),
+          CustomField(id: 'address', name: 'Address', type: 'text', isMandatory: false),
+        ];
+      }
+      if (_teacherFields.isEmpty) {
+        _teacherFields = [
+          CustomField(id: 'name', name: 'Name', type: 'text', isMandatory: true),
+          CustomField(id: 'phone', name: 'Phone', type: 'phone', isMandatory: true),
+          CustomField(id: 'studentClass', name: 'Class', type: 'text', isMandatory: false),
+          CustomField(id: 'address', name: 'Address', type: 'text', isMandatory: false),
+        ];
+      }
+    } catch (e) {
+      debugPrint("Error loading program fields: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingFields = false;
+        });
+      }
+    }
+  }
+
+  void _showViewDetailsDialog(Map<String, dynamic> data) {
+    final String type = data['type']?.toString() ?? 'student';
+    final bool isTeacher = type == 'teacher';
+    final fields = isTeacher ? _teacherFields : _studentFields;
+    final customValues = data['customFieldValues'] as Map<String, dynamic>? ?? {};
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          isTeacher ? 'Teacher Details' : 'Student Details',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ...fields.map((field) {
+                String value = customValues[field.id]?.toString() ?? '';
+                if (value.isEmpty) {
+                  if (field.id == 'name') {
+                    value = data['studentName']?.toString() ?? '';
+                  } else if (field.type == 'phone' || field.id == 'phone') {
+                    value = data['studentPhone']?.toString() ?? '';
+                  } else if (field.id == 'address' || field.id == 'studentAddress') {
+                    value = data['studentAddress']?.toString() ?? '';
+                  } else if (field.id == 'studentClass') {
+                    value = data['studentClass']?.toString() ?? '';
+                  }
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        field.name,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        value.isNotEmpty ? value : 'N/A',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF1E293B),
+                        ),
+                      ),
+                      const Divider(),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Close',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _deleteRegistration(String docId) async {
     final confirmed = await showDialog<bool>(
@@ -506,15 +644,30 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
     final String type = data['type']?.toString() ?? 'student';
     final bool isTeacher = type == 'teacher';
 
-    final nameController = TextEditingController(
-      text: data['studentName']?.toString() ?? '',
-    );
-    final phoneController = TextEditingController(
-      text: data['studentPhone']?.toString() ?? '',
-    );
     final countController = TextEditingController(
       text: (data['studentCount'] ?? 1).toString(),
     );
+
+    // Dynamic controllers for custom fields
+    final fields = isTeacher ? _teacherFields : _studentFields;
+    final customValues = data['customFieldValues'] as Map<String, dynamic>? ?? {};
+
+    final Map<String, TextEditingController> controllers = {};
+    for (final field in fields) {
+      String initialValue = customValues[field.id]?.toString() ?? '';
+      if (initialValue.isEmpty) {
+        if (field.id == 'name') {
+          initialValue = data['studentName']?.toString() ?? '';
+        } else if (field.type == 'phone' || field.id == 'phone') {
+          initialValue = data['studentPhone']?.toString() ?? '';
+        } else if (field.id == 'address' || field.id == 'studentAddress') {
+          initialValue = data['studentAddress']?.toString() ?? '';
+        } else if (field.id == 'studentClass') {
+          initialValue = data['studentClass']?.toString() ?? '';
+        }
+      }
+      controllers[field.id] = TextEditingController(text: initialValue);
+    }
 
     showModalBottomSheet(
       context: context,
@@ -556,33 +709,51 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                   ),
                 )
               else ...[
-                TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(
-                    labelText: isTeacher ? 'Teacher Name' : 'Student Name',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                ...fields.map((field) {
+                  final controller = controllers[field.id];
+                  if (controller == null) return const SizedBox.shrink();
+
+                  final isPhone = field.type == 'phone' ||
+                      field.id.toLowerCase() == 'phone' ||
+                      field.name.toLowerCase().contains('phone');
+                  final isNumber = field.type == 'number' ||
+                      field.name.toLowerCase().contains('age') ||
+                      field.name.toLowerCase().contains('number');
+                  final isAddress = field.id.toLowerCase() == 'address' ||
+                      field.name.toLowerCase().contains('address');
+
+                  String label = field.name;
+                  if (field.name.toLowerCase() == 'name') {
+                    label = isTeacher ? 'Teacher Name' : 'Student Name';
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TextField(
+                      controller: controller,
+                      keyboardType: isPhone
+                          ? TextInputType.phone
+                          : isNumber
+                              ? TextInputType.number
+                              : isAddress
+                                  ? TextInputType.streetAddress
+                                  : TextInputType.text,
+                      maxLines: isAddress ? 2 : 1,
+                      decoration: InputDecoration(
+                        labelText: label,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    labelText: isTeacher ? 'Teacher Phone' : 'Student Phone',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
+                  );
+                }),
               ],
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _isSaving
                     ? null
                     : () async {
-                        if (!isCountOnly && nameController.text.isEmpty) return;
                         if (isCountOnly && countController.text.isEmpty) return;
 
                         setState(() => _isSaving = true);
@@ -593,10 +764,46 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                             updateData['studentCount'] =
                                 int.tryParse(countController.text) ?? 1;
                           } else {
-                            updateData['studentName'] = nameController.text
-                                .trim();
-                            updateData['studentPhone'] = phoneController.text
-                                .trim();
+                            final Map<String, String> updatedCustomValues = {};
+                            for (final field in fields) {
+                              updatedCustomValues[field.id] =
+                                  controllers[field.id]?.text.trim() ?? '';
+                            }
+                            updateData['customFieldValues'] = updatedCustomValues;
+
+                            // Sync fallback fields
+                            String? fallbackName;
+                            String? fallbackPhone;
+                            String? fallbackAddress;
+                            String? fallbackClass;
+
+                            for (final field in fields) {
+                              final val = controllers[field.id]?.text.trim() ?? '';
+                              final fieldNameLower = field.name.toLowerCase();
+                              final fieldIdLower = field.id.toLowerCase();
+
+                              if (fieldIdLower == 'name' || (fallbackName == null && fieldNameLower.contains('name'))) {
+                                fallbackName = val;
+                              }
+                              if (fieldIdLower == 'phone' || field.type == 'phone' || (fallbackPhone == null && (fieldNameLower.contains('phone') || fieldNameLower.contains('mobile') || fieldNameLower.contains('contact')))) {
+                                fallbackPhone = val;
+                              }
+                              if (fieldIdLower == 'address' || (fallbackAddress == null && fieldNameLower.contains('address'))) {
+                                fallbackAddress = val;
+                              }
+                              if (fieldIdLower == 'class' || fieldIdLower == 'studentclass' || (fallbackClass == null && fieldNameLower.contains('class'))) {
+                                fallbackClass = val;
+                              }
+                            }
+
+                            updateData['studentName'] = fallbackName ?? '';
+                            updateData['studentPhone'] = fallbackPhone ?? '';
+                            if (fallbackAddress != null) {
+                              updateData['studentAddress'] = fallbackAddress;
+                            }
+                            if (fallbackClass != null) {
+                              updateData['studentClass'] = fallbackClass;
+                            }
                           }
 
                           await FirebaseFirestore.instance
@@ -741,12 +948,36 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                         : (data['studentName'] ?? 'Unknown'),
                     style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Text(
-                    isCountOnly
-                        ? 'No details provided'
-                        : (data['studentPhone'] ?? 'No Phone'),
-                    style: GoogleFonts.poppins(),
-                  ),
+                  subtitle: isCountOnly
+                      ? Text(
+                          'No details provided',
+                          style: GoogleFonts.poppins(),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              data['studentPhone'] ?? 'No Phone',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            InkWell(
+                              onTap: () => _showViewDetailsDialog(data),
+                              child: Text(
+                                'View Details',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.blue.shade700,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                   trailing: widget.isLocked
                       ? const Icon(Icons.lock, color: Colors.grey)
                       : IconButton(

@@ -32,6 +32,7 @@ import 'package:sundayschool_app/providers/content_provider.dart'; // Import Con
 import 'package:sundayschool_app/homescreen.dart';
 import 'package:sundayschool_app/video_resources_screen.dart';
 import 'package:sundayschool_app/calendar_webview_screen.dart';
+import 'package:sundayschool_app/calendar_pdf_viewer_screen.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -2187,17 +2188,37 @@ class _LoginScreenState extends State<LoginScreen>
                                                     buttonTitle,
                                                     Icons.calendar_month_rounded,
                                                     const Color(0xFFBC8A3A),
-                                                    () {
+                                                    () async {
                                                       if (pdfUrl.isNotEmpty) {
-                                                        Navigator.push(
-                                                          context,
-                                                          CustomPageRoute(
-                                                            child: CalendarWebViewScreen(
-                                                              url: pdfUrl,
-                                                              title: buttonTitle,
-                                                            ),
-                                                          ),
-                                                        );
+                                                        final lowerUrl = pdfUrl.toLowerCase();
+                                                        final isPdf = lowerUrl.contains('.pdf') || 
+                                                                     lowerUrl.contains('firebasestorage') ||
+                                                                     lowerUrl.contains('/o/');
+                                                        if (isPdf) {
+                                                          if (context.mounted) {
+                                                            Navigator.push(
+                                                              context,
+                                                              CustomPageRoute(
+                                                                child: CalendarPdfViewerScreen(
+                                                                  url: pdfUrl,
+                                                                  title: buttonTitle,
+                                                                ),
+                                                              ),
+                                                            );
+                                                          }
+                                                        } else {
+                                                          if (context.mounted) {
+                                                            Navigator.push(
+                                                              context,
+                                                              CustomPageRoute(
+                                                                child: CalendarWebViewScreen(
+                                                                  url: pdfUrl,
+                                                                  title: buttonTitle,
+                                                                ),
+                                                              ),
+                                                            );
+                                                          }
+                                                        }
                                                       } else {
                                                         if (context.mounted) {
                                                           ScaffoldMessenger.of(context).showSnackBar(

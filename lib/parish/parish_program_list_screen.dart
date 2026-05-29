@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../animator/student_registration_form.dart';
 
 class ParishProgramListScreen extends StatefulWidget {
   final String schoolId;
@@ -21,6 +22,143 @@ class ParishProgramListScreen extends StatefulWidget {
 
 class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
   bool _isSaving = false;
+  List<CustomField> _studentFields = [];
+  List<CustomField> _teacherFields = [];
+  bool _isLoadingFields = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProgramFields();
+  }
+
+  Future<void> _loadProgramFields() async {
+    try {
+      final programSnap = await FirebaseFirestore.instance
+          .collection('programs')
+          .where('name', isEqualTo: widget.programName)
+          .limit(1)
+          .get();
+
+      if (programSnap.docs.isNotEmpty) {
+        final data = programSnap.docs.first.data();
+        final List<dynamic>? rawStudentFields = data['studentFields'];
+        if (rawStudentFields != null) {
+          _studentFields = rawStudentFields
+              .map((f) => CustomField.fromMap(Map<String, dynamic>.from(f as Map)))
+              .toList();
+        }
+        final List<dynamic>? rawTeacherFields = data['teacherFields'];
+        if (rawTeacherFields != null) {
+          _teacherFields = rawTeacherFields
+              .map((f) => CustomField.fromMap(Map<String, dynamic>.from(f as Map)))
+              .toList();
+        }
+      }
+
+      // Fallbacks if not set
+      if (_studentFields.isEmpty) {
+        _studentFields = [
+          CustomField(id: 'name', name: 'Name', type: 'text', isMandatory: true),
+          CustomField(id: 'phone', name: 'Phone', type: 'phone', isMandatory: true),
+          CustomField(id: 'studentClass', name: 'Class', type: 'text', isMandatory: false),
+          CustomField(id: 'address', name: 'Address', type: 'text', isMandatory: false),
+        ];
+      }
+      if (_teacherFields.isEmpty) {
+        _teacherFields = [
+          CustomField(id: 'name', name: 'Name', type: 'text', isMandatory: true),
+          CustomField(id: 'phone', name: 'Phone', type: 'phone', isMandatory: true),
+          CustomField(id: 'studentClass', name: 'Class', type: 'text', isMandatory: false),
+          CustomField(id: 'address', name: 'Address', type: 'text', isMandatory: false),
+        ];
+      }
+    } catch (e) {
+      debugPrint("Error loading program fields: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingFields = false;
+        });
+      }
+    }
+  }
+
+  void _showViewDetailsDialog(Map<String, dynamic> data) {
+    final String type = data['type']?.toString() ?? 'student';
+    final bool isTeacher = type == 'teacher';
+    final fields = isTeacher ? _teacherFields : _studentFields;
+    final customValues = data['customFieldValues'] as Map<String, dynamic>? ?? {};
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          isTeacher ? 'Teacher Details' : 'Student Details',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ...fields.map((field) {
+                String value = customValues[field.id]?.toString() ?? '';
+                if (value.isEmpty) {
+                  if (field.id == 'name') {
+                    value = data['studentName']?.toString() ?? '';
+                  } else if (field.type == 'phone' || field.id == 'phone') {
+                    value = data['studentPhone']?.toString() ?? '';
+                  } else if (field.id == 'address' || field.id == 'studentAddress') {
+                    value = data['studentAddress']?.toString() ?? '';
+                  } else if (field.id == 'studentClass') {
+                    value = data['studentClass']?.toString() ?? '';
+                  }
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        field.name,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        value.isNotEmpty ? value : 'N/A',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF1E293B),
+                        ),
+                      ),
+                      const Divider(),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Close',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _deleteRegistration(String docId) async {
     final confirmed = await showDialog<bool>(
@@ -265,15 +403,30 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
     final bool isCountOnly = data['isCountOnly'] == true;
     final String type = data['type']?.toString() ?? 'student';
     final bool isTeacher = type == 'teacher';
-    final nameController = TextEditingController(
-      text: data['studentName']?.toString() ?? '',
-    );
-    final phoneController = TextEditingController(
-      text: data['studentPhone']?.toString() ?? '',
-    );
     final countController = TextEditingController(
       text: (data['studentCount'] ?? 1).toString(),
     );
+
+    // Dynamic controllers for custom fields
+    final fields = isTeacher ? _teacherFields : _studentFields;
+    final customValues = data['customFieldValues'] as Map<String, dynamic>? ?? {};
+
+    final Map<String, TextEditingController> controllers = {};
+    for (final field in fields) {
+      String initialValue = customValues[field.id]?.toString() ?? '';
+      if (initialValue.isEmpty) {
+        if (field.id == 'name') {
+          initialValue = data['studentName']?.toString() ?? '';
+        } else if (field.type == 'phone' || field.id == 'phone') {
+          initialValue = data['studentPhone']?.toString() ?? '';
+        } else if (field.id == 'address' || field.id == 'studentAddress') {
+          initialValue = data['studentAddress']?.toString() ?? '';
+        } else if (field.id == 'studentClass') {
+          initialValue = data['studentClass']?.toString() ?? '';
+        }
+      }
+      controllers[field.id] = TextEditingController(text: initialValue);
+    }
 
     showModalBottomSheet(
       context: context,
@@ -324,18 +477,51 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                     keyboardType: TextInputType.number,
                   )
                 else ...[
-                  _buildTextField(
-                    controller: nameController,
-                    label: isTeacher ? 'Teacher Name' : 'Student Name',
-                    icon: Icons.person_outline_rounded,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: phoneController,
-                    label: 'Phone Number',
-                    icon: Icons.phone_android_rounded,
-                    keyboardType: TextInputType.phone,
-                  ),
+                  ...fields.map((field) {
+                    final controller = controllers[field.id];
+                    if (controller == null) return const SizedBox.shrink();
+
+                    final isPhone = field.type == 'phone' ||
+                        field.id.toLowerCase() == 'phone' ||
+                        field.name.toLowerCase().contains('phone');
+                    final isNumber = field.type == 'number' ||
+                        field.name.toLowerCase().contains('age') ||
+                        field.name.toLowerCase().contains('number');
+                    final isAddress = field.id.toLowerCase() == 'address' ||
+                        field.name.toLowerCase().contains('address');
+
+                    String label = field.name;
+                    if (field.name.toLowerCase() == 'name') {
+                      label = isTeacher ? 'Teacher Name' : 'Student Name';
+                    }
+
+                    IconData icon = Icons.edit_note_rounded;
+                    if (field.id.toLowerCase() == 'name' || field.name.toLowerCase().contains('name')) {
+                      icon = Icons.person_outline_rounded;
+                    } else if (isPhone) {
+                      icon = Icons.phone_android_rounded;
+                    } else if (isAddress) {
+                      icon = Icons.home_work_outlined;
+                    } else if (isNumber) {
+                      icon = Icons.numbers_rounded;
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _buildTextField(
+                        controller: controller,
+                        label: label,
+                        icon: icon,
+                        keyboardType: isPhone
+                            ? TextInputType.phone
+                            : isNumber
+                                ? TextInputType.number
+                                : isAddress
+                                    ? TextInputType.streetAddress
+                                    : TextInputType.text,
+                      ),
+                    );
+                  }),
                 ],
                 const SizedBox(height: 32),
                 SizedBox(
@@ -345,15 +531,8 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                     onPressed: _isSaving
                         ? null
                         : () async {
-                            final updatedName = nameController.text.trim();
-                            final updatedPhone = phoneController.text.trim();
                             final updatedCount = countController.text.trim();
 
-                            if (!isCountOnly &&
-                                (updatedName.isEmpty || updatedPhone.isEmpty)) {
-                              _showErrorSnackBar('Name and phone are required');
-                              return;
-                            }
                             if (isCountOnly && updatedCount.isEmpty) {
                               _showErrorSnackBar('Count is required');
                               return;
@@ -366,8 +545,46 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                 updateData['studentCount'] =
                                     int.tryParse(updatedCount) ?? 1;
                               } else {
-                                updateData['studentName'] = updatedName;
-                                updateData['studentPhone'] = updatedPhone;
+                                final Map<String, String> updatedCustomValues = {};
+                                for (final field in fields) {
+                                  updatedCustomValues[field.id] =
+                                      controllers[field.id]?.text.trim() ?? '';
+                                }
+                                updateData['customFieldValues'] = updatedCustomValues;
+
+                                // Sync fallback fields
+                                String? fallbackName;
+                                String? fallbackPhone;
+                                String? fallbackAddress;
+                                String? fallbackClass;
+
+                                for (final field in fields) {
+                                  final val = controllers[field.id]?.text.trim() ?? '';
+                                  final fieldNameLower = field.name.toLowerCase();
+                                  final fieldIdLower = field.id.toLowerCase();
+
+                                  if (fieldIdLower == 'name' || (fallbackName == null && fieldNameLower.contains('name'))) {
+                                    fallbackName = val;
+                                  }
+                                  if (fieldIdLower == 'phone' || field.type == 'phone' || (fallbackPhone == null && (fieldNameLower.contains('phone') || fieldNameLower.contains('mobile') || fieldNameLower.contains('contact')))) {
+                                    fallbackPhone = val;
+                                  }
+                                  if (fieldIdLower == 'address' || (fallbackAddress == null && fieldNameLower.contains('address'))) {
+                                    fallbackAddress = val;
+                                  }
+                                  if (fieldIdLower == 'class' || fieldIdLower == 'studentclass' || (fallbackClass == null && fieldNameLower.contains('class'))) {
+                                    fallbackClass = val;
+                                  }
+                                }
+
+                                updateData['studentName'] = fallbackName ?? '';
+                                updateData['studentPhone'] = fallbackPhone ?? '';
+                                if (fallbackAddress != null) {
+                                  updateData['studentAddress'] = fallbackAddress;
+                                }
+                                if (fallbackClass != null) {
+                                  updateData['studentClass'] = fallbackClass;
+                                }
                               }
 
                               await FirebaseFirestore.instance
@@ -818,6 +1035,21 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                           ),
                                         ],
                                       ),
+                                      if (!isCountOnly) ...[
+                                        const SizedBox(height: 6),
+                                        InkWell(
+                                          onTap: () => _showViewDetailsDialog(data),
+                                          child: Text(
+                                            'View Details',
+                                            style: GoogleFonts.poppins(
+                                              color: Colors.blue.shade700,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13,
+                                              decoration: TextDecoration.underline,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),

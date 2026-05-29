@@ -637,6 +637,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                 ];
                 unreadCount = allDocs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>?;
+                  if (data?['notificationOnly'] == true) return false;
                   final readBy = data?['readBy'] as List<dynamic>? ?? [];
                   return !readBy.contains(user.uid);
                 }).length;

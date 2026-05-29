@@ -336,7 +336,7 @@ class _CatechismScreenState extends State<CatechismScreen> {
                       ),
                       onPressed: () async {
                         try {
-                          await OpenFile.open(_downloadedFilePath);
+                          await OpenFilex.open(_downloadedFilePath);
                         } catch (e) {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(

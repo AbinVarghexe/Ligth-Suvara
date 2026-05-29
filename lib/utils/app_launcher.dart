@@ -4,11 +4,13 @@ import 'package:url_launcher/url_launcher.dart';
 
 class AppLauncher {
   static Future<void> launchURL(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
+    if (url.isEmpty) return;
+    final Uri uri = Uri.parse(url.trim());
+    try {
+      debugPrint('Attempting direct launch of URL: $url');
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      debugPrint('Could not launch $url');
+    } catch (e) {
+      debugPrint('Error launching URL ($url): $e');
     }
   }
 

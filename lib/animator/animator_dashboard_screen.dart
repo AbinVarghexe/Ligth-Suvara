@@ -282,6 +282,7 @@ class _AnimatorDashboardScreenState extends State<AnimatorDashboardScreen> {
                   assignmentMap['unitId'] ?? assignmentMap['id'] ?? '';
               final String parish = assignmentMap['parish'] ?? 'Unknown Parish';
               final String sundaySchool =
+                  assignmentMap['schoolName'] ??
                   assignmentMap['schoolname'] ??
                   assignmentMap['sundaySchool'] ??
                   assignmentMap['name'] ??

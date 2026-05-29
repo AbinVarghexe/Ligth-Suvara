@@ -68,7 +68,7 @@ class PDFDownloadHelper {
   /// Open a PDF file
   static Future<bool> openPDF(String filePath, {BuildContext? context}) async {
     try {
-      final result = await OpenFile.open(filePath);
+      final result = await OpenFilex.open(filePath);
       return result.type == ResultType.done;
     } catch (e) {
       if (context != null) {

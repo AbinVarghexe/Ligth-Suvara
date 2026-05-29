@@ -136,7 +136,7 @@ class DownloadsHelper {
           textColor: Colors.white,
           onPressed: () async {
             try {
-              await OpenFile.open(filePath);
+              await OpenFilex.open(filePath);
             } catch (e) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
