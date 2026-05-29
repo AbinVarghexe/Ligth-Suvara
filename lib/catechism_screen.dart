@@ -7,7 +7,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:http/http.dart' as http; // Needed for downloading files
 import 'dart:io'; // Needed for File and Platform checks
 import 'package:path_provider/path_provider.dart'; // For app's private directory
-import 'package:open_file/open_file.dart'; // Needed to open the downloaded file
+import 'package:open_filex/open_filex.dart'; // Needed to open the downloaded file
 import 'package:flutter/services.dart';
 
 class CatechismScreen extends StatefulWidget {
