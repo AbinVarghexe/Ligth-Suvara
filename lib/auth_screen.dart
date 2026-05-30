@@ -16,6 +16,8 @@ import 'package:sundayschool_app/admin/observer_remarks_login.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 import 'package:sundayschool_app/services/notification_service.dart'; // Import NotificationService
 import 'package:sundayschool_app/services/log_service.dart'; // Import LogService
+import 'package:provider/provider.dart';
+import 'package:sundayschool_app/providers/content_provider.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -666,8 +668,12 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: TextButton(
-                                      onPressed: () =>
-                                          _launchDialer('+919447601251'),
+                                      onPressed: () {
+                                        final contentProvider = Provider.of<ContentProvider>(context, listen: false);
+                                        final contactPhone = contentProvider.loginConfig['contactPhone'] as String?;
+                                        final phone = (contactPhone != null && contactPhone.trim().isNotEmpty) ? contactPhone.trim() : '+919447601251';
+                                        _launchDialer(phone);
+                                      },
                                       style: TextButton.styleFrom(
                                         padding: EdgeInsets.zero,
                                         minimumSize: Size.zero,
