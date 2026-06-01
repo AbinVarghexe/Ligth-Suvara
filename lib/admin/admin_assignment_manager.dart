@@ -15,13 +15,17 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
 
   // Selection State
   String? _selectedAnimatorId;
+  String? _selectedAnimatorParishName;
+  String? _selectedAnimatorParishId;
   String? _selectedSchoolId; // ID of the school user to assign
 
   // Data State
   List<DocumentSnapshot> _allSchools = [];
+  List<DocumentSnapshot> _allParishes = [];
   // School ID -> Set of Years it is assigned for
   Map<String, Set<String>> _assignedSchoolsByYear = {};
   bool _isLoadingSchools = true;
+  bool _isLoadingParishes = true;
   String _selectedYear = '';
 
   String _getAcademicYear() {
@@ -46,7 +50,145 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
     super.initState();
     _selectedYear = _getAcademicYear();
     _fetchSchools();
+    _fetchParishes();
     _listenToAssignments();
+  }
+
+  Future<void> _fetchParishes() async {
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'parish')
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _allParishes = snapshot.docs;
+          _isLoadingParishes = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching parishes: $e");
+      if (mounted) setState(() => _isLoadingParishes = false);
+    }
+  }
+
+  bool _isSameParishName(String? name1, String? name2) {
+    if (name1 == null || name2 == null) return false;
+
+    String cleanAndFilter(String s) {
+      final ignored = {
+        'st',
+        'saint',
+        'church',
+        'parish',
+        'of',
+        'the',
+        's',
+        'joseph',
+        'mary',
+        'george',
+        'thomas',
+        'sebastian',
+        'antony',
+        'jude',
+        'paul',
+        'michael',
+        'ourlady',
+        'mother'
+      };
+
+      // Split by any non-word characters (spaces, punctuation, curly quotes)
+      final words = s.toLowerCase().split(RegExp(r'[^a-z0-9]'));
+      final filtered = words.where((w) => w.isNotEmpty && !ignored.contains(w));
+
+      if (filtered.isEmpty) {
+        // Fallback to basic alphanumeric string if filtered is empty
+        return words.where((w) => w.isNotEmpty).join();
+      }
+      return filtered.join();
+    }
+
+    final n1 = cleanAndFilter(name1);
+    final n2 = cleanAndFilter(name2);
+
+    return n1.isNotEmpty && n2.isNotEmpty && n1 == n2;
+  }
+
+
+  bool _isSchoolInAnimatorHomeParish(
+    String schoolId,
+    String? animatorParishId,
+    String? animatorParishName,
+  ) {
+    // 0. Direct school ID match
+    if (animatorParishId != null && animatorParishId == schoolId) {
+      return true;
+    }
+
+    // 1. Try ID-based matching: find the parish user document matching animatorParishId
+    if (animatorParishId != null) {
+      DocumentSnapshot? parishDoc;
+      for (var doc in _allParishes) {
+        if (doc.id == animatorParishId) {
+          parishDoc = doc;
+          break;
+        }
+      }
+      if (parishDoc != null) {
+        final parishData = parishDoc.data() as Map<String, dynamic>?;
+        final linkedSchoolId = parishData?['schoolId'] as String?;
+        if (linkedSchoolId != null && linkedSchoolId == schoolId) {
+          return true; // Match found by ID!
+        }
+      }
+    }
+
+    // 2. Try backward ID matching: does the parish user for this school have the animator's parishId?
+    DocumentSnapshot? parishDocForSchool;
+    for (var doc in _allParishes) {
+      final data = doc.data() as Map<String, dynamic>?;
+      if (data?['schoolId'] == schoolId) {
+        parishDocForSchool = doc;
+        break;
+      }
+    }
+    if (parishDocForSchool != null &&
+        animatorParishId != null &&
+        parishDocForSchool.id == animatorParishId) {
+      return true; // Match found by ID!
+    }
+
+    // 3. Fallback: Try name-based matching
+    if (animatorParishName != null) {
+      // Get the school parish name from the school document
+      DocumentSnapshot? schoolDoc;
+      for (var doc in _allSchools) {
+        if (doc.id == schoolId) {
+          schoolDoc = doc;
+          break;
+        }
+      }
+      final schoolData = schoolDoc?.data() as Map<String, dynamic>?;
+      final schoolParishName = schoolData?['parish'] as String?;
+      final schoolName = schoolData?['schoolname'] ?? schoolData?['name'] as String?;
+      if (_isSameParishName(animatorParishName, schoolParishName)) {
+        return true;
+      }
+      if (_isSameParishName(animatorParishName, schoolName)) {
+        return true;
+      }
+      // Also check if the parish user's name matches animatorParishName
+      if (parishDocForSchool != null) {
+        final parishData = parishDocForSchool.data() as Map<String, dynamic>?;
+        final parishName = parishData?['name'] ?? parishData?['parishName'];
+        if (_isSameParishName(animatorParishName, parishName)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   // --- 1. Fetch Data ---
@@ -83,8 +225,7 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
         for (var item in list) {
           if (item is Map && item['schoolUserId'] != null) {
             final schoolId = item['schoolUserId'] as String;
-            final year =
-                item['year']?.toString() ?? _getAcademicYear();
+            final year = item['year']?.toString() ?? _getAcademicYear();
 
             if (!assignedMap.containsKey(schoolId)) {
               assignedMap[schoolId] = {};
@@ -127,6 +268,17 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
       (doc) => doc.id == _selectedSchoolId,
     );
     final schoolData = schoolDoc.data() as Map<String, dynamic>;
+
+    if (_isSchoolInAnimatorHomeParish(_selectedSchoolId!, _selectedAnimatorParishId, _selectedAnimatorParishName)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cannot assign animator to their home parish (${_selectedAnimatorParishName ?? "Home Parish"})'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
     final assignment = {
       'unitId': const Uuid().v4().substring(0, 8),
@@ -217,6 +369,8 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
   Future<void> _editAssignment(
     String animatorId,
     Map<String, dynamic> oldAssignment,
+    String? homeParish,
+    String? homeParishId,
   ) async {
     String? newSchoolId;
 
@@ -243,9 +397,13 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
                 builder: (context, setState) {
                   // Include currently assigned school so we don't hide it, but show unassigned ones primarily
                   final validSchools = _allSchools.where((doc) {
+                    // Prevent assigning to home parish
+                    if (_isSchoolInAnimatorHomeParish(doc.id, homeParishId, homeParish)) {
+                      return false;
+                    }
+
                     final assignmentYear =
-                        oldAssignment['year']?.toString() ??
-                        _getAcademicYear();
+                        oldAssignment['year']?.toString() ?? _getAcademicYear();
                     final assignedYears = _assignedSchoolsByYear[doc.id];
                     final isAssignedForYear =
                         assignedYears != null &&
@@ -293,6 +451,8 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
                         animatorId,
                         oldAssignment,
                         newSchoolId!,
+                        homeParish,
+                        homeParishId,
                       );
                     }
                   },
@@ -317,10 +477,23 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
     String animatorId,
     Map<String, dynamic> oldAssignment,
     String newSchoolId,
+    String? homeParish,
+    String? homeParishId,
   ) async {
     try {
       final schoolDoc = _allSchools.firstWhere((doc) => doc.id == newSchoolId);
       final schoolData = schoolDoc.data() as Map<String, dynamic>;
+
+      if (_isSchoolInAnimatorHomeParish(newSchoolId, homeParishId, homeParish)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cannot assign animator to their home parish (${homeParish ?? "Home Parish"})'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
 
       final newAssignment = {
         'unitId': const Uuid().v4().substring(0, 8),
@@ -396,6 +569,11 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
   Widget build(BuildContext context) {
     // Filter available schools for the dropdown
     final availableSchoolsForDropdown = _allSchools.where((doc) {
+      // Prevent assigning to home parish
+      if (_isSchoolInAnimatorHomeParish(doc.id, _selectedAnimatorParishId, _selectedAnimatorParishName)) {
+        return false;
+      }
+
       // Check if this school is assigned for the currently selected year
       final assignedYears = _assignedSchoolsByYear[doc.id];
       if (assignedYears == null) return true; // Not assigned at all
@@ -548,8 +726,21 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
                         ),
                       );
                     }).toList(),
-                    onChanged: (val) =>
-                        setState(() => _selectedAnimatorId = val),
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedAnimatorId = val;
+                        if (val != null) {
+                          final animDoc = animators.firstWhere((doc) => doc.id == val);
+                          final animData = animDoc.data() as Map<String, dynamic>;
+                          _selectedAnimatorParishName = animData['parishName'] ?? animData['parish'];
+                          _selectedAnimatorParishId = animData['parishId'];
+                        } else {
+                          _selectedAnimatorParishName = null;
+                          _selectedAnimatorParishId = null;
+                        }
+                        _selectedSchoolId = null; // Reset school selection
+                      });
+                    },
                     icon: Icon(
                       Icons.keyboard_arrow_down_rounded,
                       color: Colors.blue.shade700,
@@ -609,7 +800,7 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
                               ],
                             ),
                             const SizedBox(height: 20),
-                            _isLoadingSchools
+                            (_isLoadingSchools || _isLoadingParishes)
                                 ? const Center(
                                     child: CircularProgressIndicator(),
                                   )
@@ -721,10 +912,15 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
                             .get(),
                         builder: (context, userSnap) {
                           String userName = 'Loading...';
+                          String? homeParish;
+                          String? homeParishId;
                           if (userSnap.hasData) {
                             if (userSnap.data!.exists) {
                               try {
                                 userName = userSnap.data!.get('name');
+                                final userData = userSnap.data!.data() as Map<String, dynamic>?;
+                                homeParish = userData?['parishName'] ?? userData?['parish'];
+                                homeParishId = userData?['parishId'] as String?;
                               } catch (e) {
                                 userName = 'Unknown';
                               }
@@ -873,6 +1069,8 @@ class _AdminAssignmentManagerState extends State<AdminAssignmentManager> {
                                               onPressed: () => _editAssignment(
                                                 animatorDoc.id,
                                                 map,
+                                                homeParish,
+                                                homeParishId,
                                               ),
                                             ),
                                             IconButton(

@@ -136,12 +136,18 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Parish Dropdown
-                      FutureBuilder<QuerySnapshot>(
-                        future: FirebaseFirestore.instance
-                            .collection('users')
-                            .where('role', isEqualTo: 'parish')
-                            .get(),
+                      // School & Parish Dropdown
+                      FutureBuilder<List<QuerySnapshot>>(
+                        future: Future.wait([
+                          FirebaseFirestore.instance
+                              .collection('users')
+                              .where('role', isEqualTo: 'school')
+                              .get(),
+                          FirebaseFirestore.instance
+                              .collection('users')
+                              .where('role', isEqualTo: 'parish')
+                              .get(),
+                        ]),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
@@ -149,22 +155,46 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
                               child: CircularProgressIndicator(),
                             );
                           }
-                          final parishes = snapshot.data?.docs ?? [];
+                          if (snapshot.hasError) {
+                            return Text(
+                              'Error loading schools/parishes',
+                              style: TextStyle(color: Colors.red.shade700),
+                            );
+                          }
 
-                          // Ensure selectedParishId exists in the fetched list, else null it
-                          if (selectedParishId != null &&
-                              !parishes.any(
-                                (doc) => doc.id == selectedParishId,
-                              )) {
-                            selectedParishId = null;
-                            selectedParishName = null;
+                          final schoolDocs = snapshot.data?[0].docs ?? [];
+                          final parishDocs = snapshot.data?[1].docs ?? [];
+
+                          // Resolve selectedSchoolId from selectedParishId
+                          String? selectedSchoolId;
+                          if (selectedParishId != null) {
+                            final hasSchoolWithId = schoolDocs.any((doc) => doc.id == selectedParishId);
+                            if (hasSchoolWithId) {
+                              selectedSchoolId = selectedParishId;
+                            } else {
+                              // Look for the parish user doc and match its schoolId
+                              DocumentSnapshot? matchedParish;
+                              for (var doc in parishDocs) {
+                                if (doc.id == selectedParishId) {
+                                  matchedParish = doc;
+                                  break;
+                                }
+                              }
+                              if (matchedParish != null) {
+                                final pData = matchedParish.data() as Map<String, dynamic>?;
+                                final sId = pData?['schoolId'] as String?;
+                                if (sId != null && schoolDocs.any((doc) => doc.id == sId)) {
+                                  selectedSchoolId = sId;
+                                }
+                              }
+                            }
                           }
 
                           return DropdownButtonFormField<String>(
-                            value: selectedParishId,
+                            value: selectedSchoolId,
                             isExpanded: true,
                             decoration: InputDecoration(
-                              labelText: 'Home Parish',
+                              labelText: 'Home School / Parish',
                               labelStyle: TextStyle(
                                 color: Colors.indigo.shade700,
                               ),
@@ -191,31 +221,44 @@ class _AdminManageAnimatorsState extends State<AdminManageAnimators> {
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
-                            items: parishes.map((doc) {
+                            items: schoolDocs.map((doc) {
                               final data = doc.data() as Map<String, dynamic>;
                               final name =
+                                  data['schoolname'] ??
                                   data['name'] ??
-                                  data['parishName'] ??
-                                  'Unnamed Parish';
+                                  'Unnamed School';
+                              final parishNameField = data['parish'] as String?;
+                              final displayName = parishNameField != null ? '$name ($parishNameField)' : name;
+
                               return DropdownMenuItem(
                                 value: doc.id,
-                                child: Text(name),
+                                child: Text(
+                                  displayName,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               );
                             }).toList(),
                             onChanged: (value) {
                               setDialogState(() {
-                                selectedParishId = value;
                                 if (value != null) {
-                                  final selectedDoc = parishes.firstWhere(
+                                  final selectedSchoolDoc = schoolDocs.firstWhere(
                                     (doc) => doc.id == value,
                                   );
-                                  final data =
-                                      selectedDoc.data()
-                                          as Map<String, dynamic>;
-                                  selectedParishName =
-                                      data['name'] ??
-                                      data['parishName'] ??
-                                      'Unnamed';
+                                  final schoolData = selectedSchoolDoc.data() as Map<String, dynamic>;
+
+                                  String? matchedParishId;
+                                  for (var pDoc in parishDocs) {
+                                    final pData = pDoc.data() as Map<String, dynamic>?;
+                                    if (pData?['schoolId'] == value) {
+                                      matchedParishId = pDoc.id;
+                                      break;
+                                    }
+                                  }
+                                  selectedParishId = matchedParishId ?? value;
+                                  selectedParishName = schoolData['schoolname'] ?? schoolData['name'] ?? 'Unnamed School';
+                                } else {
+                                  selectedParishId = null;
+                                  selectedParishName = null;
                                 }
                               });
                             },

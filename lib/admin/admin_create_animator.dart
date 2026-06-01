@@ -25,6 +25,7 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
 
   String? _selectedParishId;
   String? _selectedParishName;
+  String? _selectedSchoolId;
 
   Future<void> _createAnimator() async {
     if (!_formKey.currentState!.validate()) return;
@@ -231,12 +232,18 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Parish Selection Dropdown
-                      FutureBuilder<QuerySnapshot>(
-                        future: FirebaseFirestore.instance
-                            .collection('users')
-                            .where('role', isEqualTo: 'parish')
-                            .get(),
+                      // School & Parish Selection Dropdown
+                      FutureBuilder<List<QuerySnapshot>>(
+                        future: Future.wait([
+                          FirebaseFirestore.instance
+                              .collection('users')
+                              .where('role', isEqualTo: 'school')
+                              .get(),
+                          FirebaseFirestore.instance
+                              .collection('users')
+                              .where('role', isEqualTo: 'parish')
+                              .get(),
+                        ]),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
@@ -247,55 +254,69 @@ class _AdminCreateAnimatorState extends State<AdminCreateAnimator> {
 
                           if (snapshot.hasError) {
                             return Text(
-                              'Error loading parishes',
+                              'Error loading schools/parishes',
                               style: TextStyle(color: Colors.red.shade700),
                             );
                           }
 
-                          final parishes = snapshot.data?.docs ?? [];
+                          final schoolDocs = snapshot.data?[0].docs ?? [];
+                          final parishDocs = snapshot.data?[1].docs ?? [];
 
                           return DropdownButtonFormField<String>(
-                            value: _selectedParishId,
+                            value: _selectedSchoolId,
+                            isExpanded: true,
                             decoration: _buildInputDecoration(
-                              'Home Parish',
+                              'Home School / Parish',
                               Icons.church_rounded,
                             ),
                             style: GoogleFonts.inter(
                               color: Colors.black87,
                               fontSize: 15,
                             ),
-                            items: parishes.map((doc) {
+                            items: schoolDocs.map((doc) {
                               final data = doc.data() as Map<String, dynamic>;
                               final name =
+                                  data['schoolname'] ??
                                   data['name'] ??
-                                  data['parishName'] ??
-                                  'Unnamed Parish';
+                                  'Unnamed School';
+                              final parishName = data['parish'] as String?;
+                              final displayName = parishName != null ? '$name ($parishName)' : name;
 
                               return DropdownMenuItem(
                                 value: doc.id,
-                                child: Text(name),
+                                child: Text(
+                                  displayName,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               );
                             }).toList(),
                             onChanged: (value) {
                               setState(() {
-                                _selectedParishId = value;
-                                // Find the matching document to store the name
+                                _selectedSchoolId = value;
                                 if (value != null) {
-                                  final selectedDoc = parishes.firstWhere(
+                                  final selectedSchoolDoc = schoolDocs.firstWhere(
                                     (doc) => doc.id == value,
                                   );
-                                  final data =
-                                      selectedDoc.data()
-                                          as Map<String, dynamic>;
-                                  _selectedParishName =
-                                      data['name'] ??
-                                      data['parishName'] ??
-                                      'Unnamed Parish';
+                                  final schoolData = selectedSchoolDoc.data() as Map<String, dynamic>;
+
+                                  String? matchedParishId;
+                                  for (var pDoc in parishDocs) {
+                                    final pData = pDoc.data() as Map<String, dynamic>?;
+                                    if (pData?['schoolId'] == value) {
+                                      matchedParishId = pDoc.id;
+                                      break;
+                                    }
+                                  }
+                                  _selectedParishId = matchedParishId ?? value;
+                                  _selectedParishName = schoolData['schoolname'] ?? schoolData['name'] ?? 'Unnamed School';
+                                } else {
+                                  _selectedParishId = null;
+                                  _selectedParishName = null;
                                 }
                               });
                             },
                             validator: (v) =>
-                                v == null ? 'Please select a parish' : null,
+                                v == null ? 'Please select a school / parish' : null,
                             icon: Icon(
                               Icons.arrow_drop_down_circle_rounded,
                               color: Colors.blue.shade700,

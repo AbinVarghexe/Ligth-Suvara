@@ -1,5 +1,6 @@
 // lib/auth_screen.dart
 import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,6 +19,7 @@ import 'package:sundayschool_app/services/notification_service.dart'; // Import 
 import 'package:sundayschool_app/services/log_service.dart'; // Import LogService
 import 'package:provider/provider.dart';
 import 'package:sundayschool_app/providers/content_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -38,6 +40,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   late AnimationController _effectController; // For pulses/shimmer/blobs
   late AnimationController
   _breathingController; // For logo/input breathing glow
+
+  int _remainingLockoutSeconds = 0;
+  Timer? _lockoutTimer;
 
   @override
   void initState() {
@@ -61,10 +66,57 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     // Listeners for focus changes to trigger UI rebuilds for interactive scaling
     _emailFocusNode.addListener(() => setState(() {}));
     _passwordFocusNode.addListener(() => setState(() {}));
+
+    _checkLockoutStatus();
+  }
+
+  Future<void> _checkLockoutStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lockoutTimeMs = prefs.getInt('login_lockout_time') ?? 0;
+    if (lockoutTimeMs > 0) {
+      final currentTimeMs = DateTime.now().millisecondsSinceEpoch;
+      final elapsedMs = currentTimeMs - lockoutTimeMs;
+      const lockoutDurationMs = 600000; // 10 minutes
+
+      if (elapsedMs < lockoutDurationMs) {
+        final remainingMs = lockoutDurationMs - elapsedMs;
+        setState(() {
+          _remainingLockoutSeconds = (remainingMs / 1000).ceil();
+        });
+        _startLockoutTimer();
+      } else {
+        // Expired
+        await prefs.remove('login_lockout_time');
+        await prefs.setInt('login_failed_attempts', 0);
+        setState(() {
+          _remainingLockoutSeconds = 0;
+        });
+      }
+    }
+  }
+
+  void _startLockoutTimer() {
+    _lockoutTimer?.cancel();
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (_remainingLockoutSeconds <= 1) {
+        timer.cancel();
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('login_lockout_time');
+        await prefs.setInt('login_failed_attempts', 0);
+        setState(() {
+          _remainingLockoutSeconds = 0;
+        });
+      } else {
+        setState(() {
+          _remainingLockoutSeconds--;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _lockoutTimer?.cancel();
     _exitController.dispose();
     _effectController.dispose();
     _breathingController.dispose();
@@ -135,7 +187,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                   child: Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.25), // Brighter glass
+                      color: Colors.white.withValues(
+                        alpha: 0.25,
+                      ), // Brighter glass
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
                         color: const Color(0xFFD4AF37).withValues(alpha: 0.25),
@@ -173,7 +227,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                           style: GoogleFonts.outfit(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: const Color(0xFF1E3A8A).withValues(alpha: 0.85),
+                            color: const Color(
+                              0xFF1E3A8A,
+                            ).withValues(alpha: 0.85),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -217,6 +273,47 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     FocusScope.of(context).unfocus();
 
     if (!mounted) return;
+
+    if (_remainingLockoutSeconds > 0) {
+      final remainingMinutes = (_remainingLockoutSeconds / 60).ceil();
+      _showErrorDialog(
+        'Too many failed attempts. Please try again in $remainingMinutes minutes.',
+      );
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final lockoutTimeMs = prefs.getInt('login_lockout_time') ?? 0;
+    final currentTimeMs = DateTime.now().millisecondsSinceEpoch;
+
+    // 10 minutes cooling period = 600,000 milliseconds
+    const lockoutDurationMs = 600000;
+
+    if (lockoutTimeMs > 0) {
+      final elapsedMs = currentTimeMs - lockoutTimeMs;
+      if (elapsedMs < lockoutDurationMs) {
+        final remainingMs = lockoutDurationMs - elapsedMs;
+        setState(() {
+          _remainingLockoutSeconds = (remainingMs / 1000).ceil();
+        });
+        _startLockoutTimer();
+        final remainingMinutes = (remainingMs / 60000).ceil();
+        if (mounted) {
+          _showErrorDialog(
+            'Too many failed attempts. Please try again in $remainingMinutes minutes.',
+          );
+        }
+        return;
+      } else {
+        // Lockout expired, reset it
+        await prefs.remove('login_lockout_time');
+        await prefs.setInt('login_failed_attempts', 0);
+        setState(() {
+          _remainingLockoutSeconds = 0;
+        });
+      }
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -230,6 +327,14 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
       final user = userCredential.user;
       if (user != null) {
+        // Login succeeded, clear failed attempts
+        await prefs.setInt('login_failed_attempts', 0);
+        await prefs.remove('login_lockout_time');
+        setState(() {
+          _remainingLockoutSeconds = 0;
+        });
+        _lockoutTimer?.cancel();
+
         // CORE FIX: Check for existing profile and create a placeholder if missing.
         final userDocRef = FirebaseFirestore.instance
             .collection('users')
@@ -330,12 +435,42 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           await _animatedNavigate(destination);
         }
       }
-    } on FirebaseAuthException catch (e) {
-      String message = 'Invalid credentials. Please try again.';
-      if (e.code == 'user-not-found' ||
-          e.code == 'wrong-password' ||
-          e.code == 'invalid-credential') {
-        message = 'The email or password you entered is incorrect.';
+    } catch (e) {
+      String message = 'The email or password you entered is incorrect.';
+      String errorCode = '';
+      if (e is FirebaseAuthException) {
+        errorCode = e.code;
+        if (e.message != null) {
+          if (e.code != 'wrong-password' &&
+              e.code != 'user-not-found' &&
+              e.code != 'invalid-credential') {
+            message = e.message!;
+          }
+        }
+      } else {
+        message = e.toString();
+      }
+
+      // Count any failed attempt except network failure
+      if (errorCode != 'network-request-failed') {
+        int failedAttempts = prefs.getInt('login_failed_attempts') ?? 0;
+        failedAttempts += 1;
+        await prefs.setInt('login_failed_attempts', failedAttempts);
+
+        if (failedAttempts >= 3) {
+          final nowMs = DateTime.now().millisecondsSinceEpoch;
+          await prefs.setInt('login_lockout_time', nowMs);
+          setState(() {
+            _remainingLockoutSeconds = 600; // 10 minutes
+          });
+          _startLockoutTimer();
+          message =
+              'You have entered incorrect credentials 3 times. You are locked out for 10 minutes.';
+        } else {
+          final remainingAttempts = 3 - failedAttempts;
+          message =
+              'The email or password you entered is incorrect. You have $remainingAttempts attempts remaining before 10 min lockout.';
+        }
       }
 
       if (mounted) {
@@ -499,12 +634,16 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                         shape: BoxShape.rectangle,
                                         boxShadow: [
                                           BoxShadow(
-                                            color: const Color(0xFFFFD700).withValues(alpha: 0.3),
+                                            color: const Color(
+                                              0xFFFFD700,
+                                            ).withValues(alpha: 0.3),
                                             blurRadius: 60,
                                             spreadRadius: 10,
                                           ),
                                           BoxShadow(
-                                            color: Colors.white.withValues(alpha: 0.2),
+                                            color: Colors.white.withValues(
+                                              alpha: 0.2,
+                                            ),
                                             blurRadius: 30,
                                             spreadRadius: -2,
                                           ),
@@ -514,18 +653,26 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                         animation: _breathingController,
                                         builder: (context, child) {
                                           return Transform.scale(
-                                            scale: 1.0 + (0.02 * _breathingController.value),
+                                            scale:
+                                                1.0 +
+                                                (0.02 *
+                                                    _breathingController.value),
                                             child: Stack(
                                               alignment: Alignment.center,
                                               children: [
                                                 // 🌟 Modern Soft Glow
                                                 ImageFiltered(
-                                                  imageFilter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+                                                  imageFilter: ImageFilter.blur(
+                                                    sigmaX: 15.0,
+                                                    sigmaY: 15.0,
+                                                  ),
                                                   child: Image.asset(
                                                     "assets/images/new_logo_light.png",
                                                     height: 90,
                                                     fit: BoxFit.contain,
-                                                    color: const Color(0xFFFFD700).withValues(alpha: 0.3),
+                                                    color: const Color(
+                                                      0xFFFFD700,
+                                                    ).withValues(alpha: 0.3),
                                                   ),
                                                 ),
                                                 // 🌟 Crisp Professional Logo
@@ -533,7 +680,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                                   "assets/images/new_logo_light.png",
                                                   height: 85,
                                                   fit: BoxFit.contain,
-                                                  filterQuality: FilterQuality.high,
+                                                  filterQuality:
+                                                      FilterQuality.high,
                                                 ),
                                               ],
                                             ),
@@ -588,10 +736,14 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                     child: Container(
                                       padding: const EdgeInsets.all(28),
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.12),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.12,
+                                        ),
                                         borderRadius: BorderRadius.circular(30),
                                         border: Border.all(
-                                          color: Colors.white.withValues(alpha: 0.15),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.15,
+                                          ),
                                           width: 1.0,
                                         ),
                                         boxShadow: [
@@ -630,7 +782,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                       letterSpacing: 0.5,
                                       shadows: [
                                         Shadow(
-                                          color: Colors.white.withValues(alpha: 0.5),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.5,
+                                          ),
                                           blurRadius: 10,
                                           offset: const Offset(0, 2),
                                         ),
@@ -669,9 +823,20 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                     alignment: Alignment.centerRight,
                                     child: TextButton(
                                       onPressed: () {
-                                        final contentProvider = Provider.of<ContentProvider>(context, listen: false);
-                                        final contactPhone = contentProvider.loginConfig['contactPhone'] as String?;
-                                        final phone = (contactPhone != null && contactPhone.trim().isNotEmpty) ? contactPhone.trim() : '+919447601251';
+                                        final contentProvider =
+                                            Provider.of<ContentProvider>(
+                                              context,
+                                              listen: false,
+                                            );
+                                        final contactPhone =
+                                            contentProvider
+                                                    .loginConfig['contactPhone']
+                                                as String?;
+                                        final phone =
+                                            (contactPhone != null &&
+                                                contactPhone.trim().isNotEmpty)
+                                            ? contactPhone.trim()
+                                            : '+919447601251';
                                         _launchDialer(phone);
                                       },
                                       style: TextButton.styleFrom(
@@ -734,7 +899,10 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                               ],
                                             ),
                                             child: ElevatedButton(
-                                              onPressed: _isLoading
+                                              onPressed:
+                                                  (_isLoading ||
+                                                      _remainingLockoutSeconds >
+                                                          0)
                                                   ? null
                                                   : _logIn,
                                               style: ElevatedButton.styleFrom(
@@ -756,7 +924,25 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                                 children: [
                                                   if (_isLoading)
                                                     _buildButtonLoader()
-                                                  else ...[
+                                                  else if (_remainingLockoutSeconds >
+                                                      0) ...[
+                                                    Text(
+                                                      "Locked: ${_remainingLockoutSeconds ~/ 60}:${(_remainingLockoutSeconds % 60).toString().padLeft(2, '0')}",
+                                                      style: GoogleFonts.outfit(
+                                                        fontSize: 18,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        letterSpacing: 0.5,
+                                                        color: Colors.white70,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 10),
+                                                    const Icon(
+                                                      Icons.lock_clock_rounded,
+                                                      color: Colors.white70,
+                                                      size: 22,
+                                                    ),
+                                                  ] else ...[
                                                     Text(
                                                       "Log In",
                                                       style: GoogleFonts.outfit(
@@ -831,9 +1017,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                   "© ${DateTime.now().year} AJCE. All Rights Reserved.",
                                   style: GoogleFonts.outfit(
                                     fontSize: 10,
-                                    color: const Color(
-                                      0xFF1E3A8A,
-                                    ).withValues(alpha: 0.6), // Darker for visibility
+                                    color: const Color(0xFF1E3A8A).withValues(
+                                      alpha: 0.6,
+                                    ), // Darker for visibility
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -964,7 +1150,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                 _passwordVisible
                                     ? Icons.visibility
                                     : Icons.visibility_off,
-                                color: const Color(0xFF1E3A8A).withValues(alpha: 0.4),
+                                color: const Color(
+                                  0xFF1E3A8A,
+                                ).withValues(alpha: 0.4),
                                 size: 20,
                               ),
                               onPressed: () {
