@@ -1822,6 +1822,8 @@ class _LoginScreenState extends State<LoginScreen>
                   final doc = provider.events[index];
                   final data = doc.data() as Map<String, dynamic>;
                   final imageUrl = data['imageUrl'];
+                  final title = data['title'] ?? 'Untitled Event';
+                  final place = data['place'] ?? 'Location not specified';
 
                   return GestureDetector(
                     key: ValueKey('event_carousel_${doc.id}'),
@@ -1834,7 +1836,12 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       );
                     },
-                    child: _buildProgramCard(imageUrl, data['category'] ?? ''),
+                    child: _buildProgramCard(
+                      imageUrl,
+                      data['category'] ?? '',
+                      title,
+                      place,
+                    ),
                   );
                 },
               ),
@@ -1844,7 +1851,12 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildProgramCard(String? imageUrl, String category) {
+  Widget _buildProgramCard(
+    String? imageUrl,
+    String category,
+    String title,
+    String place,
+  ) {
     final placeholderData = HomeScreen.getEventPlaceholderData(category);
     final placeholder = Center(
       child: Icon(
@@ -1912,7 +1924,70 @@ class _LoginScreenState extends State<LoginScreen>
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
-        child: imageWidget,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            imageWidget,
+            // Gradient Overlay with Title and Place
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.8),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_rounded,
+                          color: const Color(0xFFBC8A3A),
+                          size: 10,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            place,
+                            style: GoogleFonts.outfit(
+                              color: Colors.white70,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
