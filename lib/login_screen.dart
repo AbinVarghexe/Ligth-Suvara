@@ -59,16 +59,18 @@ class _LoginScreenState extends State<LoginScreen>
 
   Widget _buildVerseSection(Map<String, dynamic> config) {
     if (config.isEmpty || config['verseText'] == null) {
-      return Shimmer.fromColors(
-        baseColor: Colors.grey.shade300.withValues(alpha: 0.5),
-        highlightColor: Colors.white.withValues(alpha: 0.6),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          height: 160,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(32),
+      return ExcludeSemantics(
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey.shade300.withValues(alpha: 0.5),
+          highlightColor: Colors.white.withValues(alpha: 0.6),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            height: 160,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(32),
+            ),
           ),
         ),
       );
@@ -86,217 +88,219 @@ class _LoginScreenState extends State<LoginScreen>
     // 🔹 Automatically give full clarity ONLY if text is hidden
     final fullClarity = hideText;
 
-    return Container(
-      margin: const EdgeInsets.only(left: 16, right: 16, top: 0, bottom: 4),
-      constraints: const BoxConstraints(minHeight: 160),
-      width: double.infinity,
-      child: GlowingRunningBorder(
-        borderRadius: 32,
-        thickness: hasImage ? 6.0 : 2.5, // Significantly thicker for visibility
-        duration: Duration(seconds: hasImage ? 3 : 10), // Much faster/dynamic
-        gradientColors: hasImage
-            ? [
-                Colors.yellow.shade300,
-                Colors.orange.shade600,
-                Colors.white, // Pure white core for maximum shine
-                const Color(0xFFBC8A3A), // Gold
-                Colors.white,
-                Colors.orange.shade500,
-                Colors.yellow.shade300,
-              ]
-            : const [Color(0xFFBC8A3A), Color(0xFFFFD700), Color(0xFFBC8A3A)],
-        child: Container(
-          decoration: BoxDecoration(
-            color: hasImage
-                ? Colors.transparent
-                : Colors.white.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(
-              color: (hasImage && !fullClarity)
+    return ExcludeSemantics(
+      child: Container(
+        margin: const EdgeInsets.only(left: 16, right: 16, top: 0, bottom: 4),
+        constraints: const BoxConstraints(minHeight: 160),
+        width: double.infinity,
+        child: GlowingRunningBorder(
+          borderRadius: 32,
+          thickness: hasImage ? 6.0 : 2.5, // Significantly thicker for visibility
+          duration: Duration(seconds: hasImage ? 3 : 10), // Much faster/dynamic
+          gradientColors: hasImage
+              ? [
+                  Colors.yellow.shade300,
+                  Colors.orange.shade600,
+                  Colors.white, // Pure white core for maximum shine
+                  const Color(0xFFBC8A3A), // Gold
+                  Colors.white,
+                  Colors.orange.shade500,
+                  Colors.yellow.shade300,
+                ]
+              : const [Color(0xFFBC8A3A), Color(0xFFFFD700), Color(0xFFBC8A3A)],
+          child: Container(
+            decoration: BoxDecoration(
+              color: hasImage
                   ? Colors.transparent
-                  : Colors.white.withValues(alpha: 0.3),
-              width: 1.5,
+                  : Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(
+                color: (hasImage && !fullClarity)
+                    ? Colors.transparent
+                    : Colors.white.withValues(alpha: 0.3),
+                width: 1.5,
+              ),
             ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(32),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: hasImage
-                      ? CachedNetworkImage(
-                          imageUrl: verseBgImage!,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) =>
-                              Container(color: Colors.grey.shade200),
-                          errorWidget: (context, url, error) =>
-                              Container(color: Colors.grey.shade200),
-                        )
-                      : BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.white.withValues(alpha: 0.2),
-                                  Colors.blue.shade100.withValues(alpha: 0.05),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(32),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: hasImage
+                        ? CachedNetworkImage(
+                            imageUrl: verseBgImage!,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) =>
+                                Container(color: Colors.grey.shade200),
+                            errorWidget: (context, url, error) =>
+                                Container(color: Colors.grey.shade200),
+                          )
+                        : BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.2),
+                                    Colors.blue.shade100.withValues(alpha: 0.05),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                ),
-                // 🔹 Content Overlay
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 10, // Aggressively reduced from 18
                   ),
-                  decoration: BoxDecoration(
-                    gradient: (hasImage && !fullClarity)
-                        ? RadialGradient(
-                            colors: [
-                              Colors.black.withValues(alpha: 0.2), // Light core
-                              Colors.black.withValues(
-                                alpha: 0.65,
-                              ), // Strong edge vignette
-                            ],
-                            radius: 1.2,
-                          )
-                        : null,
-                    color: (hasImage && !fullClarity)
-                        ? null
-                        : Colors.transparent,
-                  ),
-                  child: hideText
-                      ? const SizedBox(
-                          height: 160,
-                          width: double.infinity,
-                        ) // 🔹 Fixed anchor height when text is hidden
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // 🔹 Database-Driven Title with Background Logic
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color:
-                                    (titleBgColor == Colors.transparent &&
-                                        !hasImage)
-                                    ? const Color(
-                                        0xFFBC8A3A,
-                                      ).withValues(alpha: 0.85)
-                                    : titleBgColor,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  width: 1,
+                  // 🔹 Content Overlay
+                  Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(minHeight: 160),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 10, // Aggressively reduced from 18
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: (hasImage && !fullClarity)
+                          ? RadialGradient(
+                              colors: [
+                                Colors.black.withValues(alpha: 0.2), // Light core
+                                Colors.black.withValues(
+                                  alpha: 0.65,
+                                ), // Strong edge vignette
+                              ],
+                              radius: 1.2,
+                            )
+                          : null,
+                      color: (hasImage && !fullClarity)
+                          ? null
+                          : Colors.transparent,
+                    ),
+                    child: hideText
+                        ? const SizedBox()
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // 🔹 Database-Driven Title with Background Logic
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 6,
                                 ),
-                              ),
-                              child: Text(
-                                (config['verseTitle'] ?? 'Verse of the Day')
-                                    .toUpperCase(),
-                                style: GoogleFonts.outfit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  letterSpacing: 1.0,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12), // Reduced from 16
-                            // 🔹 Serif Verse Text
-                            Text(
-                              '"$verseText"',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.libreBaskerville(
-                                fontSize: 16,
-                                fontStyle: FontStyle.italic,
-                                fontWeight: FontWeight
-                                    .w600, // Slightly bolder for legibility
-                                color:
-                                    verseTextColor, // Restoration: Using database-selected color
-                                height: 1.5,
-                                shadows: hasImage
-                                    ? [
-                                        Shadow(
-                                          color: Colors.black.withValues(
-                                            alpha: 0.8,
-                                          ),
-                                          offset: const Offset(0, 1.5),
-                                          blurRadius: 6,
-                                        ),
-                                        Shadow(
-                                          color: Colors.black.withValues(
-                                            alpha: 0.4,
-                                          ),
-                                          offset: const Offset(0, 0),
-                                          blurRadius: 10,
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                            ),
-                            const SizedBox(height: 12), // Reduced from 16
-                            // 🔹 Glassmorphic Verse Reference
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 6,
+                                decoration: BoxDecoration(
+                                  color:
+                                      (titleBgColor == Colors.transparent &&
+                                          !hasImage)
+                                      ? const Color(
+                                          0xFFBC8A3A,
+                                        ).withValues(alpha: 0.85)
+                                      : titleBgColor,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    width: 1,
                                   ),
-                                  decoration: BoxDecoration(
+                                ),
+                                child: Text(
+                                  (config['verseTitle'] ?? 'Verse of the Day')
+                                      .toUpperCase(),
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12), // Reduced from 16
+                              // 🔹 Serif Verse Text
+                              Text(
+                                '"$verseText"',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.libreBaskerville(
+                                    fontSize: 16,
+                                    fontStyle: FontStyle.italic,
+                                    fontWeight: FontWeight
+                                        .w600, // Slightly bolder for legibility
                                     color:
-                                        (hasImage ? Colors.black : Colors.white)
-                                            .withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color:
-                                          (hasImage
-                                                  ? Colors.white
-                                                  : Colors.black)
-                                              .withValues(alpha: 0.1),
-                                      width: 0.5,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    verseRef.toUpperCase(),
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w900,
-                                      color: hasImage
-                                          ? Colors.white
-                                          : const Color(0xFFBC8A3A),
-                                      letterSpacing: 1.2,
-                                      shadows: hasImage
-                                          ? [
-                                              Shadow(
-                                                color: Colors.black.withValues(
-                                                  alpha: 0.6,
-                                                ),
-                                                offset: const Offset(0, 1),
-                                                blurRadius: 3,
+                                        verseTextColor, // Restoration: Using database-selected color
+                                    height: 1.5,
+                                    shadows: hasImage
+                                        ? [
+                                            Shadow(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.8,
                                               ),
-                                            ]
-                                          : null,
+                                              offset: const Offset(0, 1.5),
+                                              blurRadius: 6,
+                                            ),
+                                            Shadow(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.4,
+                                              ),
+                                              offset: const Offset(0, 0),
+                                              blurRadius: 10,
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                ),
+                                const SizedBox(height: 12), // Reduced from 16
+                                // 🔹 Glassmorphic Verse Reference
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            (hasImage ? Colors.black : Colors.white)
+                                                .withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color:
+                                              (hasImage
+                                                      ? Colors.white
+                                                      : Colors.black)
+                                                  .withValues(alpha: 0.1),
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        verseRef.toUpperCase(),
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w900,
+                                          color: hasImage
+                                              ? Colors.white
+                                              : const Color(0xFFBC8A3A),
+                                          letterSpacing: 1.2,
+                                          shadows: hasImage
+                                              ? [
+                                                  Shadow(
+                                                    color: Colors.black.withValues(
+                                                      alpha: 0.6,
+                                                    ),
+                                                    offset: const Offset(0, 1),
+                                                    blurRadius: 3,
+                                                  ),
+                                                ]
+                                              : null,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                ),
-              ],
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -306,17 +310,19 @@ class _LoginScreenState extends State<LoginScreen>
 
   Widget _buildTopImagesHeader(Map<String, dynamic> config) {
     if (config.isEmpty || config['carousel'] == null) {
-      return Shimmer.fromColors(
-        baseColor: Colors.grey.shade300.withValues(alpha: 0.5),
-        highlightColor: Colors.white.withValues(alpha: 0.6),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Container(
-            height: 144, // Matches 160 - 16 padding
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(32),
+      return ExcludeSemantics(
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey.shade300.withValues(alpha: 0.5),
+          highlightColor: Colors.white.withValues(alpha: 0.6),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Container(
+              height: 144, // Matches 160 - 16 padding
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(32),
+              ),
             ),
           ),
         ),
@@ -326,31 +332,33 @@ class _LoginScreenState extends State<LoginScreen>
     final List<dynamic> remoteSlides = config['carousel'];
     if (remoteSlides.isEmpty) return const SizedBox.shrink();
 
-    return CarouselSlider.builder(
-      itemCount: remoteSlides.length,
-      options: CarouselOptions(
-        height: 160, // Match Verse height
-        autoPlay: true,
-        enlargeCenterPage: false, // Prevent size variations
-        viewportFraction: 1.0, // Full width match
-        autoPlayInterval: const Duration(seconds: 6),
-        autoPlayCurve: Curves.easeInOutCubic,
-        autoPlayAnimationDuration: const Duration(milliseconds: 1000),
+    return ExcludeSemantics(
+      child: CarouselSlider.builder(
+        itemCount: remoteSlides.length,
+        options: CarouselOptions(
+          height: 160, // Match Verse height
+          autoPlay: true,
+          enlargeCenterPage: false, // Prevent size variations
+          viewportFraction: 1.0, // Full width match
+          autoPlayInterval: const Duration(seconds: 6),
+          autoPlayCurve: Curves.easeInOutCubic,
+          autoPlayAnimationDuration: const Duration(milliseconds: 1000),
+        ),
+        itemBuilder: (context, index, realIndex) {
+          final slide = remoteSlides[index];
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: _buildCarouselItem(
+              context,
+              slide['label'] ?? '',
+              slide['name'] ?? '',
+              slide['role'] ?? '',
+              slide['message'] ?? '',
+              slide['image'] ?? '',
+            ),
+          );
+        },
       ),
-      itemBuilder: (context, index, realIndex) {
-        final slide = remoteSlides[index];
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: _buildCarouselItem(
-            context,
-            slide['label'] ?? '',
-            slide['name'] ?? '',
-            slide['role'] ?? '',
-            slide['message'] ?? '',
-            slide['image'] ?? '',
-          ),
-        );
-      },
     );
   }
 
@@ -1250,17 +1258,19 @@ class _LoginScreenState extends State<LoginScreen>
               horizontal: BorderSide(color: Colors.red.withValues(alpha: 0.1)),
             ),
           ),
-          child: Marquee(
-            text: announcementText,
-            style: GoogleFonts.outfit(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              color: Colors.red.shade700,
+          child: ExcludeSemantics(
+            child: Marquee(
+              text: announcementText,
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Colors.red.shade700,
+              ),
+              scrollAxis: Axis.horizontal,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              blankSpace: 20.0,
+              velocity: 40.0,
             ),
-            scrollAxis: Axis.horizontal,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            blankSpace: 20.0,
-            velocity: 40.0,
           ),
         );
       },
