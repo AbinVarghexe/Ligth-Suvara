@@ -6,12 +6,20 @@ import 'package:sundayschool_app/login_screen.dart';
 import 'package:sundayschool_app/admin_dashboard_screen.dart';
 import 'package:sundayschool_app/providers/user_data_provider.dart';
 import 'package:sundayschool_app/animator/animator_dashboard_screen.dart';
-import 'package:sundayschool_app/parish/parish_dashboard_screen.dart'; // Added import
+import 'package:sundayschool_app/parish/parish_dashboard_screen.dart';
+import 'package:sundayschool_app/admin/observer_remarks_login.dart';
 
 import 'package:loading_animation_widget/loading_animation_widget.dart'; // Import modern loader
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _checkedStartupObserver = false;
 
   @override
   Widget build(BuildContext context) {
@@ -33,10 +41,26 @@ class AuthWrapper extends StatelessWidget {
 
     // 2. If no user is logged in, show Login
     if (user == null) {
+      _checkedStartupObserver = true; // Clear on null user so next login is manual
       return const LoginScreen();
     }
 
-    // 3. If user is logged in, check role
+    // 3. Startup check: If it's the first time checking and we have an observer, auto-sign out.
+    if (!_checkedStartupObserver) {
+      _checkedStartupObserver = true;
+      if (userDataProvider.userData.isObserver) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          FirebaseAuth.instance.signOut();
+        });
+        return const LoginScreen();
+      }
+    }
+
+    // 4. Role based routing
+    if (userDataProvider.userData.isObserver) {
+      return const ObserverRemarksLoginScreen();
+    }
+
     if (userDataProvider.userData.isAdmin) {
       return const AdminDashboardScreen();
     } else if (userDataProvider.userData.isParish) {

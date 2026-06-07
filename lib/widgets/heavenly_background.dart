@@ -87,6 +87,7 @@ class _HeavenlyBackgroundState extends State<HeavenlyBackground>
                 scale: 1.02 + (0.04 * _bgAnimationController.value),
                 child: Container(
                   decoration: BoxDecoration(
+                    color: Colors.white,
                     image: widget.showImage
                         ? const DecorationImage(
                             image: AssetImage('assets/images/login_bg.jpg'),

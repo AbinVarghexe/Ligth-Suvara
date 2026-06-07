@@ -7,6 +7,7 @@ import 'package:sundayschool_app/event_detail_screen_from_home.dart';
 import 'package:sundayschool_app/homescreen.dart';
 import 'package:sundayschool_app/widgets/heavenly_background.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:sundayschool_app/login_screen.dart';
 
 class HomeEventsScreen extends StatefulWidget {
   const HomeEventsScreen({super.key});
@@ -21,11 +22,35 @@ class _HomeEventsScreenState extends State<HomeEventsScreen> {
   static const Color _goldAccent = Color(0xFFBC8A3A); // Gold Accent
 
   int _limit = 6;
+  late Stream<List<QuerySnapshot>> _eventsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _initStream();
+  }
+
+  void _initStream() {
+    _eventsStream = CombineLatestStream.list([
+      FirebaseFirestore.instance
+          .collection('events')
+          .where('isPublic', isEqualTo: true)
+          .orderBy('timestamp', descending: true)
+          .limit(_limit + 1)
+          .snapshots(),
+      FirebaseFirestore.instance
+          .collection('events')
+          .where('creatorId', isEqualTo: 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2')
+          .orderBy('timestamp', descending: true)
+          .limit(_limit + 1)
+          .snapshots(),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         elevation: 0,
@@ -53,20 +78,7 @@ class _HomeEventsScreenState extends State<HomeEventsScreen> {
         showImage: true,
         child: SafeArea(
           child: StreamBuilder<List<QuerySnapshot>>(
-            stream: CombineLatestStream.list([
-              FirebaseFirestore.instance
-                  .collection('events')
-                  .where('isPublic', isEqualTo: true)
-                  .orderBy('timestamp', descending: true)
-                  .limit(_limit + 1)
-                  .snapshots(),
-              FirebaseFirestore.instance
-                  .collection('events')
-                  .where('creatorId', isEqualTo: 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2')
-                  .orderBy('timestamp', descending: true)
-                  .limit(_limit + 1)
-                  .snapshots(),
-            ]),
+            stream: _eventsStream,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return _buildShimmerLoading();
@@ -136,6 +148,7 @@ class _HomeEventsScreenState extends State<HomeEventsScreen> {
                           onPressed: () {
                             setState(() {
                               _limit += 6;
+                              _initStream();
                             });
                           },
                           style: OutlinedButton.styleFrom(
@@ -181,8 +194,8 @@ class _HomeEventsScreenState extends State<HomeEventsScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => EventDetailScreenFromHome(eventId: doc.id),
+          CustomPageRoute(
+            child: EventDetailScreenFromHome(eventId: doc.id),
           ),
         );
       },
@@ -213,14 +226,10 @@ class _HomeEventsScreenState extends State<HomeEventsScreen> {
               ),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
-                child: Hero(
-                  tag: imageUrl.isNotEmpty
-                      ? 'event_image_${doc.id}'
-                      : 'event_icon_${doc.id}',
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      () {
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    () {
                         final placeholder = Container(
                           decoration: BoxDecoration(
                             gradient:
@@ -296,7 +305,6 @@ class _HomeEventsScreenState extends State<HomeEventsScreen> {
                   ),
                 ),
               ),
-            ),
             // Content Section
             Padding(
               padding: const EdgeInsets.all(20.0),
