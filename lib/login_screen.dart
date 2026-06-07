@@ -33,6 +33,7 @@ import 'package:sundayschool_app/homescreen.dart';
 import 'package:sundayschool_app/video_resources_screen.dart';
 import 'package:sundayschool_app/calendar_webview_screen.dart';
 import 'package:sundayschool_app/calendar_pdf_viewer_screen.dart';
+import 'package:sundayschool_app/saints_screen.dart'; // Import SaintsScreen
 import 'package:shimmer/shimmer.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -2312,6 +2313,28 @@ class _LoginScreenState extends State<LoginScreen>
                                                         }
                                                       }
                                                     },
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.start,
+                                              children: [
+                                                SizedBox(
+                                                  width: itemWidth,
+                                                  child: _buildAnimatedMenuItem(
+                                                    context,
+                                                    'Saints',
+                                                    Icons.auto_awesome_rounded,
+                                                    const Color(0xFF8B5CF6),
+                                                    () => Navigator.push(
+                                                      context,
+                                                      CustomPageRoute(
+                                                        child: const SaintsScreen(),
+                                                      ),
+                                                    ),
                                                   ),
                                                 ),
                                               ],

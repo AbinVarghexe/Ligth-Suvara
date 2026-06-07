@@ -184,7 +184,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   int _publicEvents = 0;
   int _draftEvents = 0;
 
-  bool _isStatsLoading = false;
+  bool _isStatsLoading = true;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -210,17 +210,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Future<void> _fetchAndSetStatistics() async {
-    if (_isStatsLoading) return;
-    if (mounted) setState(() => _isStatsLoading = true);
+    if (mounted && !_isStatsLoading) {
+      setState(() => _isStatsLoading = true);
+    }
 
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('events')
-          .get();
+      QuerySnapshot snapshot;
+      try {
+        snapshot = await FirebaseFirestore.instance
+            .collection('events')
+            .get(const GetOptions(source: Source.server));
+      } catch (e) {
+        debugPrint("Server fetch failed, falling back to cache: $e");
+        snapshot = await FirebaseFirestore.instance
+            .collection('events')
+            .get();
+      }
+
       final allEvents = snapshot.docs;
       final total = allEvents.length;
       final public = allEvents.where((doc) {
-        final data = doc.data();
+        final data = doc.data() as Map<String, dynamic>;
         final isPub = data['isPublic'] ?? false;
         final creator = data['creatorId'] as String?;
         return isPub == true || creator == 'cwEVLXnIKvNkTOj2ld9WYTUXgFu2';
@@ -244,7 +254,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         );
       }
     } finally {
-      if (mounted) setState(() => _isStatsLoading = false);
+      if (mounted) {
+        setState(() => _isStatsLoading = false);
+      }
     }
   }
 

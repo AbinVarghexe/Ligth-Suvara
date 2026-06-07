@@ -14,6 +14,7 @@ import 'package:sundayschool_app/services/notification_service.dart'; // Import 
 import 'package:lottie/lottie.dart';
 
 import 'package:sundayschool_app/providers/content_provider.dart'; // Import ContentProvider
+import 'package:sundayschool_app/providers/saints_provider.dart'; // Import SaintsProvider
 
 // Global future for preloaded animation
 late Future<LottieComposition> animationCompositionFuture;
@@ -66,6 +67,9 @@ void main() async {
         ChangeNotifierProvider(create: (context) => UserDataProvider()),
         ChangeNotifierProvider(
           create: (context) => ContentProvider(), // Added ContentProvider
+        ),
+        ChangeNotifierProvider(
+          create: (context) => SaintsProvider(), // Added SaintsProvider
         ),
       ],
       child: const MyApp(),
