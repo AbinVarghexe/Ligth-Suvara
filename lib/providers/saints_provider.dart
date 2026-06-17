@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -106,15 +107,44 @@ class SaintsProvider with ChangeNotifier {
   String? _error;
   String? get error => _error;
 
+  StreamSubscription<DocumentSnapshot>? _subscription;
+
   SaintsProvider() {
-    fetchSaintsData();
+    _listenToSaintsData();
   }
 
-  Future<void> fetchSaintsData() async {
+  void _listenToSaintsData() {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
+    _subscription = FirebaseFirestore.instance
+        .collection('saints_resources')
+        .doc('all')
+        .snapshots()
+        .listen(
+      (doc) {
+        if (doc.exists && doc.data() != null) {
+          debugPrint("SAINTS FIREBASE DATA (Stream Update): ${doc.data()}");
+          _saintsData = SaintsData.fromMap(doc.data()!);
+        } else {
+          _saintsData = SaintsData(categories: []);
+        }
+        _isLoading = false;
+        _error = null;
+        notifyListeners();
+      },
+      onError: (e) {
+        _error = e.toString();
+        _isLoading = false;
+        debugPrint("Error listening to saints data: $e");
+        notifyListeners();
+      },
+    );
+  }
+
+  // Keeping this for pull-to-refresh compatibility
+  Future<void> fetchSaintsData() async {
     try {
       final doc = await FirebaseFirestore.instance
           .collection('saints_resources')
@@ -122,18 +152,17 @@ class SaintsProvider with ChangeNotifier {
           .get();
 
       if (doc.exists && doc.data() != null) {
-        // Print the keys and structure to the debug console to assist with diagnosis
-        debugPrint("SAINTS FIREBASE DATA: ${doc.data()}");
         _saintsData = SaintsData.fromMap(doc.data()!);
-      } else {
-        _saintsData = SaintsData(categories: []);
+        notifyListeners();
       }
     } catch (e) {
-      _error = e.toString();
-      debugPrint("Error fetching saints data: $e");
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      debugPrint("Error on manual refresh: $e");
     }
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 }

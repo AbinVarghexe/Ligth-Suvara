@@ -29,7 +29,8 @@ class SaintsScreen extends StatefulWidget {
   State<SaintsScreen> createState() => _SaintsScreenState();
 }
 
-class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderStateMixin {
+class _SaintsScreenState extends State<SaintsScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _fadeController;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -52,19 +53,22 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
 
   void _onItemTap(BuildContext context, SaintResourceItem item) {
     final lowerUrl = item.url.toLowerCase();
-    final isYoutube = item.type == 'youtube' || lowerUrl.contains('youtube.com') || lowerUrl.contains('youtu.be');
+    final isYoutube =
+        item.type == 'youtube' ||
+        lowerUrl.contains('youtube.com') ||
+        lowerUrl.contains('youtu.be');
     final ytId = _getYouTubeId(item.url);
 
     // If the item has text content, media content, or is a YouTube video, open the rich detail screen
     final hasContent = item.content != null && item.content!.trim().isNotEmpty;
-    final hasMedia = (item.mediaUrl != null && item.mediaUrl!.trim().isNotEmpty) || (isYoutube && ytId != null);
+    final hasMedia =
+        (item.mediaUrl != null && item.mediaUrl!.trim().isNotEmpty) ||
+        (isYoutube && ytId != null);
 
     if (hasContent || hasMedia) {
       Navigator.push(
         context,
-        CustomPageRoute(
-          child: SaintResourceDetailScreen(item: item),
-        ),
+        CustomPageRoute(child: SaintResourceDetailScreen(item: item)),
       );
     } else {
       // Otherwise, open the URL directly as before
@@ -77,9 +81,17 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
     if (url.isEmpty) return;
 
     final lowerUrl = url.toLowerCase();
-    final isYoutube = item.type == 'youtube' || lowerUrl.contains('youtube.com') || lowerUrl.contains('youtu.be');
-    final isDrive = item.type == 'drive' || lowerUrl.contains('drive.google.com');
-    final isPdf = item.type == 'pdf' || lowerUrl.contains('.pdf') || lowerUrl.contains('firebasestorage') || lowerUrl.contains('/o/');
+    final isYoutube =
+        item.type == 'youtube' ||
+        lowerUrl.contains('youtube.com') ||
+        lowerUrl.contains('youtu.be');
+    final isDrive =
+        item.type == 'drive' || lowerUrl.contains('drive.google.com');
+    final isPdf =
+        item.type == 'pdf' ||
+        lowerUrl.contains('.pdf') ||
+        lowerUrl.contains('firebasestorage') ||
+        lowerUrl.contains('/o/');
 
     if (isYoutube || isDrive) {
       AppLauncher.launchURL(url);
@@ -87,10 +99,7 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
       Navigator.push(
         context,
         CustomPageRoute(
-          child: CalendarPdfViewerScreen(
-            url: url,
-            title: item.title,
-          ),
+          child: CalendarPdfViewerScreen(url: url, title: item.title),
         ),
       );
     } else {
@@ -98,10 +107,7 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
       Navigator.push(
         context,
         CustomPageRoute(
-          child: CalendarWebViewScreen(
-            url: url,
-            title: item.title,
-          ),
+          child: CalendarWebViewScreen(url: url, title: item.title),
         ),
       );
     }
@@ -111,13 +117,18 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
     final lowerUrl = item.url.toLowerCase();
     final type = item.type.toLowerCase();
 
-    if (type == 'youtube' || lowerUrl.contains('youtube.com') || lowerUrl.contains('youtu.be')) {
+    if (type == 'youtube' ||
+        lowerUrl.contains('youtube.com') ||
+        lowerUrl.contains('youtu.be')) {
       return FontAwesomeIcons.youtube;
     } else if (type == 'drive' || lowerUrl.contains('drive.google.com')) {
       return FontAwesomeIcons.googleDrive;
     } else if (type == 'pdf' || lowerUrl.contains('.pdf')) {
       return FontAwesomeIcons.filePdf;
-    } else if (type == 'doc' || type == 'docx' || type == 'ppt' || type == 'pptx') {
+    } else if (type == 'doc' ||
+        type == 'docx' ||
+        type == 'ppt' ||
+        type == 'pptx') {
       return FontAwesomeIcons.filePowerpoint;
     } else {
       return Icons.language_rounded;
@@ -128,13 +139,18 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
     final lowerUrl = item.url.toLowerCase();
     final type = item.type.toLowerCase();
 
-    if (type == 'youtube' || lowerUrl.contains('youtube.com') || lowerUrl.contains('youtu.be')) {
+    if (type == 'youtube' ||
+        lowerUrl.contains('youtube.com') ||
+        lowerUrl.contains('youtu.be')) {
       return const Color(0xFFEF4444); // Red
     } else if (type == 'drive' || lowerUrl.contains('drive.google.com')) {
       return const Color(0xFF22C55E); // Green
     } else if (type == 'pdf' || lowerUrl.contains('.pdf')) {
       return const Color(0xFFDC2626); // Dark Red
-    } else if (type == 'doc' || type == 'docx' || type == 'ppt' || type == 'pptx') {
+    } else if (type == 'doc' ||
+        type == 'docx' ||
+        type == 'ppt' ||
+        type == 'pptx') {
       return const Color(0xFFEAB308); // Gold/Yellow
     } else {
       return const Color(0xFF6366F1); // Indigo
@@ -179,7 +195,7 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
           ),
         ),
         title: Text(
-          'Saints Resources',
+          'Resources',
           style: GoogleFonts.outfit(
             fontSize: 22,
             fontWeight: FontWeight.w800,
@@ -250,9 +266,7 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
             ),
 
             // Main Content Area
-            Expanded(
-              child: _buildMainContent(saintsProvider, navyColor),
-            ),
+            Expanded(child: _buildMainContent(saintsProvider, navyColor)),
           ],
         ),
       ),
@@ -274,38 +288,46 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
     }
 
     // Filter Categories and Items
-    final filteredCategories = data.categories.map((cat) {
-      final matchesCategoryName = cat.name.toLowerCase().contains(_searchQuery);
-      final filteredItems = cat.items.where((item) {
-        return item.title.toLowerCase().contains(_searchQuery);
-      }).toList();
+    final filteredCategories = data.categories
+        .map((cat) {
+          final matchesCategoryName = cat.name.toLowerCase().contains(
+            _searchQuery,
+          );
+          final filteredItems = cat.items.where((item) {
+            return item.title.toLowerCase().contains(_searchQuery);
+          }).toList();
 
-      if (matchesCategoryName) {
-        // Keep all items if the category matches
-        return SaintCategory(
-          id: cat.id,
-          name: cat.name,
-          description: cat.description,
-          content: cat.content,
-          mediaUrl: cat.mediaUrl,
-          items: cat.items,
-        );
-      } else if (filteredItems.isNotEmpty) {
-        // Keep only matching items
-        return SaintCategory(
-          id: cat.id,
-          name: cat.name,
-          description: cat.description,
-          content: cat.content,
-          mediaUrl: cat.mediaUrl,
-          items: filteredItems,
-        );
-      }
-      return null;
-    }).whereType<SaintCategory>().toList();
+          if (matchesCategoryName) {
+            // Keep all items if the category matches
+            return SaintCategory(
+              id: cat.id,
+              name: cat.name,
+              description: cat.description,
+              content: cat.content,
+              mediaUrl: cat.mediaUrl,
+              items: cat.items,
+            );
+          } else if (filteredItems.isNotEmpty) {
+            // Keep only matching items
+            return SaintCategory(
+              id: cat.id,
+              name: cat.name,
+              description: cat.description,
+              content: cat.content,
+              mediaUrl: cat.mediaUrl,
+              items: filteredItems,
+            );
+          }
+          return null;
+        })
+        .whereType<SaintCategory>()
+        .toList();
 
     if (filteredCategories.isEmpty) {
-      return _buildEmptyState('No matches found for "$_searchQuery".', navyColor);
+      return _buildEmptyState(
+        'No matches found for "$_searchQuery".',
+        navyColor,
+      );
     }
 
     return RefreshIndicator(
@@ -324,8 +346,10 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
   }
 
   Widget _buildCategoryCard(SaintCategory category, Color navyColor) {
-    final hasCategoryMedia = category.mediaUrl != null && category.mediaUrl!.trim().isNotEmpty;
-    final hasCategoryContent = category.content != null && category.content!.trim().isNotEmpty;
+    final hasCategoryMedia =
+        category.mediaUrl != null && category.mediaUrl!.trim().isNotEmpty;
+    final hasCategoryContent =
+        category.content != null && category.content!.trim().isNotEmpty;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -355,7 +379,8 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
               color: navyColor,
             ),
           ),
-          subtitle: category.description != null && category.description!.isNotEmpty
+          subtitle:
+              category.description != null && category.description!.isNotEmpty
               ? Text(
                   category.description!,
                   style: GoogleFonts.outfit(
@@ -385,7 +410,8 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     ),
-                    errorWidget: (context, url, error) => const SizedBox.shrink(),
+                    errorWidget: (context, url, error) =>
+                        const SizedBox.shrink(),
                   ),
                 ),
               ),
@@ -403,7 +429,9 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
                 ),
               ),
             // Display resource items
-            ...category.items.map((item) => _buildResourceTile(item, navyColor)),
+            ...category.items.map(
+              (item) => _buildResourceTile(item, navyColor),
+            ),
           ],
         ),
       ),
@@ -414,14 +442,23 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
     final icon = _getResourceIcon(item);
     final iconColor = _getResourceIconColor(item);
     final lowerUrl = item.url.toLowerCase();
-    final isYoutube = item.type == 'youtube' || lowerUrl.contains('youtube.com') || lowerUrl.contains('youtu.be');
+    final isYoutube =
+        item.type == 'youtube' ||
+        lowerUrl.contains('youtube.com') ||
+        lowerUrl.contains('youtu.be');
     final ytId = _getYouTubeId(item.url);
 
-    final hasItemMedia = (item.mediaUrl != null && item.mediaUrl!.trim().isNotEmpty) || (isYoutube && ytId != null);
-    final displayMediaUrl = (item.mediaUrl != null && item.mediaUrl!.trim().isNotEmpty)
+    final hasItemMedia =
+        (item.mediaUrl != null && item.mediaUrl!.trim().isNotEmpty) ||
+        (isYoutube && ytId != null);
+    final displayMediaUrl =
+        (item.mediaUrl != null && item.mediaUrl!.trim().isNotEmpty)
         ? item.mediaUrl!
-        : (isYoutube && ytId != null ? 'https://img.youtube.com/vi/$ytId/mqdefault.jpg' : null);
-    final hasItemContent = item.content != null && item.content!.trim().isNotEmpty;
+        : (isYoutube && ytId != null
+              ? 'https://img.youtube.com/vi/$ytId/mqdefault.jpg'
+              : null);
+    final hasItemContent =
+        item.content != null && item.content!.trim().isNotEmpty;
 
     return InkWell(
       onTap: () => _onItemTap(context, item),
@@ -487,11 +524,7 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
                   color: iconColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  icon,
-                  color: iconColor,
-                  size: 20,
-                ),
+                child: Icon(icon, color: iconColor, size: 20),
               ),
             Expanded(
               child: Column(
@@ -507,7 +540,9 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    hasItemContent ? 'Read Article & Media' : _getResourceTypeName(item),
+                    hasItemContent
+                        ? 'Read Article & Media'
+                        : _getResourceTypeName(item),
                     style: GoogleFonts.outfit(
                       fontSize: 11.5,
                       color: Colors.grey.shade500,
@@ -540,7 +575,9 @@ class _SaintsScreenState extends State<SaintsScreen> with SingleTickerProviderSt
     final type = item.type.toLowerCase();
     final lowerUrl = item.url.toLowerCase();
 
-    if (type == 'youtube' || lowerUrl.contains('youtube.com') || lowerUrl.contains('youtu.be')) {
+    if (type == 'youtube' ||
+        lowerUrl.contains('youtube.com') ||
+        lowerUrl.contains('youtu.be')) {
       return 'YouTube Video';
     } else if (type == 'drive' || lowerUrl.contains('drive.google.com')) {
       return 'Google Drive Folder / File';
@@ -663,9 +700,17 @@ class SaintResourceDetailScreen extends StatelessWidget {
     if (url.isEmpty) return;
 
     final lowerUrl = url.toLowerCase();
-    final isYoutube = item.type == 'youtube' || lowerUrl.contains('youtube.com') || lowerUrl.contains('youtu.be');
-    final isDrive = item.type == 'drive' || lowerUrl.contains('drive.google.com');
-    final isPdf = item.type == 'pdf' || lowerUrl.contains('.pdf') || lowerUrl.contains('firebasestorage') || lowerUrl.contains('/o/');
+    final isYoutube =
+        item.type == 'youtube' ||
+        lowerUrl.contains('youtube.com') ||
+        lowerUrl.contains('youtu.be');
+    final isDrive =
+        item.type == 'drive' || lowerUrl.contains('drive.google.com');
+    final isPdf =
+        item.type == 'pdf' ||
+        lowerUrl.contains('.pdf') ||
+        lowerUrl.contains('firebasestorage') ||
+        lowerUrl.contains('/o/');
 
     if (isYoutube || isDrive) {
       AppLauncher.launchURL(url);
@@ -673,20 +718,14 @@ class SaintResourceDetailScreen extends StatelessWidget {
       Navigator.push(
         context,
         CustomPageRoute(
-          child: CalendarPdfViewerScreen(
-            url: url,
-            title: item.title,
-          ),
+          child: CalendarPdfViewerScreen(url: url, title: item.title),
         ),
       );
     } else {
       Navigator.push(
         context,
         CustomPageRoute(
-          child: CalendarWebViewScreen(
-            url: url,
-            title: item.title,
-          ),
+          child: CalendarWebViewScreen(url: url, title: item.title),
         ),
       );
     }
@@ -696,13 +735,21 @@ class SaintResourceDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     const navyColor = Color(0xFF1E3A8A);
     final lowerUrl = item.url.toLowerCase();
-    final isYoutube = item.type == 'youtube' || lowerUrl.contains('youtube.com') || lowerUrl.contains('youtu.be');
+    final isYoutube =
+        item.type == 'youtube' ||
+        lowerUrl.contains('youtube.com') ||
+        lowerUrl.contains('youtu.be');
     final ytId = _getYouTubeId(item.url);
 
-    final hasMedia = (item.mediaUrl != null && item.mediaUrl!.trim().isNotEmpty) || (isYoutube && ytId != null);
-    final displayMediaUrl = (item.mediaUrl != null && item.mediaUrl!.trim().isNotEmpty)
+    final hasMedia =
+        (item.mediaUrl != null && item.mediaUrl!.trim().isNotEmpty) ||
+        (isYoutube && ytId != null);
+    final displayMediaUrl =
+        (item.mediaUrl != null && item.mediaUrl!.trim().isNotEmpty)
         ? item.mediaUrl!
-        : (isYoutube && ytId != null ? 'https://img.youtube.com/vi/$ytId/0.jpg' : null);
+        : (isYoutube && ytId != null
+              ? 'https://img.youtube.com/vi/$ytId/0.jpg'
+              : null);
     final hasUrl = item.url.trim().isNotEmpty;
 
     return Scaffold(
@@ -721,7 +768,11 @@ class SaintResourceDetailScreen extends StatelessWidget {
               child: CircleAvatar(
                 backgroundColor: Colors.black.withValues(alpha: 0.3),
                 child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
@@ -763,7 +814,11 @@ class SaintResourceDetailScreen extends StatelessWidget {
                           ),
                           errorWidget: (context, url, error) => Container(
                             color: navyColor,
-                            child: const Icon(Icons.broken_image_rounded, color: Colors.white24, size: 60),
+                            child: const Icon(
+                              Icons.broken_image_rounded,
+                              color: Colors.white24,
+                              size: 60,
+                            ),
                           ),
                         ),
                         // Soft dark gradient overlay for title contrast
@@ -784,7 +839,9 @@ class SaintResourceDetailScreen extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFEF4444).withValues(alpha: 0.9),
+                                color: const Color(
+                                  0xFFEF4444,
+                                ).withValues(alpha: 0.9),
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
@@ -821,7 +878,8 @@ class SaintResourceDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (item.content != null && item.content!.trim().isNotEmpty) ...[
+                  if (item.content != null &&
+                      item.content!.trim().isNotEmpty) ...[
                     Text(
                       item.content!,
                       style: GoogleFonts.outfit(
@@ -847,7 +905,12 @@ class SaintResourceDetailScreen extends StatelessWidget {
                           ),
                           elevation: 2,
                         ),
-                        icon: Icon(isYoutube ? FontAwesomeIcons.youtube : Icons.launch_rounded, size: 20),
+                        icon: Icon(
+                          isYoutube
+                              ? FontAwesomeIcons.youtube
+                              : Icons.launch_rounded,
+                          size: 20,
+                        ),
                         label: Text(
                           isYoutube ? 'Watch Video' : 'Open Reference Material',
                           style: GoogleFonts.outfit(

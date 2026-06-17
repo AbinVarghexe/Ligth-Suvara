@@ -38,7 +38,20 @@ import 'package:shimmer/shimmer.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:sundayschool_app/widgets/heavenly_background.dart';
-import 'package:url_launcher/url_launcher.dart';
+
+class PopupMenuItemData {
+  final String title;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  PopupMenuItemData({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+}
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -796,6 +809,7 @@ class _LoginScreenState extends State<LoginScreen>
                             },
                           ),
                           _buildPublicRegistrationSection(),
+                          _buildLiveStreamBanner(contentProvider.liveVideoConfig),
                           const SizedBox(height: 24),
                           Padding(
                             padding: const EdgeInsets.symmetric(
@@ -1233,6 +1247,81 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildLiveStreamBanner(LiveVideoConfig config) {
+    if (!config.isActive) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            colors: [
+              Colors.red.shade900.withValues(alpha: 0.85),
+              Colors.orange.shade800.withValues(alpha: 0.85),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.shade900.withValues(alpha: 0.25),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+          border: Border.all(color: Colors.white24, width: 1.5),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: InkWell(
+            onTap: () => AppLauncher.launchURL(config.url),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  const _PulsingLiveIndicator(),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          config.title,
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Tap to tune in and join the livestream broadcast',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: Colors.white70,
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -2059,12 +2148,145 @@ class _LoginScreenState extends State<LoginScreen>
     };
   }
 
+  Color _parseHexColor(String? hex) {
+    if (hex == null || hex.isEmpty) return Colors.blue;
+    final buffer = StringBuffer();
+    if (hex.length == 6 || hex.length == 7) buffer.write('ff');
+    buffer.write(hex.replaceFirst('#', ''));
+    try {
+      return Color(int.parse(buffer.toString(), radix: 16));
+    } catch (_) {
+      return Colors.blue;
+    }
+  }
+
   // --- ANIMATED RESOURCES POPUP ---
   void _showResourcesPopup(BuildContext context) {
     final contentProvider = Provider.of<ContentProvider>(context, listen: false);
     final calendarConfig = contentProvider.calendarConfig;
     final pdfUrl = calendarConfig['pdfUrl'] ?? calendarConfig['calendarUrl'] ?? calendarConfig['url'] ?? '';
     final buttonTitle = calendarConfig['buttonTitle'] ?? calendarConfig['title'] ?? calendarConfig['buttonText'] ?? 'Calendar';
+
+    final List<PopupMenuItemData> menuItems = [
+      PopupMenuItemData(
+        title: 'Catechism',
+        icon: Icons.auto_stories_rounded,
+        color: const Color(0xFF6366F1),
+        onTap: () => Navigator.push(
+          context,
+          CustomPageRoute(child: const CatechismScreen()),
+        ),
+      ),
+      PopupMenuItemData(
+        title: 'Bible',
+        icon: Icons.menu_book_rounded,
+        color: const Color(0xFFF59E0B),
+        onTap: () => openBible(context),
+      ),
+      PopupMenuItemData(
+        title: 'Japamala',
+        icon: Icons.volunteer_activism_rounded,
+        color: const Color(0xFFEC4899),
+        onTap: () => Navigator.push(
+          context,
+          CustomPageRoute(child: const JapamalaScreen()),
+        ),
+      ),
+      PopupMenuItemData(
+        title: 'Yama\nPrarthanakal',
+        icon: FontAwesomeIcons.handsPraying,
+        color: const Color(0xFF0EA5E9),
+        onTap: () => openYamaprarthanakalApp(context),
+      ),
+      PopupMenuItemData(
+        title: 'Videos',
+        icon: Icons.play_circle_fill_rounded,
+        color: const Color(0xFFEF4444),
+        onTap: () => Navigator.push(
+          context,
+          CustomPageRoute(child: const VideoResourcesScreen()),
+        ),
+      ),
+      PopupMenuItemData(
+        title: buttonTitle,
+        icon: Icons.calendar_month_rounded,
+        color: const Color(0xFFBC8A3A),
+        onTap: () async {
+          if (pdfUrl.isNotEmpty) {
+            final lowerUrl = pdfUrl.toLowerCase();
+            final isPdf = lowerUrl.contains('.pdf') || 
+                         lowerUrl.contains('firebasestorage') ||
+                         lowerUrl.contains('/o/');
+            if (isPdf) {
+              if (context.mounted) {
+                Navigator.push(
+                  context,
+                  CustomPageRoute(
+                    child: CalendarPdfViewerScreen(
+                      url: pdfUrl,
+                      title: buttonTitle,
+                    ),
+                  ),
+                );
+              }
+            } else {
+              if (context.mounted) {
+                Navigator.push(
+                  context,
+                  CustomPageRoute(
+                    child: CalendarWebViewScreen(
+                      url: pdfUrl,
+                      title: buttonTitle,
+                    ),
+                  ),
+                );
+              }
+            }
+          } else {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Calendar not configured.')),
+              );
+            }
+          }
+        },
+      ),
+      PopupMenuItemData(
+        title: 'Saints',
+        icon: Icons.auto_awesome_rounded,
+        color: const Color(0xFF8B5CF6),
+        onTap: () => Navigator.push(
+          context,
+          CustomPageRoute(child: const SaintsScreen()),
+        ),
+      ),
+    ];
+
+    // Add dynamic resource sections
+    for (var section in contentProvider.resourceSections) {
+      final sectionId = section['id'] ?? '';
+      final sectionTitle = section['title'] ?? 'Section';
+      final sectionIcon = getSectionIcon(section['icon'] ?? '');
+      final sectionColor = _parseHexColor(section['customColor']);
+
+      menuItems.add(
+        PopupMenuItemData(
+          title: sectionTitle,
+          icon: sectionIcon,
+          color: sectionColor,
+          onTap: () => Navigator.push(
+            context,
+            CustomPageRoute(
+              child: VideoResourcesScreen(
+                initialSectionId: sectionId,
+                initialSectionTitle: sectionTitle,
+                initialSectionColor: sectionColor,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     showGeneralDialog(
       context: context,
@@ -2081,8 +2303,7 @@ class _LoginScreenState extends State<LoginScreen>
         final curvedAnimation = CurvedAnimation(
           parent: animation,
           curve: Curves.easeOutQuart,
-          reverseCurve: Curves
-              .easeOutCubic, // Changed to easeOut for more apparent start of exit
+          reverseCurve: Curves.easeOutCubic, // Changed to easeOut for more apparent start of exit
         );
 
         // Glide-up on enter, Glide-down on exit
@@ -2121,28 +2342,20 @@ class _LoginScreenState extends State<LoginScreen>
                               child: Container(
                                 padding: const EdgeInsets.all(24),
                                 decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFFFFFBEB,
-                                  ).withValues(alpha: 0.7),
+                                  color: const Color(0xFFFFFBEB).withValues(alpha: 0.7),
                                   borderRadius: BorderRadius.circular(32),
                                   border: Border.all(
-                                    color: const Color(
-                                      0xFFD4AF37,
-                                    ).withValues(alpha: 0.4),
+                                    color: const Color(0xFFD4AF37).withValues(alpha: 0.4),
                                     width: 1.5,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(
-                                        0xFFBC8A3A,
-                                      ).withValues(alpha: 0.12),
+                                      color: const Color(0xFFBC8A3A).withValues(alpha: 0.12),
                                       blurRadius: 40,
                                       offset: const Offset(0, 20),
                                     ),
                                     BoxShadow(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
+                                      color: Colors.white.withValues(alpha: 0.2),
                                       blurRadius: 20,
                                       spreadRadius: -5,
                                     ),
@@ -2165,181 +2378,38 @@ class _LoginScreenState extends State<LoginScreen>
                                       style: GoogleFonts.outfit(
                                         fontSize: 24,
                                         fontWeight: FontWeight.w800,
-                                        color: const Color(
-                                          0xFF1E3A8A,
-                                        ), // Navy for contrast on white glass
+                                        color: const Color(0xFF1E3A8A), // Navy for contrast on white glass
                                         letterSpacing: -0.5,
                                       ),
                                     ),
-
                                     const SizedBox(height: 24),
                                     LayoutBuilder(
                                       builder: (context, constraints) {
-                                        final itemWidth =
-                                            (constraints.maxWidth - 32) / 3;
-                                        return Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              children: [
-                                                SizedBox(
+                                        final itemWidth = (constraints.maxWidth - 32) / 3;
+                                        return ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            maxHeight: MediaQuery.of(context).size.height * 0.5,
+                                          ),
+                                          child: SingleChildScrollView(
+                                            physics: const BouncingScrollPhysics(),
+                                            child: Wrap(
+                                              spacing: 16,
+                                              runSpacing: 20,
+                                              alignment: WrapAlignment.spaceEvenly,
+                                              children: menuItems.map((item) {
+                                                return SizedBox(
                                                   width: itemWidth,
                                                   child: _buildAnimatedMenuItem(
                                                     context,
-                                                    'Catechism',
-                                                    Icons.auto_stories_rounded,
-                                                    const Color(0xFF6366F1),
-                                                    () => Navigator.push(
-                                                      context,
-                                                      CustomPageRoute(
-                                                        child:
-                                                            const CatechismScreen(),
-                                                      ),
-                                                    ),
+                                                    item.title,
+                                                    item.icon,
+                                                    item.color,
+                                                    item.onTap,
                                                   ),
-                                                ),
-                                                SizedBox(
-                                                  width: itemWidth,
-                                                  child: _buildAnimatedMenuItem(
-                                                    context,
-                                                    'Bible',
-                                                    Icons.menu_book_rounded,
-                                                    const Color(0xFFF59E0B),
-                                                    () => openBible(context),
-                                                  ),
-                                                ),
-                                                SizedBox(
-                                                  width: itemWidth,
-                                                  child: _buildAnimatedMenuItem(
-                                                    context,
-                                                    'Japamala',
-                                                    Icons
-                                                        .volunteer_activism_rounded,
-                                                    const Color(0xFFEC4899),
-                                                    () => Navigator.push(
-                                                      context,
-                                                      CustomPageRoute(
-                                                        child:
-                                                            const JapamalaScreen(),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
+                                                );
+                                              }).toList(),
                                             ),
-                                            const SizedBox(height: 16),
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              children: [
-                                                SizedBox(
-                                                  width: itemWidth,
-                                                  child: _buildAnimatedMenuItem(
-                                                    context,
-                                                    'Yama\nPrarthanakal',
-                                                    FontAwesomeIcons
-                                                        .handsPraying,
-                                                    const Color(0xFF0EA5E9),
-                                                    () =>
-                                                        openYamaprarthanakalApp(
-                                                          context,
-                                                        ),
-                                                  ),
-                                                ),
-                                                SizedBox(
-                                                  width: itemWidth,
-                                                  child: _buildAnimatedMenuItem(
-                                                    context,
-                                                    'Videos',
-                                                    Icons
-                                                        .play_circle_fill_rounded,
-                                                    const Color(0xFFEF4444),
-                                                    () => Navigator.push(
-                                                      context,
-                                                      CustomPageRoute(
-                                                        child:
-                                                            const VideoResourcesScreen(),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                SizedBox(
-                                                  width: itemWidth,
-                                                  child: _buildAnimatedMenuItem(
-                                                    context,
-                                                    buttonTitle,
-                                                    Icons.calendar_month_rounded,
-                                                    const Color(0xFFBC8A3A),
-                                                    () async {
-                                                      if (pdfUrl.isNotEmpty) {
-                                                        final lowerUrl = pdfUrl.toLowerCase();
-                                                        final isPdf = lowerUrl.contains('.pdf') || 
-                                                                     lowerUrl.contains('firebasestorage') ||
-                                                                     lowerUrl.contains('/o/');
-                                                        if (isPdf) {
-                                                          if (context.mounted) {
-                                                            Navigator.push(
-                                                              context,
-                                                              CustomPageRoute(
-                                                                child: CalendarPdfViewerScreen(
-                                                                  url: pdfUrl,
-                                                                  title: buttonTitle,
-                                                                ),
-                                                              ),
-                                                            );
-                                                          }
-                                                        } else {
-                                                          if (context.mounted) {
-                                                            Navigator.push(
-                                                              context,
-                                                              CustomPageRoute(
-                                                                child: CalendarWebViewScreen(
-                                                                  url: pdfUrl,
-                                                                  title: buttonTitle,
-                                                                ),
-                                                              ),
-                                                            );
-                                                          }
-                                                        }
-                                                      } else {
-                                                        if (context.mounted) {
-                                                          ScaffoldMessenger.of(context).showSnackBar(
-                                                            const SnackBar(content: Text('Calendar not configured.')),
-                                                          );
-                                                        }
-                                                      }
-                                                    },
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 16),
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.start,
-                                              children: [
-                                                SizedBox(
-                                                  width: itemWidth,
-                                                  child: _buildAnimatedMenuItem(
-                                                    context,
-                                                    'Saints',
-                                                    Icons.auto_awesome_rounded,
-                                                    const Color(0xFF8B5CF6),
-                                                    () => Navigator.push(
-                                                      context,
-                                                      CustomPageRoute(
-                                                        child: const SaintsScreen(),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
+                                          ),
                                         );
                                       },
                                     ),
@@ -2940,6 +3010,80 @@ class _BreathingWrapperState extends State<_BreathingWrapper>
         );
       },
       child: widget.child,
+    );
+  }
+}
+
+class _PulsingLiveIndicator extends StatefulWidget {
+  const _PulsingLiveIndicator();
+
+  @override
+  State<_PulsingLiveIndicator> createState() => _PulsingLiveIndicatorState();
+}
+
+class _PulsingLiveIndicatorState extends State<_PulsingLiveIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.red.shade600,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.white38),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.shade600.withValues(alpha: 0.5),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              return Opacity(
+                opacity: 0.3 + (_pulseController.value * 0.7),
+                child: const Icon(
+                  Icons.circle,
+                  color: Colors.white,
+                  size: 8,
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'LIVE',
+            style: GoogleFonts.outfit(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+              letterSpacing: 1.0,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

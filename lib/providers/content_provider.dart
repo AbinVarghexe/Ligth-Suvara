@@ -5,6 +5,61 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 
+class LiveVideoConfig {
+  final bool isLive;
+  final String title;
+  final String url;
+  final String startDate;
+  final String startTime;
+  final String endDate;
+  final String endTime;
+
+  LiveVideoConfig({
+    required this.isLive,
+    required this.title,
+    required this.url,
+    required this.startDate,
+    required this.startTime,
+    required this.endDate,
+    required this.endTime,
+  });
+
+  factory LiveVideoConfig.fromMap(Map<String, dynamic> map) {
+    return LiveVideoConfig(
+      isLive: map['isLive'] ?? false,
+      title: map['title'] ?? 'Live Stream',
+      url: map['url'] ?? '',
+      startDate: map['startDate'] ?? '',
+      startTime: map['startTime'] ?? '',
+      endDate: map['endDate'] ?? '',
+      endTime: map['endTime'] ?? '',
+    );
+  }
+
+  /// Evaluates whether the stream is active based on local time and scheduled slots.
+  bool get isActive {
+    if (!isLive || url.isEmpty) return false;
+    
+    // If scheduling parameters are blank, default to simple toggle status
+    if (startDate.isEmpty || startTime.isEmpty || endDate.isEmpty || endTime.isEmpty) {
+      return true;
+    }
+
+    try {
+      final now = DateTime.now();
+      
+      // Parse ISO Date strings
+      final start = DateTime.parse('${startDate}T$startTime:00');
+      final end = DateTime.parse('${endDate}T$endTime:00');
+      
+      return now.isAfter(start) && now.isBefore(end);
+    } catch (e) {
+      // Fallback to simple isLive toggle if dates fail to parse
+      return isLive;
+    }
+  }
+}
+
 class ContentProvider with ChangeNotifier {
   // Cache for Broadcasts (Latest Updates)
   List<QueryDocumentSnapshot> _broadcasts = [];
@@ -25,6 +80,22 @@ class ContentProvider with ChangeNotifier {
   Map<String, dynamic> _themeProgramsConfig = {};
   Map<String, dynamic> get themeProgramsConfig => _themeProgramsConfig;
 
+  // Cache for Dynamic Resource Sections
+  List<Map<String, dynamic>> _resourceSections = [];
+  List<Map<String, dynamic>> get resourceSections => _resourceSections;
+
+  // Cache for Live Video Config
+  LiveVideoConfig _liveVideoConfig = LiveVideoConfig(
+    isLive: false,
+    title: 'Live Stream',
+    url: '',
+    startDate: '',
+    startTime: '',
+    endDate: '',
+    endTime: '',
+  );
+  LiveVideoConfig get liveVideoConfig => _liveVideoConfig;
+
   bool _isLoadingBroadcasts = false;
   bool get isLoadingBroadcasts => _isLoadingBroadcasts;
 
@@ -40,6 +111,8 @@ class ContentProvider with ChangeNotifier {
   StreamSubscription? _loginConfigSubscription;
   StreamSubscription? _themeProgramsSubscription;
   StreamSubscription? _calendarSubscription;
+  StreamSubscription? _resourceSectionsSubscription;
+  StreamSubscription? _liveVideoConfigSubscription;
 
   // Define limits consistent with UI
   static const int _broadcastLimit = 4;
@@ -61,12 +134,18 @@ class ContentProvider with ChangeNotifier {
       _themeProgramsSubscription = null;
       await _calendarSubscription?.cancel();
       _calendarSubscription = null;
+      await _resourceSectionsSubscription?.cancel();
+      _resourceSectionsSubscription = null;
+      await _liveVideoConfigSubscription?.cancel();
+      _liveVideoConfigSubscription = null;
     }
     fetchBroadcasts();
     fetchEvents();
     fetchLoginConfig();
     fetchThemeProgramsConfig();
     fetchCalendarConfig();
+    fetchResourceSections();
+    fetchLiveVideoConfig();
   }
 
   void fetchBroadcasts() {
@@ -203,6 +282,65 @@ class ContentProvider with ChangeNotifier {
         );
   }
 
+  void fetchResourceSections() {
+    if (_resourceSectionsSubscription != null) return;
+
+    _resourceSectionsSubscription = FirebaseFirestore.instance
+        .collection('video_resources')
+        .doc('sections_config')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (snapshot.exists) {
+              final data = snapshot.data();
+              final sectionsRaw = data?['sections'] as List<dynamic>? ?? [];
+              final List<Map<String, dynamic>> parsed = sectionsRaw
+                  .map((s) => Map<String, dynamic>.from(s))
+                  .toList();
+              // Sort sections by their 'order' field
+              parsed.sort((a, b) => (a['order'] ?? 0).compareTo(b['order'] ?? 0));
+              
+              _resourceSections = parsed;
+              notifyListeners();
+            }
+          },
+          onError: (e) {
+            debugPrint("Error fetching resource sections config: $e");
+          },
+        );
+  }
+
+  void fetchLiveVideoConfig() {
+    if (_liveVideoConfigSubscription != null) return;
+
+    _liveVideoConfigSubscription = FirebaseFirestore.instance
+        .collection('settings')
+        .doc('live_video_config')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (snapshot.exists && snapshot.data() != null) {
+              _liveVideoConfig = LiveVideoConfig.fromMap(snapshot.data()!);
+              notifyListeners();
+            } else {
+              _liveVideoConfig = LiveVideoConfig(
+                isLive: false,
+                title: 'Live Stream',
+                url: '',
+                startDate: '',
+                startTime: '',
+                endDate: '',
+                endTime: '',
+              );
+              notifyListeners();
+            }
+          },
+          onError: (e) {
+            debugPrint("Error fetching live video config: $e");
+          },
+        );
+  }
+
   void _prefetchCalendarPdf() async {
     final pdfUrl = _calendarConfig['pdfUrl'] ?? _calendarConfig['calendarUrl'] ?? _calendarConfig['url'] ?? '';
     if (pdfUrl.isEmpty) return;
@@ -241,6 +379,8 @@ class ContentProvider with ChangeNotifier {
     _loginConfigSubscription?.cancel();
     _themeProgramsSubscription?.cancel();
     _calendarSubscription?.cancel();
+    _resourceSectionsSubscription?.cancel();
+    _liveVideoConfigSubscription?.cancel();
     super.dispose();
   }
 }
