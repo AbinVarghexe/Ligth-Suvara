@@ -2160,6 +2160,33 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  IconData getSectionIcon(String iconName) {
+    switch (iconName.toLowerCase()) {
+      case 'file':
+      case 'document':
+      case 'pdf':
+        return Icons.description_rounded;
+      case 'folder':
+      case 'drive':
+        return Icons.folder_rounded;
+      case 'link':
+        return Icons.link_rounded;
+      case 'video':
+      case 'play':
+        return Icons.play_circle_fill_rounded;
+      case 'image':
+        return Icons.image_rounded;
+      case 'calendar':
+        return Icons.calendar_month_rounded;
+      case 'star':
+        return Icons.star_rounded;
+      case 'book':
+        return Icons.menu_book_rounded;
+      default:
+        return Icons.category_rounded;
+    }
+  }
+
   // --- ANIMATED RESOURCES POPUP ---
   void _showResourcesPopup(BuildContext context) {
     final contentProvider = Provider.of<ContentProvider>(context, listen: false);
