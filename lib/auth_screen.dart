@@ -43,6 +43,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   int _remainingLockoutSeconds = 0;
   Timer? _lockoutTimer;
+  bool _rememberMe = true;
 
   @override
   void initState() {
@@ -68,6 +69,18 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     _passwordFocusNode.addListener(() => setState(() {}));
 
     _checkLockoutStatus();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _rememberMe = prefs.getBool('remember_me') ?? true;
+      if (_rememberMe) {
+        _emailController.text = prefs.getString('saved_email') ?? '';
+        _passwordController.text = prefs.getString('saved_password') ?? '';
+      }
+    });
   }
 
   Future<void> _checkLockoutStatus() async {
@@ -327,6 +340,16 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
       final user = userCredential.user;
       if (user != null) {
+        // Save or clear credentials based on rememberMe checkbox
+        await prefs.setBool('remember_me', _rememberMe);
+        if (_rememberMe) {
+          await prefs.setString('saved_email', _emailController.text.trim());
+          await prefs.setString('saved_password', _passwordController.text.trim());
+        } else {
+          await prefs.remove('saved_email');
+          await prefs.remove('saved_password');
+        }
+
         // Login succeeded, clear failed attempts
         await prefs.setInt('login_failed_attempts', 0);
         await prefs.remove('login_lockout_time');
@@ -405,6 +428,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           }
 
           // --- Subscribe to all necessary topics ---
+          NotificationService().subscribeToBroadcastsWithRetry();
 
           if (!isParish) {
             // 1. Subscribe to user-specific topic (for individual messages)
@@ -818,42 +842,89 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
                                   const SizedBox(height: 12),
 
-                                  /// Contact Admin
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton(
-                                      onPressed: () {
-                                        final contentProvider =
-                                            Provider.of<ContentProvider>(
-                                              context,
-                                              listen: false,
-                                            );
-                                        final contactPhone =
-                                            contentProvider
-                                                    .loginConfig['contactPhone']
-                                                as String?;
-                                        final phone =
-                                            (contactPhone != null &&
-                                                contactPhone.trim().isNotEmpty)
-                                            ? contactPhone.trim()
-                                            : '+919447601251';
-                                        _launchDialer(phone);
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: Size.zero,
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
+                                  /// Remember Me & Contact Admin Row
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      // Remember Me checkbox and text
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SizedBox(
+                                            height: 24,
+                                            width: 24,
+                                            child: Checkbox(
+                                              value: _rememberMe,
+                                              activeColor: const Color(0xFF1E3A8A),
+                                              checkColor: Colors.white,
+                                              side: BorderSide(
+                                                color: const Color(0xFF1E3A8A).withOpacity(0.5),
+                                                width: 1.5,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              onChanged: (bool? value) {
+                                                setState(() {
+                                                  _rememberMe = value ?? false;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                _rememberMe = !_rememberMe;
+                                              });
+                                            },
+                                            child: Text(
+                                              "Remember Me",
+                                              style: GoogleFonts.outfit(
+                                                color: const Color(0xFF1E3A8A),
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      child: Text(
-                                        "Contact Admin",
-                                        style: GoogleFonts.outfit(
-                                          color: const Color(0xFF1E3A8A),
-                                          fontWeight: FontWeight.bold,
-                                          decoration: TextDecoration.underline,
+                                      // Contact Admin button
+                                      TextButton(
+                                        onPressed: () {
+                                          final contentProvider =
+                                              Provider.of<ContentProvider>(
+                                                context,
+                                                listen: false,
+                                              );
+                                          final contactPhone =
+                                              contentProvider
+                                                      .loginConfig['contactPhone']
+                                                  as String?;
+                                          final phone =
+                                              (contactPhone != null &&
+                                                  contactPhone.trim().isNotEmpty)
+                                              ? contactPhone.trim()
+                                              : '+919447601251';
+                                          _launchDialer(phone);
+                                        },
+                                        style: TextButton.styleFrom(
+                                          padding: EdgeInsets.zero,
+                                          minimumSize: Size.zero,
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                        child: Text(
+                                          "Contact Admin",
+                                          style: GoogleFonts.outfit(
+                                            color: const Color(0xFF1E3A8A),
+                                            fontWeight: FontWeight.bold,
+                                            decoration: TextDecoration.underline,
+                                            fontSize: 14,
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                    ],
                                   ),
 
                                   const SizedBox(height: 25),

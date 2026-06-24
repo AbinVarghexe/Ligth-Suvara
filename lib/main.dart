@@ -15,6 +15,8 @@ import 'package:lottie/lottie.dart';
 
 import 'package:sundayschool_app/providers/content_provider.dart'; // Import ContentProvider
 import 'package:sundayschool_app/providers/saints_provider.dart'; // Import SaintsProvider
+import 'package:sundayschool_app/providers/catechism_hour_provider.dart'; // Import CatechismHourProvider
+import 'package:sundayschool_app/providers/word_of_life_provider.dart'; // Import WordOfLifeProvider
 
 // Global future for preloaded animation
 late Future<LottieComposition> animationCompositionFuture;
@@ -70,6 +72,12 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (context) => SaintsProvider(), // Added SaintsProvider
+        ),
+        ChangeNotifierProvider(
+          create: (context) => CatechismHourProvider(), // Added CatechismHourProvider
+        ),
+        ChangeNotifierProvider(
+          create: (context) => WordOfLifeProvider(), // Added WordOfLifeProvider
         ),
       ],
       child: const MyApp(),

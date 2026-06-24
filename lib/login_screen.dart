@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:async';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:ui'; // Required for ImageFilter
 import 'dart:math' as math;
@@ -34,6 +35,8 @@ import 'package:sundayschool_app/video_resources_screen.dart';
 import 'package:sundayschool_app/calendar_webview_screen.dart';
 import 'package:sundayschool_app/calendar_pdf_viewer_screen.dart';
 import 'package:sundayschool_app/saints_screen.dart'; // Import SaintsScreen
+import 'package:sundayschool_app/catechism_hour_screen.dart'; // Import CatechismHourScreen
+import 'package:sundayschool_app/word_of_life_screen.dart'; // Import WordOfLifeScreen
 import 'package:shimmer/shimmer.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -70,6 +73,8 @@ class _LoginScreenState extends State<LoginScreen>
   Stream<QuerySnapshot>? _publicProgramsStream;
   Timer? _bannerTimer; // 🔹 Timer for 3-second auto-play
   final Map<String, Uint8List> _base64Cache = {};
+  final Map<String, String> _youtubeTitleCache = {};
+  final Set<String> _fetchingUrls = {};
 
   Widget _buildVerseSection(Map<String, dynamic> config) {
     if (config.isEmpty || config['verseText'] == null) {
@@ -109,7 +114,9 @@ class _LoginScreenState extends State<LoginScreen>
         width: double.infinity,
         child: GlowingRunningBorder(
           borderRadius: 32,
-          thickness: hasImage ? 6.0 : 2.5, // Significantly thicker for visibility
+          thickness: hasImage
+              ? 6.0
+              : 2.5, // Significantly thicker for visibility
           duration: Duration(seconds: hasImage ? 3 : 10), // Much faster/dynamic
           gradientColors: hasImage
               ? [
@@ -156,7 +163,9 @@ class _LoginScreenState extends State<LoginScreen>
                                 gradient: LinearGradient(
                                   colors: [
                                     Colors.white.withValues(alpha: 0.2),
-                                    Colors.blue.shade100.withValues(alpha: 0.05),
+                                    Colors.blue.shade100.withValues(
+                                      alpha: 0.05,
+                                    ),
                                   ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
@@ -178,7 +187,9 @@ class _LoginScreenState extends State<LoginScreen>
                       gradient: (hasImage && !fullClarity)
                           ? RadialGradient(
                               colors: [
-                                Colors.black.withValues(alpha: 0.2), // Light core
+                                Colors.black.withValues(
+                                  alpha: 0.2,
+                                ), // Light core
                                 Colors.black.withValues(
                                   alpha: 0.65,
                                 ), // Strong edge vignette
@@ -233,86 +244,90 @@ class _LoginScreenState extends State<LoginScreen>
                                 '"$verseText"',
                                 textAlign: TextAlign.center,
                                 style: GoogleFonts.libreBaskerville(
-                                    fontSize: 16,
-                                    fontStyle: FontStyle.italic,
-                                    fontWeight: FontWeight
-                                        .w600, // Slightly bolder for legibility
-                                    color:
-                                        verseTextColor, // Restoration: Using database-selected color
-                                    height: 1.5,
-                                    shadows: hasImage
-                                        ? [
-                                            Shadow(
-                                              color: Colors.black.withValues(
-                                                alpha: 0.8,
-                                              ),
-                                              offset: const Offset(0, 1.5),
-                                              blurRadius: 6,
+                                  fontSize: 16,
+                                  fontStyle: FontStyle.italic,
+                                  fontWeight: FontWeight
+                                      .w600, // Slightly bolder for legibility
+                                  color:
+                                      verseTextColor, // Restoration: Using database-selected color
+                                  height: 1.5,
+                                  shadows: hasImage
+                                      ? [
+                                          Shadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.8,
                                             ),
-                                            Shadow(
-                                              color: Colors.black.withValues(
-                                                alpha: 0.4,
-                                              ),
-                                              offset: const Offset(0, 0),
-                                              blurRadius: 10,
+                                            offset: const Offset(0, 1.5),
+                                            blurRadius: 6,
+                                          ),
+                                          Shadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.4,
                                             ),
-                                          ]
-                                        : null,
-                                  ),
+                                            offset: const Offset(0, 0),
+                                            blurRadius: 10,
+                                          ),
+                                        ]
+                                      : null,
                                 ),
-                                const SizedBox(height: 12), // Reduced from 16
-                                // 🔹 Glassmorphic Verse Reference
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
+                              ),
+                              const SizedBox(height: 12), // Reduced from 16
+                              // 🔹 Glassmorphic Verse Reference
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(
+                                    sigmaX: 8,
+                                    sigmaY: 8,
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          (hasImage
+                                                  ? Colors.black
+                                                  : Colors.white)
+                                              .withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
                                         color:
-                                            (hasImage ? Colors.black : Colors.white)
-                                                .withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color:
-                                              (hasImage
-                                                      ? Colors.white
-                                                      : Colors.black)
-                                                  .withValues(alpha: 0.1),
-                                          width: 0.5,
-                                        ),
+                                            (hasImage
+                                                    ? Colors.white
+                                                    : Colors.black)
+                                                .withValues(alpha: 0.1),
+                                        width: 0.5,
                                       ),
-                                      child: Text(
-                                        verseRef.toUpperCase(),
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w900,
-                                          color: hasImage
-                                              ? Colors.white
-                                              : const Color(0xFFBC8A3A),
-                                          letterSpacing: 1.2,
-                                          shadows: hasImage
-                                              ? [
-                                                  Shadow(
-                                                    color: Colors.black.withValues(
-                                                      alpha: 0.6,
-                                                    ),
-                                                    offset: const Offset(0, 1),
-                                                    blurRadius: 3,
-                                                  ),
-                                                ]
-                                              : null,
-                                        ),
+                                    ),
+                                    child: Text(
+                                      verseRef.toUpperCase(),
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w900,
+                                        color: hasImage
+                                            ? Colors.white
+                                            : const Color(0xFFBC8A3A),
+                                        letterSpacing: 1.2,
+                                        shadows: hasImage
+                                            ? [
+                                                Shadow(
+                                                  color: Colors.black
+                                                      .withValues(alpha: 0.6),
+                                                  offset: const Offset(0, 1),
+                                                  blurRadius: 3,
+                                                ),
+                                              ]
+                                            : null,
                                       ),
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
-                    ),
+                              ),
+                            ],
+                          ),
+                  ),
                 ],
               ),
             ),
@@ -809,7 +824,9 @@ class _LoginScreenState extends State<LoginScreen>
                             },
                           ),
                           _buildPublicRegistrationSection(),
-                          _buildLiveStreamBanner(contentProvider.liveVideoConfig),
+                          _buildLiveStreamBanner(
+                            contentProvider.liveVideoConfig,
+                          ),
                           const SizedBox(height: 24),
                           Padding(
                             padding: const EdgeInsets.symmetric(
@@ -1250,8 +1267,74 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  String? _extractYouTubeId(String url) {
+    if (url.isEmpty) return null;
+    try {
+      final uri = Uri.parse(url.trim());
+      if (uri.host.contains('youtube.com')) {
+        if (uri.pathSegments.contains('watch')) {
+          return uri.queryParameters['v'];
+        } else if (uri.pathSegments.contains('live') &&
+            uri.pathSegments.length > 1) {
+          return uri.pathSegments[uri.pathSegments.indexOf('live') + 1];
+        } else if (uri.pathSegments.contains('embed') &&
+            uri.pathSegments.length > 1) {
+          return uri.pathSegments[uri.pathSegments.indexOf('embed') + 1];
+        } else if (uri.pathSegments.contains('shorts') &&
+            uri.pathSegments.length > 1) {
+          return uri.pathSegments[uri.pathSegments.indexOf('shorts') + 1];
+        }
+      } else if (uri.host.contains('youtu.be')) {
+        if (uri.pathSegments.isNotEmpty) {
+          return uri.pathSegments.first;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error parsing YouTube URL: $e');
+    }
+    return null;
+  }
+
+  Future<void> _fetchYouTubeTitle(String url) async {
+    if (url.isEmpty) return;
+    if (_youtubeTitleCache.containsKey(url) || _fetchingUrls.contains(url))
+      return;
+    _fetchingUrls.add(url);
+    try {
+      final encodedUrl = Uri.encodeComponent(url);
+      final uri = Uri.parse(
+        'https://www.youtube.com/oembed?url=$encodedUrl&format=json',
+      );
+      final response = await http.get(uri).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final title = data['title'] as String?;
+        if (title != null && title.isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _youtubeTitleCache[url] = title;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching YouTube title: $e');
+    } finally {
+      _fetchingUrls.remove(url);
+    }
+  }
+
   Widget _buildLiveStreamBanner(LiveVideoConfig config) {
     if (!config.isActive) return const SizedBox.shrink();
+
+    final youtubeId = _extractYouTubeId(config.url);
+    final hasPreview = youtubeId != null;
+
+    if (hasPreview) {
+      _fetchYouTubeTitle(config.url);
+    }
+
+    final displayTitle = _youtubeTitleCache[config.url] ?? config.title;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -1290,16 +1373,25 @@ class _LoginScreenState extends State<LoginScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          config.title,
+                          'Live Stream - ${config.title}',
                           style: GoogleFonts.outfit(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
-                          maxLines: 1,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          displayTitle,
+                          style: GoogleFonts.outfit(
+                            color: Colors.white.withValues(alpha: 0.95),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 5),
                         Text(
                           'Tap to tune in and join the livestream broadcast',
                           style: GoogleFonts.outfit(
@@ -1403,8 +1495,12 @@ class _LoginScreenState extends State<LoginScreen>
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [
-                                      const Color(0xFFD4AF37).withValues(alpha: 0.0),
-                                      const Color(0xFFD4AF37).withValues(alpha: 0.8),
+                                      const Color(
+                                        0xFFD4AF37,
+                                      ).withValues(alpha: 0.0),
+                                      const Color(
+                                        0xFFD4AF37,
+                                      ).withValues(alpha: 0.8),
                                     ],
                                   ),
                                 ),
@@ -1426,8 +1522,12 @@ class _LoginScreenState extends State<LoginScreen>
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [
-                                      const Color(0xFFD4AF37).withValues(alpha: 0.8),
-                                      const Color(0xFFD4AF37).withValues(alpha: 0.0),
+                                      const Color(
+                                        0xFFD4AF37,
+                                      ).withValues(alpha: 0.8),
+                                      const Color(
+                                        0xFFD4AF37,
+                                      ).withValues(alpha: 0.0),
                                     ],
                                   ),
                                 ),
@@ -1516,7 +1616,8 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     itemBuilder: (context, index, realIndex) {
                       final data =
-                          provider.broadcasts[index].data() as Map<String, dynamic>;
+                          provider.broadcasts[index].data()
+                              as Map<String, dynamic>;
                       final title = data['title'] ?? 'Update';
                       final timestamp =
                           (data['timestamp'] as Timestamp?)?.toDate() ??
@@ -1581,10 +1682,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     Color(0xFFD4AF37), // Metallic gold mid
                                     Color(0xFF8A6623), // Bronze gold edge
                                   ]
-                                : const [
-                                    Color(0xFFE2E8F0),
-                                    Color(0xFFCBD5E1),
-                                  ],
+                                : const [Color(0xFFE2E8F0), Color(0xFFCBD5E1)],
                             center: const Alignment(-0.3, -0.3),
                           ),
                           boxShadow: [
@@ -1725,7 +1823,9 @@ class _LoginScreenState extends State<LoginScreen>
                               style: GoogleFonts.outfit(
                                 fontSize: 14.5,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFF8A6623), // Gold-Brown text
+                                color: const Color(
+                                  0xFF8A6623,
+                                ), // Gold-Brown text
                                 height: 1.15,
                                 letterSpacing: -0.2,
                               ),
@@ -1736,7 +1836,9 @@ class _LoginScreenState extends State<LoginScreen>
                               style: GoogleFonts.outfit(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: const Color(0xFFB38F4D), // Muted gold-brown date
+                                color: const Color(
+                                  0xFFB38F4D,
+                                ), // Muted gold-brown date
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -1748,7 +1850,9 @@ class _LoginScreenState extends State<LoginScreen>
                                 style: GoogleFonts.outfit(
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w500,
-                                  color: const Color(0xFF5C5446), // Muted dark brown body text
+                                  color: const Color(
+                                    0xFF5C5446,
+                                  ), // Muted dark brown body text
                                   height: 1.2,
                                 ),
                               ),
@@ -1791,11 +1895,7 @@ class _LoginScreenState extends State<LoginScreen>
       height: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Color(0xFFBF953F),
-            Color(0xFFFCF6BA),
-            Color(0xFFAA771C),
-          ],
+          colors: [Color(0xFFBF953F), Color(0xFFFCF6BA), Color(0xFFAA771C)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -2044,7 +2144,10 @@ class _LoginScreenState extends State<LoginScreen>
                     end: Alignment.bottomCenter,
                   ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2189,10 +2292,21 @@ class _LoginScreenState extends State<LoginScreen>
 
   // --- ANIMATED RESOURCES POPUP ---
   void _showResourcesPopup(BuildContext context) {
-    final contentProvider = Provider.of<ContentProvider>(context, listen: false);
+    final contentProvider = Provider.of<ContentProvider>(
+      context,
+      listen: false,
+    );
     final calendarConfig = contentProvider.calendarConfig;
-    final pdfUrl = calendarConfig['pdfUrl'] ?? calendarConfig['calendarUrl'] ?? calendarConfig['url'] ?? '';
-    final buttonTitle = calendarConfig['buttonTitle'] ?? calendarConfig['title'] ?? calendarConfig['buttonText'] ?? 'Calendar';
+    final pdfUrl =
+        calendarConfig['pdfUrl'] ??
+        calendarConfig['calendarUrl'] ??
+        calendarConfig['url'] ??
+        '';
+    final buttonTitle =
+        calendarConfig['buttonTitle'] ??
+        calendarConfig['title'] ??
+        calendarConfig['buttonText'] ??
+        'Calendar';
 
     final List<PopupMenuItemData> menuItems = [
       PopupMenuItemData(
@@ -2241,9 +2355,10 @@ class _LoginScreenState extends State<LoginScreen>
         onTap: () async {
           if (pdfUrl.isNotEmpty) {
             final lowerUrl = pdfUrl.toLowerCase();
-            final isPdf = lowerUrl.contains('.pdf') || 
-                         lowerUrl.contains('firebasestorage') ||
-                         lowerUrl.contains('/o/');
+            final isPdf =
+                lowerUrl.contains('.pdf') ||
+                lowerUrl.contains('firebasestorage') ||
+                lowerUrl.contains('/o/');
             if (isPdf) {
               if (context.mounted) {
                 Navigator.push(
@@ -2285,6 +2400,24 @@ class _LoginScreenState extends State<LoginScreen>
         onTap: () => Navigator.push(
           context,
           CustomPageRoute(child: const SaintsScreen()),
+        ),
+      ),
+      PopupMenuItemData(
+        title: 'വിശ്വാസ\nപരിശീലന\nമണിക്കൂർ (Catechetical Hour)',
+        icon: Icons.church_rounded,
+        color: const Color(0xFF6366F1),
+        onTap: () => Navigator.push(
+          context,
+          CustomPageRoute(child: const CatechismHourScreen()),
+        ),
+      ),
+      PopupMenuItemData(
+        title: 'ജീവൻ്റെ\nവചനം (Word of Life)',
+        icon: Icons.menu_book_rounded,
+        color: const Color(0xFF0D9488),
+        onTap: () => Navigator.push(
+          context,
+          CustomPageRoute(child: const WordOfLifeScreen()),
         ),
       ),
     ];
@@ -2330,7 +2463,8 @@ class _LoginScreenState extends State<LoginScreen>
         final curvedAnimation = CurvedAnimation(
           parent: animation,
           curve: Curves.easeOutQuart,
-          reverseCurve: Curves.easeOutCubic, // Changed to easeOut for more apparent start of exit
+          reverseCurve: Curves
+              .easeOutCubic, // Changed to easeOut for more apparent start of exit
         );
 
         // Glide-up on enter, Glide-down on exit
@@ -2369,20 +2503,28 @@ class _LoginScreenState extends State<LoginScreen>
                               child: Container(
                                 padding: const EdgeInsets.all(24),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFFFFBEB).withValues(alpha: 0.7),
+                                  color: const Color(
+                                    0xFFFFFBEB,
+                                  ).withValues(alpha: 0.7),
                                   borderRadius: BorderRadius.circular(32),
                                   border: Border.all(
-                                    color: const Color(0xFFD4AF37).withValues(alpha: 0.4),
+                                    color: const Color(
+                                      0xFFD4AF37,
+                                    ).withValues(alpha: 0.4),
                                     width: 1.5,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFFBC8A3A).withValues(alpha: 0.12),
+                                      color: const Color(
+                                        0xFFBC8A3A,
+                                      ).withValues(alpha: 0.12),
                                       blurRadius: 40,
                                       offset: const Offset(0, 20),
                                     ),
                                     BoxShadow(
-                                      color: Colors.white.withValues(alpha: 0.2),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       blurRadius: 20,
                                       spreadRadius: -5,
                                     ),
@@ -2405,37 +2547,51 @@ class _LoginScreenState extends State<LoginScreen>
                                       style: GoogleFonts.outfit(
                                         fontSize: 24,
                                         fontWeight: FontWeight.w800,
-                                        color: const Color(0xFF1E3A8A), // Navy for contrast on white glass
+                                        color: const Color(
+                                          0xFF1E3A8A,
+                                        ), // Navy for contrast on white glass
                                         letterSpacing: -0.5,
                                       ),
                                     ),
                                     const SizedBox(height: 24),
+                                    // Device-safe grid: cell HEIGHT is fixed at
+                                    // a constant so overflow can never occur
+                                    // regardless of screen width.
                                     LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        final itemWidth = (constraints.maxWidth - 32) / 3;
+                                      builder: (ctx, gridConstraints) {
+                                        const double kCrossSpacing = 8.0;
+                                        const double kCellHeight = 116.0;
+                                        final double cellWidth =
+                                            (gridConstraints.maxWidth -
+                                                kCrossSpacing * 2) /
+                                            3;
+                                        final double aspectRatio =
+                                            cellWidth / kCellHeight;
                                         return ConstrainedBox(
                                           constraints: BoxConstraints(
-                                            maxHeight: MediaQuery.of(context).size.height * 0.5,
+                                            maxHeight:
+                                                MediaQuery.of(context)
+                                                    .size
+                                                    .height *
+                                                0.65,
                                           ),
-                                          child: SingleChildScrollView(
-                                            physics: const BouncingScrollPhysics(),
-                                            child: Wrap(
-                                              spacing: 16,
-                                              runSpacing: 20,
-                                              alignment: WrapAlignment.spaceEvenly,
-                                              children: menuItems.map((item) {
-                                                return SizedBox(
-                                                  width: itemWidth,
-                                                  child: _buildAnimatedMenuItem(
-                                                    context,
-                                                    item.title,
-                                                    item.icon,
-                                                    item.color,
-                                                    item.onTap,
-                                                  ),
-                                                );
-                                              }).toList(),
-                                            ),
+                                          child: GridView.count(
+                                            crossAxisCount: 3,
+                                            shrinkWrap: true,
+                                            physics:
+                                                const BouncingScrollPhysics(),
+                                            crossAxisSpacing: kCrossSpacing,
+                                            mainAxisSpacing: 10,
+                                            childAspectRatio: aspectRatio,
+                                            children: menuItems.map((item) {
+                                              return _buildAnimatedMenuItem(
+                                                context,
+                                                item.title,
+                                                item.icon,
+                                                item.color,
+                                                item.onTap,
+                                              );
+                                            }).toList(),
                                           ),
                                         );
                                       },
@@ -2468,9 +2624,20 @@ class _LoginScreenState extends State<LoginScreen>
     Color color,
     VoidCallback onTap,
   ) {
-    String displayTitle = title;
-    if (title.contains(' ') && !title.contains('\n') && title.length > 8) {
-      displayTitle = title.replaceFirst(' ', '\n');
+    // Split into main label and optional English subtitle in parentheses
+    String mainLabel = title;
+    String? englishSubtitle;
+
+    // Extract "(English Name)" from the end of the title string
+    final parenMatch = RegExp(r'\(([^)]+)\)\s*$').firstMatch(title);
+    if (parenMatch != null) {
+      englishSubtitle = parenMatch.group(1); // e.g. "Word of Life"
+      mainLabel = title.substring(0, parenMatch.start).trim();
+    }
+
+    // Auto-wrap long single-line labels that have no explicit newline
+    if (mainLabel.contains(' ') && !mainLabel.contains('\n') && mainLabel.length > 8) {
+      mainLabel = mainLabel.replaceFirst(' ', '\n');
     }
 
     return GestureDetector(
@@ -2482,33 +2649,58 @@ class _LoginScreenState extends State<LoginScreen>
         });
       },
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.max,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // Fixed top anchor – icon always at same y-position in every row
+          const SizedBox(height: 6),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
               border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 6),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              displayTitle,
-              maxLines: 2,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF1E3A8A),
-                height: 1.1,
-              ),
+          // Text area grows/shrinks inside the fixed GridView cell
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  mainLabel,
+                  maxLines: 3,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E3A8A),
+                    height: 1.25,
+                  ),
+                ),
+                if (englishSubtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '($englishSubtitle)',
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: color.withValues(alpha: 0.85),
+                      height: 1.25,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
+          const SizedBox(height: 4),
         ],
       ),
     );
@@ -3091,11 +3283,7 @@ class _PulsingLiveIndicatorState extends State<_PulsingLiveIndicator>
             builder: (context, child) {
               return Opacity(
                 opacity: 0.3 + (_pulseController.value * 0.7),
-                child: const Icon(
-                  Icons.circle,
-                  color: Colors.white,
-                  size: 8,
-                ),
+                child: const Icon(Icons.circle, color: Colors.white, size: 8),
               );
             },
           ),

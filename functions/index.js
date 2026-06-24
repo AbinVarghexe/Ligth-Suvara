@@ -32,6 +32,19 @@ exports.sendBroadcast = onDocumentCreated("broadcasts/{broadcastId}", async (eve
       title: title,
       body: body,
     },
+    android: {
+      priority: "high",
+      notification: {
+        channelId: "high_importance_channel",
+      },
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: "default",
+        },
+      },
+    },
     topic: "broadcasts", // Sent to everyone subscribed to 'broadcasts'
   };
 
@@ -71,6 +84,19 @@ exports.sendNotification = onDocumentCreated("notifications/{notificationId}", a
     notification: {
       title: title,
       body: body,
+    },
+    android: {
+      priority: "high",
+      notification: {
+        channelId: "high_importance_channel",
+      },
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: "default",
+        },
+      },
     },
     topic: topic,
   };

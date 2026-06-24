@@ -428,6 +428,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
           // 1. Subscribe to personal school topic
           NotificationService().subscribeToUserTopic(schoolId);
+          NotificationService().subscribeToBroadcastsWithRetry();
 
           // 3. Subscribe to role topic (if any)
           if (role != null) {
