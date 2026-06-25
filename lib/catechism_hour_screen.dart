@@ -158,7 +158,7 @@ class _CatechismHourScreenState extends State<CatechismHourScreen>
         labelColor: Colors.white,
         unselectedLabelColor: Colors.white.withValues(alpha: 0.55),
         tabs: [
-          const Tab(text: 'Today'),
+          const Tab(text: 'Latest'),
           Tab(
             child: Row(
               mainAxisSize: MainAxisSize.min,

@@ -9,6 +9,7 @@ class CatechismHourEntry {
   final String? notes;
   final DateTime? date;       // The scheduled session date
   final DateTime? createdAt;
+  final bool isLast;
 
   CatechismHourEntry({
     required this.id,
@@ -17,6 +18,7 @@ class CatechismHourEntry {
     this.notes,
     this.date,
     this.createdAt,
+    this.isLast = false,
   });
 
   factory CatechismHourEntry.fromDoc(DocumentSnapshot doc) {
@@ -43,9 +45,31 @@ class CatechismHourEntry {
     );
   }
 
+  CatechismHourEntry copyWith({
+    String? id,
+    String? title,
+    String? imageUrl,
+    String? notes,
+    DateTime? date,
+    DateTime? createdAt,
+    bool? isLast,
+  }) {
+    return CatechismHourEntry(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      imageUrl: imageUrl ?? this.imageUrl,
+      notes: notes ?? this.notes,
+      date: date ?? this.date,
+      createdAt: createdAt ?? this.createdAt,
+      isLast: isLast ?? this.isLast,
+    );
+  }
+
   /// Entry is ACTIVE from its session date until end of (sessionDate + 6 days).
   /// e.g. a June 20 entry stays active through June 26 at 11:59:59 PM.
+  /// If it is the latest/last entry, it remains active indefinitely if no newer entry is added.
   bool get isActive {
+    if (isLast) return true;
     if (date == null) return true; // no date = always active
     final now = DateTime.now();
     final sessionDay = DateTime(date!.year, date!.month, date!.day);
@@ -57,6 +81,7 @@ class CatechismHourEntry {
   }
 
   bool get isPast {
+    if (isLast) return false;
     if (date == null) return false;
     final now = DateTime.now();
     final sessionDay = DateTime(date!.year, date!.month, date!.day);
@@ -83,6 +108,23 @@ class CatechismHourProvider with ChangeNotifier {
     _listen();
   }
 
+  List<CatechismHourEntry> _markLatestEntry(List<CatechismHourEntry> rawEntries) {
+    if (rawEntries.isEmpty) return rawEntries;
+    DateTime? latestDate;
+    for (final entry in rawEntries) {
+      if (entry.date != null) {
+        if (latestDate == null || entry.date!.isAfter(latestDate)) {
+          latestDate = entry.date;
+        }
+      }
+    }
+    if (latestDate == null) return rawEntries;
+    return rawEntries.map((entry) {
+      final isLast = entry.date != null && entry.date!.isAtSameMomentAs(latestDate!);
+      return entry.copyWith(isLast: isLast);
+    }).toList();
+  }
+
   void _listen() {
     _isLoading = true;
     _error = null;
@@ -94,9 +136,10 @@ class CatechismHourProvider with ChangeNotifier {
         .snapshots()
         .listen(
       (snapshot) {
-        _entries = snapshot.docs
+        final parsed = snapshot.docs
             .map((doc) => CatechismHourEntry.fromDoc(doc))
             .toList();
+        _entries = _markLatestEntry(parsed);
         // Active (upcoming / today) first sorted by soonest date, then past (most recent first)
         _entries.sort((a, b) {
           final aActive = a.isActive;
@@ -129,9 +172,10 @@ class CatechismHourProvider with ChangeNotifier {
           .collection('catechism_hours')
           .orderBy('date', descending: false)
           .get();
-      _entries = snapshot.docs
+      final parsed = snapshot.docs
           .map((doc) => CatechismHourEntry.fromDoc(doc))
           .toList();
+      _entries = _markLatestEntry(parsed);
       _entries.sort((a, b) {
         final aActive = a.isActive;
         final bActive = b.isActive;
