@@ -13,7 +13,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
   bool _isLoading = true;
   // TODO: REPLACE THIS URL WITH YOUR ACTUAL PRIVACY POLICY URL
   final String _privacyPolicyUrl =
-      'https://ligth-suvara-web-8nrm7ieat-abin-varghexes-projects.vercel.app/privacy-policy';
+      'https://light-suvara-web-app.vercel.app/privacy-policy';
 
   @override
   void initState() {
