@@ -2403,7 +2403,7 @@ class _LoginScreenState extends State<LoginScreen>
         ),
       ),
       PopupMenuItemData(
-        title: 'വിശ്വാസ\nപരിശീലന\nമണിക്കൂർ (Catechetical Hour)',
+        title: 'വിശ്വാസ\nപരിശീലന\nമണിക്കൂർ',
         icon: Icons.church_rounded,
         color: const Color(0xFF6366F1),
         onTap: () => Navigator.push(
@@ -2412,7 +2412,7 @@ class _LoginScreenState extends State<LoginScreen>
         ),
       ),
       PopupMenuItemData(
-        title: 'ജീവൻ്റെ\nവചനം (Word of Life)',
+        title: 'ജീവൻ്റെ\nവചനം',
         icon: Icons.menu_book_rounded,
         color: const Color(0xFF0D9488),
         onTap: () => Navigator.push(
