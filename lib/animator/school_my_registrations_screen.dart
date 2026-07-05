@@ -39,6 +39,23 @@ class SchoolMyRegistrationsScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'View My Registration History',
+            icon: const Icon(Icons.history_rounded, color: Colors.white),
+            onPressed: () {
+              final user = FirebaseAuth.instance.currentUser;
+              if (user != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => UserRegistrationHistoryScreen(userId: user.uid),
+                  ),
+                );
+              }
+            },
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -890,6 +907,23 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'View Registration History',
+            icon: const Icon(Icons.history_rounded, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RegistrationHistoryScreen(
+                    programId: widget.programId,
+                    programName: widget.programName,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -987,6 +1021,197 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                           ),
                           onPressed: () => _showActionSheet(doc.id, data),
                         ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Registration History Screen
+// ---------------------------------------------------------------------------
+class RegistrationHistoryScreen extends StatelessWidget {
+  final String programId;
+  final String programName;
+
+  const RegistrationHistoryScreen({
+    super.key,
+    required this.programId,
+    required this.programName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text(
+          '$programName Registration History',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Colors.blue.shade900, Colors.blue.shade700],
+            ),
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('program_registrations')
+            .where('programId', isEqualTo: programId)
+            .where('schoolUserId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Text(
+                'No registration history found',
+                style: GoogleFonts.poppins(),
+              ),
+            );
+          }
+          final docs = snapshot.data!.docs;
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final data = docs[index].data() as Map<String, dynamic>;
+              final name = data['studentName']?.toString() ?? 'N/A';
+              final type = data['type']?.toString() ?? 'student';
+              final isTeacher = type == 'teacher';
+              final status = data['status']?.toString() ?? 'pending';
+              final dateStr = data['registrationDate']?.toString() ?? '';
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  title: Text(
+                    name,
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    '${isTeacher ? 'Teacher' : 'Student'} - Status: $status${dateStr.isNotEmpty ? ' - $dateStr' : ''}',
+                    style: GoogleFonts.poppins(fontSize: 13),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+// ---------------------------------------------------------------------------
+// User Registration History Screen
+// ---------------------------------------------------------------------------
+class UserRegistrationHistoryScreen extends StatelessWidget {
+  final String userId;
+
+  const UserRegistrationHistoryScreen({
+    super.key,
+    required this.userId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text(
+          'My Registration History',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Colors.blue.shade900, Colors.blue.shade700],
+            ),
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('program_registrations')
+            .where('schoolUserId', isEqualTo: userId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Text(
+                'No registration history found',
+                style: GoogleFonts.poppins(),
+              ),
+            );
+          }
+          final docs = snapshot.data!.docs;
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final data = docs[index].data() as Map<String, dynamic>;
+              final name = data['programName']?.toString() ?? 'Unnamed';
+              final dateStr = data['registrationDate']?.toString() ?? '';
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  title: InkWell(
+                    onTap: () {
+                      final progId = data['programId']?.toString() ?? '';
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RegistrationHistoryScreen(
+                            programId: progId,
+                            programName: name,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      name,
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  subtitle: dateStr.isNotEmpty
+                      ? Text(
+                          dateStr,
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        )
+                      : null,
                 ),
               );
             },
