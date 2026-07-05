@@ -2004,19 +2004,17 @@ class _LoginScreenState extends State<LoginScreen>
               )
             else
               CarouselSlider.builder(
-                itemCount: provider.events.length,
+                itemCount: provider.events.length > 4 ? 4 : provider.events.length,
                 options: CarouselOptions(
-                  height: 140, // Reduced from 160
-                  viewportFraction: 0.5,
-                  enlargeCenterPage: true, // Enable enlargement for focus
-                  enableInfiniteScroll: true, // Allow looping
+                  height: 140,
+                  viewportFraction: 0.45,
+                  enlargeCenterPage: false,
+                  enableInfiniteScroll: provider.events.length > 1, // Loop only if we have multiple events
                   initialPage: 0,
-                  autoPlay: true, // Start moving
-                  autoPlayInterval: const Duration(
-                    seconds: 5,
-                  ), // Slightly slower than Updates
+                  autoPlay: provider.events.length > 1, // Slide automatically if we have multiple events
+                  autoPlayInterval: const Duration(seconds: 4),
                   padEnds: false,
-                  disableCenter: false, // Enable center
+                  disableCenter: true,
                 ),
                 itemBuilder: (context, index, realIndex) {
                   final doc = provider.events[index];
@@ -2028,7 +2026,6 @@ class _LoginScreenState extends State<LoginScreen>
                   return GestureDetector(
                     key: ValueKey('event_carousel_${doc.id}'),
                     onTap: () {
-                      // Navigate to Detail Screen
                       Navigator.push(
                         context,
                         CustomPageRoute(

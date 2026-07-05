@@ -190,7 +190,7 @@ class ContentProvider with ChangeNotifier {
     _eventSubscription = FirebaseFirestore.instance
         .collection('events')
         .orderBy('timestamp', descending: true)
-        .limit(_eventLimit)
+        .limit(40)
         .snapshots()
         .listen(
           (snapshot) {
