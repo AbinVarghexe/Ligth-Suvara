@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../animator/student_registration_form.dart';
+import '../models/custom_field.dart';
 
 class ParishProgramListScreen extends StatefulWidget {
   final String schoolId;
@@ -45,13 +46,17 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
         final List<dynamic>? rawStudentFields = data['studentFields'];
         if (rawStudentFields != null) {
           _studentFields = rawStudentFields
-              .map((f) => CustomField.fromMap(Map<String, dynamic>.from(f as Map)))
+              .map(
+                (f) => CustomField.fromMap(Map<String, dynamic>.from(f as Map)),
+              )
               .toList();
         }
         final List<dynamic>? rawTeacherFields = data['teacherFields'];
         if (rawTeacherFields != null) {
           _teacherFields = rawTeacherFields
-              .map((f) => CustomField.fromMap(Map<String, dynamic>.from(f as Map)))
+              .map(
+                (f) => CustomField.fromMap(Map<String, dynamic>.from(f as Map)),
+              )
               .toList();
         }
       }
@@ -59,18 +64,60 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
       // Fallbacks if not set
       if (_studentFields.isEmpty) {
         _studentFields = [
-          CustomField(id: 'name', name: 'Name', type: 'text', isMandatory: true),
-          CustomField(id: 'phone', name: 'Phone', type: 'phone', isMandatory: true),
-          CustomField(id: 'studentClass', name: 'Class', type: 'text', isMandatory: false),
-          CustomField(id: 'address', name: 'Address', type: 'text', isMandatory: false),
+          CustomField(
+            id: 'name',
+            name: 'Name',
+            type: 'text',
+            isMandatory: true,
+          ),
+          CustomField(
+            id: 'phone',
+            name: 'Phone',
+            type: 'phone',
+            isMandatory: true,
+          ),
+          CustomField(
+            id: 'studentClass',
+            name: 'Class',
+            type: 'select',
+            isMandatory: false,
+            options: List.generate(12, (index) => (index + 1).toString()),
+          ),
+          CustomField(
+            id: 'address',
+            name: 'Address',
+            type: 'text',
+            isMandatory: false,
+          ),
         ];
       }
       if (_teacherFields.isEmpty) {
         _teacherFields = [
-          CustomField(id: 'name', name: 'Name', type: 'text', isMandatory: true),
-          CustomField(id: 'phone', name: 'Phone', type: 'phone', isMandatory: true),
-          CustomField(id: 'studentClass', name: 'Class', type: 'text', isMandatory: false),
-          CustomField(id: 'address', name: 'Address', type: 'text', isMandatory: false),
+          CustomField(
+            id: 'name',
+            name: 'Name',
+            type: 'text',
+            isMandatory: true,
+          ),
+          CustomField(
+            id: 'phone',
+            name: 'Phone',
+            type: 'phone',
+            isMandatory: true,
+          ),
+          CustomField(
+            id: 'studentClass',
+            name: 'Class',
+            type: 'select',
+            isMandatory: false,
+            options: List.generate(12, (index) => (index + 1).toString()),
+          ),
+          CustomField(
+            id: 'address',
+            name: 'Address',
+            type: 'text',
+            isMandatory: false,
+          ),
         ];
       }
     } catch (e) {
@@ -88,7 +135,8 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
     final String type = data['type']?.toString() ?? 'student';
     final bool isTeacher = type == 'teacher';
     final fields = isTeacher ? _teacherFields : _studentFields;
-    final customValues = data['customFieldValues'] as Map<String, dynamic>? ?? {};
+    final customValues =
+        data['customFieldValues'] as Map<String, dynamic>? ?? {};
 
     showDialog(
       context: context,
@@ -96,7 +144,10 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           isTeacher ? 'Teacher Details' : 'Student Details',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Colors.blue.shade900,
+          ),
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -110,7 +161,8 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                     value = data['studentName']?.toString() ?? '';
                   } else if (field.type == 'phone' || field.id == 'phone') {
                     value = data['studentPhone']?.toString() ?? '';
-                  } else if (field.id == 'address' || field.id == 'studentAddress') {
+                  } else if (field.id == 'address' ||
+                      field.id == 'studentAddress') {
                     value = data['studentAddress']?.toString() ?? '';
                   } else if (field.id == 'studentClass') {
                     value = data['studentClass']?.toString() ?? '';
@@ -152,7 +204,10 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Close',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold,
+                color: Colors.blue.shade900,
+              ),
             ),
           ),
         ],
@@ -242,12 +297,81 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
               ? 'Registration has been approved successfully.'
               : 'Registration has been rejected.',
         );
-
       }
     } catch (e) {
       if (mounted) {
         _showModernSnackBar(message: 'Error: $e', isSuccess: false);
       }
+    }
+  }
+
+  void _approveAllRegistrations(List<DocumentSnapshot> pendingDocs) async {
+    if (pendingDocs.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Approve All?',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to approve all ${pendingDocs.length} pending registrations?',
+          style: GoogleFonts.poppins(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: Text(
+              'Approve All',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isSaving = true);
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in pendingDocs) {
+        batch.update(doc.reference, {'status': 'approved_parish'});
+      }
+      await batch.commit();
+
+      if (mounted) {
+        _showModernSnackBar(
+          message: 'All registrations approved successfully!',
+          isSuccess: true,
+          icon: Icons.done_all_rounded,
+        );
+        await _showStatusDialog(
+          context: context,
+          isSuccess: true,
+          title: 'Success!',
+          message: 'All pending registrations have been approved.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showModernSnackBar(message: 'Error: $e', isSuccess: false);
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -409,7 +533,8 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
 
     // Dynamic controllers for custom fields
     final fields = isTeacher ? _teacherFields : _studentFields;
-    final customValues = data['customFieldValues'] as Map<String, dynamic>? ?? {};
+    final customValues =
+        data['customFieldValues'] as Map<String, dynamic>? ?? {};
 
     final Map<String, TextEditingController> controllers = {};
     for (final field in fields) {
@@ -461,7 +586,11 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  isCountOnly ? (isTeacher ? 'Edit Teacher Count' : 'Edit Student Count') : 'Edit Registration',
+                  isCountOnly
+                      ? (isTeacher
+                            ? 'Edit Teacher Count'
+                            : 'Edit Student Count')
+                      : 'Edit Registration',
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -472,7 +601,9 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                 if (isCountOnly)
                   _buildTextField(
                     controller: countController,
-                    label: isTeacher ? 'Number of Teachers' : 'Number of Students',
+                    label: isTeacher
+                        ? 'Number of Teachers'
+                        : 'Number of Students',
                     icon: Icons.groups_rounded,
                     keyboardType: TextInputType.number,
                   )
@@ -481,13 +612,16 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                     final controller = controllers[field.id];
                     if (controller == null) return const SizedBox.shrink();
 
-                    final isPhone = field.type == 'phone' ||
+                    final isPhone =
+                        field.type == 'phone' ||
                         field.id.toLowerCase() == 'phone' ||
                         field.name.toLowerCase().contains('phone');
-                    final isNumber = field.type == 'number' ||
+                    final isNumber =
+                        field.type == 'number' ||
                         field.name.toLowerCase().contains('age') ||
                         field.name.toLowerCase().contains('number');
-                    final isAddress = field.id.toLowerCase() == 'address' ||
+                    final isAddress =
+                        field.id.toLowerCase() == 'address' ||
                         field.name.toLowerCase().contains('address');
 
                     String label = field.name;
@@ -496,7 +630,8 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                     }
 
                     IconData icon = Icons.edit_note_rounded;
-                    if (field.id.toLowerCase() == 'name' || field.name.toLowerCase().contains('name')) {
+                    if (field.id.toLowerCase() == 'name' ||
+                        field.name.toLowerCase().contains('name')) {
                       icon = Icons.person_outline_rounded;
                     } else if (isPhone) {
                       icon = Icons.phone_android_rounded;
@@ -515,10 +650,10 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                         keyboardType: isPhone
                             ? TextInputType.phone
                             : isNumber
-                                ? TextInputType.number
-                                : isAddress
-                                    ? TextInputType.streetAddress
-                                    : TextInputType.text,
+                            ? TextInputType.number
+                            : isAddress
+                            ? TextInputType.streetAddress
+                            : TextInputType.text,
                       ),
                     );
                   }),
@@ -545,12 +680,14 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                 updateData['studentCount'] =
                                     int.tryParse(updatedCount) ?? 1;
                               } else {
-                                final Map<String, String> updatedCustomValues = {};
+                                final Map<String, String> updatedCustomValues =
+                                    {};
                                 for (final field in fields) {
                                   updatedCustomValues[field.id] =
                                       controllers[field.id]?.text.trim() ?? '';
                                 }
-                                updateData['customFieldValues'] = updatedCustomValues;
+                                updateData['customFieldValues'] =
+                                    updatedCustomValues;
 
                                 // Sync fallback fields
                                 String? fallbackName;
@@ -559,28 +696,48 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                 String? fallbackClass;
 
                                 for (final field in fields) {
-                                  final val = controllers[field.id]?.text.trim() ?? '';
-                                  final fieldNameLower = field.name.toLowerCase();
+                                  final val =
+                                      controllers[field.id]?.text.trim() ?? '';
+                                  final fieldNameLower = field.name
+                                      .toLowerCase();
                                   final fieldIdLower = field.id.toLowerCase();
 
-                                  if (fieldIdLower == 'name' || (fallbackName == null && fieldNameLower.contains('name'))) {
+                                  if (fieldIdLower == 'name' ||
+                                      (fallbackName == null &&
+                                          fieldNameLower.contains('name'))) {
                                     fallbackName = val;
                                   }
-                                  if (fieldIdLower == 'phone' || field.type == 'phone' || (fallbackPhone == null && (fieldNameLower.contains('phone') || fieldNameLower.contains('mobile') || fieldNameLower.contains('contact')))) {
+                                  if (fieldIdLower == 'phone' ||
+                                      field.type == 'phone' ||
+                                      (fallbackPhone == null &&
+                                          (fieldNameLower.contains('phone') ||
+                                              fieldNameLower.contains(
+                                                'mobile',
+                                              ) ||
+                                              fieldNameLower.contains(
+                                                'contact',
+                                              )))) {
                                     fallbackPhone = val;
                                   }
-                                  if (fieldIdLower == 'address' || (fallbackAddress == null && fieldNameLower.contains('address'))) {
+                                  if (fieldIdLower == 'address' ||
+                                      (fallbackAddress == null &&
+                                          fieldNameLower.contains('address'))) {
                                     fallbackAddress = val;
                                   }
-                                  if (fieldIdLower == 'class' || fieldIdLower == 'studentclass' || (fallbackClass == null && fieldNameLower.contains('class'))) {
+                                  if (fieldIdLower == 'class' ||
+                                      fieldIdLower == 'studentclass' ||
+                                      (fallbackClass == null &&
+                                          fieldNameLower.contains('class'))) {
                                     fallbackClass = val;
                                   }
                                 }
 
                                 updateData['studentName'] = fallbackName ?? '';
-                                updateData['studentPhone'] = fallbackPhone ?? '';
+                                updateData['studentPhone'] =
+                                    fallbackPhone ?? '';
                                 if (fallbackAddress != null) {
-                                  updateData['studentAddress'] = fallbackAddress;
+                                  updateData['studentAddress'] =
+                                      fallbackAddress;
                                 }
                                 if (fallbackClass != null) {
                                   updateData['studentClass'] = fallbackClass;
@@ -764,6 +921,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
       },
     );
   }
+
   void _showModernSnackBar({
     required String message,
     required bool isSuccess,
@@ -819,6 +977,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
   void _showErrorSnackBar(String message) {
     _showModernSnackBar(message: message, isSuccess: false);
   }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
@@ -851,7 +1010,8 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
             docs.isNotEmpty && docs.first['status'] == 'locked';
 
         final String type = docs.isNotEmpty
-            ? (docs.first.data() as Map<String, dynamic>)['type']?.toString() ?? 'student'
+            ? (docs.first.data() as Map<String, dynamic>)['type']?.toString() ??
+                  'student'
             : 'student';
         final bool isTeacher = type == 'teacher';
 
@@ -875,7 +1035,39 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
               onPressed: () => Navigator.pop(context),
             ),
             actions: [
-              if (docs.isNotEmpty && !isLocked)
+              if (docs.isNotEmpty && !isLocked) ...[
+                // Filter docs that have pending_parish status
+                Builder(
+                  builder: (context) {
+                    final pending = docs.where((doc) {
+                      final status = doc['status']?.toString() ?? 'pending';
+                      return status == 'pending_parish' || status == 'pending';
+                    }).toList();
+
+                    if (pending.isEmpty) return const SizedBox.shrink();
+
+                    return TextButton.icon(
+                      icon: const Icon(
+                        Icons.done_all_rounded,
+                        color: Colors.green,
+                        size: 20,
+                      ),
+                      label: Text(
+                        'Approve All',
+                        style: GoogleFonts.poppins(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () => _approveAllRegistrations(pending),
+                    );
+                  },
+                ),
                 TextButton.icon(
                   icon: const Icon(
                     Icons.lock_outline_rounded,
@@ -896,6 +1088,7 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                   ),
                   onPressed: () => _lockProgram(isTeacher),
                 ),
+              ],
               if (isLocked)
                 TextButton.icon(
                   icon: const Icon(
@@ -1002,15 +1195,56 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        isCountOnly
-                                            ? '$studentCount ${isItemTeacher ? 'Teacher' : 'Student'}${studentCount == 1 ? '' : 's'} (Count Only)'
-                                            : studentName,
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: Colors.black87,
-                                        ),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              isCountOnly
+                                                  ? '$studentCount ${isItemTeacher ? 'Teacher' : 'Student'}${studentCount == 1 ? '' : 's'} (Count Only)'
+                                                  : studentName,
+                                              style: GoogleFonts.poppins(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: Colors.black87,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          (() {
+                                            final bool hasPaid = data['paymentScreenshotUrl'] != null &&
+                                                (data['paymentScreenshotUrl'] as String).isNotEmpty;
+                                            return Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: hasPaid ? Colors.green.shade50 : Colors.red.shade50,
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: hasPaid ? Colors.green.shade200 : Colors.red.shade200,
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    hasPaid ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                                                    size: 12,
+                                                    color: hasPaid ? Colors.green.shade700 : Colors.red.shade700,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    hasPaid ? 'Paid' : 'Unpaid',
+                                                    style: GoogleFonts.poppins(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: hasPaid ? Colors.green.shade700 : Colors.red.shade700,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }()),
+                                        ],
                                       ),
                                       const SizedBox(height: 4),
                                       Row(
@@ -1038,14 +1272,16 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                       if (!isCountOnly) ...[
                                         const SizedBox(height: 6),
                                         InkWell(
-                                          onTap: () => _showViewDetailsDialog(data),
+                                          onTap: () =>
+                                              _showViewDetailsDialog(data),
                                           child: Text(
                                             'View Details',
                                             style: GoogleFonts.poppins(
                                               color: Colors.blue.shade700,
                                               fontWeight: FontWeight.w600,
                                               fontSize: 13,
-                                              decoration: TextDecoration.underline,
+                                              decoration:
+                                                  TextDecoration.underline,
                                             ),
                                           ),
                                         ),
@@ -1070,25 +1306,23 @@ class _ParishProgramListScreenState extends State<ParishProgramListScreen> {
                                       ),
                                     ),
                                   ),
-                                  if (!isItemLocked)
-                                    IconButton(
-                                      onPressed: () =>
-                                          _deleteRegistration(doc.id),
-                                      icon: Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red.shade50,
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          Icons.delete_outline_rounded,
-                                          size: 18,
-                                          color: Colors.red.shade700,
-                                        ),
+                                if (!isItemLocked)
+                                  IconButton(
+                                    onPressed: () =>
+                                        _deleteRegistration(doc.id),
+                                    icon: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.shade50,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        Icons.delete_outline_rounded,
+                                        size: 18,
+                                        color: Colors.red.shade700,
                                       ),
                                     ),
+                                  ),
                               ],
                             ),
                             if (widget.statuses.contains('pending_parish')) ...[

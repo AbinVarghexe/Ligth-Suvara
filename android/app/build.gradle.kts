@@ -31,7 +31,7 @@ val flutterVersionName =
 
 android {
     namespace = "in.cse.ajce.sundayschool"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -62,7 +62,7 @@ android {
     defaultConfig {
         applicationId = "in.cse.ajce.sundayschool"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = flutterVersionCode
         versionName = flutterVersionName
         multiDexEnabled = true

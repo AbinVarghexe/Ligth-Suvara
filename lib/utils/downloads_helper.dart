@@ -9,48 +9,48 @@ class DownloadsHelper {
   /// Get the Downloads directory path
   static Future<String?> getDownloadsPath() async {
     if (Platform.isAndroid) {
-      // Try to get the public Downloads directory that users can see
+      // 1. Try App External Files Directory (Always works on all Android devices & OEMs including Poco/MIUI without permission block)
       try {
-        // Use getExternalStorageDirectory and navigate to Downloads
-        final externalDir = await getExternalStorageDirectory();
-        if (externalDir != null) {
-          // Go up to the root of external storage and then to Downloads
-          final rootPath = externalDir.path.split('/Android')[0];
-          final downloadsPath = '$rootPath/Download';
-          final downloadsDir = Directory(downloadsPath);
-          
-          if (await downloadsDir.exists()) {
-            return downloadsPath;
-          }
-          
-          // Try Downloads (plural)
-          final downloadsPathPlural = '$rootPath/Downloads';
-          final downloadsDirPlural = Directory(downloadsPathPlural);
-          if (await downloadsDirPlural.exists()) {
-            return downloadsPathPlural;
+        final extAppDir = await getExternalStorageDirectory();
+        if (extAppDir != null) {
+          final publicRoot = extAppDir.path.split('/Android')[0];
+          final publicDownloadPath = '$publicRoot/Download';
+          final publicDir = Directory(publicDownloadPath);
+
+          // Verify if we can physically create & write to public Download dir
+          try {
+            if (!await publicDir.exists()) {
+              await publicDir.create(recursive: true);
+            }
+            final testFile = File('$publicDownloadPath/.perm_test');
+            await testFile.writeAsString('test');
+            await testFile.delete();
+            return publicDownloadPath;
+          } catch (_) {
+            // Android 11+ Scoped Storage restriction triggered -> return external app path guaranteed readable by system & Office apps
+            return extAppDir.path;
           }
         }
       } catch (e) {
-        // Continue to next fallback
+        debugPrint('Error getting external storage directory: $e');
       }
-      
-      // Try direct paths that users can access
+
       final possiblePaths = [
+        '/storage/emulated/0/Download',
         '/sdcard/Download',
-        '/sdcard/Downloads',
-        '/storage/sdcard0/Download',
-        '/storage/sdcard0/Downloads',
       ];
 
       for (final path in possiblePaths) {
         final dir = Directory(path);
-        if (await dir.exists()) {
+        try {
+          if (!await dir.exists()) {
+            await dir.create(recursive: true);
+          }
           return path;
-        }
+        } catch (_) {}
       }
     }
 
-    // Final fallback to app documents directory
     try {
       final appDir = await getApplicationDocumentsDirectory();
       return appDir.path;

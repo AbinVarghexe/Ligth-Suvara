@@ -67,7 +67,7 @@ subprojects {
             project.extensions.extraProperties.get("androidNamespace") as? String
         
         configure<com.android.build.gradle.LibraryExtension> {
-            compileSdk = 35
+            compileSdk = 36
             
             // Set namespace from manifest if available and not already set
             if (packageName != null) {

@@ -50,6 +50,7 @@ class _ProgramsScreenState extends State<ProgramsScreen>
             fontSize: 22,
           ),
         ),
+
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,

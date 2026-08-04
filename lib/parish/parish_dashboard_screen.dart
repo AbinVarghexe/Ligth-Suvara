@@ -16,6 +16,8 @@ import 'package:rxdart/rxdart.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sundayschool_app/parish/parish_all_events_screen.dart';
 import 'package:sundayschool_app/homescreen.dart';
+import 'package:sundayschool_app/models/program_payment_details.dart';
+
 
 class ParishDashboardScreen extends StatefulWidget {
   const ParishDashboardScreen({super.key});
@@ -275,9 +277,7 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
                 ),
                 child: Text(
                   'Logout',
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -2151,6 +2151,8 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
         // Group by Program Name
         final Map<String, int> programCounts = {};
         final Map<String, String> programTypes = {};
+        final Map<String, List<QueryDocumentSnapshot>> programDocs = {};
+        
         for (var doc in docs) {
           final data = doc.data() as Map<String, dynamic>;
           final programName = data['programName'] ?? 'Unknown Program';
@@ -2164,6 +2166,11 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
           programCounts[programName] =
               (programCounts[programName] ?? 0) + studentCount;
           programTypes[programName] = type;
+          
+          if (!programDocs.containsKey(programName)) {
+            programDocs[programName] = [];
+          }
+          programDocs[programName]!.add(doc);
         }
 
         final programs = programCounts.keys.toList();
@@ -2174,115 +2181,233 @@ class _ParishDashboardScreenState extends State<ParishDashboardScreen>
           itemCount: programs.length,
           itemBuilder: (context, index) {
             final programName = programs[index];
-            final count = programCounts[programName];
+            final count = programCounts[programName] ?? 0;
+            final type = programTypes[programName] ?? 'student';
+            final pDocs = programDocs[programName] ?? [];
 
-            return TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: Duration(milliseconds: 200 + (index * 50)),
-              curve: Curves.easeOut,
-              builder: (context, value, child) {
-                return Opacity(
-                  opacity: value,
-                  child: Transform.translate(
-                    offset: Offset(0, 20 * (1 - value)),
-                    child: child,
+            return FutureBuilder<QuerySnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('programs')
+                  .where('name', isEqualTo: programName)
+                  .limit(1)
+                  .get(),
+              builder: (context, progSnapshot) {
+                double amountPaid = 0.0;
+                double amountToBePaid = 0.0;
+
+                if (progSnapshot.hasData && progSnapshot.data!.docs.isNotEmpty) {
+                  final progData = progSnapshot.data!.docs.first.data() as Map<String, dynamic>;
+                  if (progData['paymentDetails'] != null) {
+                    final paymentDetails = ProgramPaymentDetails.fromMap(
+                      Map<String, dynamic>.from(progData['paymentDetails']),
+                    );
+
+                    if (paymentDetails.isRequired) {
+                      for (final doc in pDocs) {
+                        final regData = doc.data() as Map<String, dynamic>;
+                        final bool hasPaid = regData['paymentScreenshotUrl'] != null &&
+                            (regData['paymentScreenshotUrl'] as String).isNotEmpty;
+                        
+                        final int studentCount = regData['isCountOnly'] == true
+                            ? (regData['studentCount'] as int? ?? 1)
+                            : 1;
+                        
+                        final double feePerPerson = paymentDetails.registrationFee;
+                        final double advValue = paymentDetails.advanceValue;
+                        final bool isFixed = paymentDetails.advanceType == 'fixed';
+                        
+                        final double targetAmount = isFixed
+                            ? advValue
+                            : (feePerPerson * advValue / 100);
+
+                        if (hasPaid) {
+                          amountPaid += targetAmount * studentCount;
+                        } else {
+                          amountToBePaid += targetAmount * studentCount;
+                        }
+                      }
+                    }
+                  }
+                }
+
+                return TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: Duration(milliseconds: 200 + (index * 50)),
+                  curve: Curves.easeOut,
+                  builder: (context, value, child) {
+                    return Opacity(
+                      opacity: value,
+                      child: Transform.translate(
+                        offset: Offset(0, 20 * (1 - value)),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.blue.shade50.withValues(alpha: 0.5),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.shade900.withValues(alpha: 0.04),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ParishProgramListScreen(
+                                schoolId: _linkedSchoolId!,
+                                programName: programName,
+                                statuses: statuses,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.blue.shade50,
+                                      Colors.blue.shade100.withValues(alpha: 0.5),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.school_rounded,
+                                  color: Colors.blue.shade900,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      programName,
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: Colors.blue.shade900,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$count ${type == 'teacher' ? 'Teacher' : 'Student'}${count == 1 ? '' : 's'}',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                    if (amountPaid > 0 || amountToBePaid > 0) ...[
+                                      const SizedBox(height: 6),
+                                      FutureBuilder<QuerySnapshot>(
+                                        future: FirebaseFirestore.instance
+                                            .collection('programs')
+                                            .where('name', isEqualTo: programName)
+                                            .limit(1)
+                                            .get(),
+                                        builder: (context, rulesSnapshot) {
+                                          if (rulesSnapshot.hasData && rulesSnapshot.data!.docs.isNotEmpty) {
+                                            final pData = rulesSnapshot.data!.docs.first.data() as Map<String, dynamic>;
+                                            if (pData['paymentDetails'] != null) {
+                                              final pd = ProgramPaymentDetails.fromMap(
+                                                Map<String, dynamic>.from(pData['paymentDetails']),
+                                              );
+                                              final isFixed = pd.advanceType == 'fixed';
+                                              final double advanceValue = pd.advanceValue;
+                                              return Padding(
+                                                padding: const EdgeInsets.only(bottom: 6.0),
+                                                child: Text(
+                                                  'Fee: ₹${pd.registrationFee.toStringAsFixed(0)} / person  •  ${isFixed ? 'Adv Required: ₹${advanceValue.toStringAsFixed(0)} / person' : 'Adv Required: ${advanceValue.toStringAsFixed(0)}%'}',
+                                                  style: GoogleFonts.poppins(
+                                                    fontSize: 12,
+                                                    color: Colors.grey.shade500,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                          return const SizedBox.shrink();
+                                        },
+                                      ),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.shade50,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              'Paid: ₹${amountPaid.toStringAsFixed(0)}',
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.green.shade700,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: Colors.orange.shade50,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              'Pending: ₹${amountToBePaid.toStringAsFixed(0)}',
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.orange.shade700,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 16,
+                                color: Colors.blue.shade900.withValues(alpha: 0.5),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 );
               },
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.blue.shade50.withValues(alpha: 0.5),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.shade900.withValues(alpha: 0.04),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ParishProgramListScreen(
-                            schoolId: _linkedSchoolId!,
-                            programName: programName,
-                            statuses: statuses,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.blue.shade50,
-                                  Colors.blue.shade100.withValues(alpha: 0.5),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.school_rounded,
-                              color: Colors.blue.shade900,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  programName,
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: Colors.blue.shade900,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '$count ${programTypes[programName] == 'teacher' ? 'Teacher' : 'Student'}${count == 1 ? '' : 's'}',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            size: 16,
-                            color: Colors.blue.shade900.withValues(alpha: 0.5),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             );
           },
         );

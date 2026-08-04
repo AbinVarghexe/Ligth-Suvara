@@ -1,7 +1,7 @@
 name: sundayschool_app
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.0.1+98
+version: 1.0.1+101 
 
 environment:
   sdk: '>=3.8.1 <4.0.0' # Use range for better compatibility
@@ -32,7 +32,7 @@ dependencies:
   shimmer: ^3.0.0
   url_launcher: ^6.3.2
   webview_flutter: ^4.10.0
-  flutter_native_splash: ^2.4.7
+  flutter_native_splash: ^2.4.0
   firebase_app_check: ^0.2.1+8
   lottie: ^3.1.0
   external_app_launcher: ^4.0.3
@@ -47,6 +47,7 @@ dependencies:
   liquid_pull_to_refresh: ^3.0.1
   shared_preferences: ^2.5.3
   cached_network_image: ^3.4.0
+  excel: ^4.0.6
 
 dev_dependencies:
   flutter_test:

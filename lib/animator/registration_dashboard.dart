@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:sundayschool_app/animator/student_registration_form.dart';
+import 'package:sundayschool_app/animator/school_my_registrations_screen.dart';
 
 class RegistrationDashboard extends StatefulWidget {
   const RegistrationDashboard({super.key});
@@ -82,9 +83,51 @@ class _RegistrationDashboardState extends State<RegistrationDashboard> {
           'Active Programs',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.bold,
+            fontSize: 16,
             color: Colors.white,
           ),
         ),
+        titleSpacing: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SchoolMyRegistrationsScreen(),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.assignment_rounded, color: Colors.white, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Registrations',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+        ],
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
