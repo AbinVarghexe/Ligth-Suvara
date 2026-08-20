@@ -299,25 +299,6 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
             type: 'text',
             isMandatory: true,
           ),
-          CustomField(
-            id: 'phone',
-            name: 'Phone',
-            type: 'phone',
-            isMandatory: true,
-          ),
-          CustomField(
-            id: 'studentClass',
-            name: 'Class',
-            type: 'select',
-            isMandatory: false,
-            options: List.generate(12, (index) => (index + 1).toString()),
-          ),
-          CustomField(
-            id: 'address',
-            name: 'Address',
-            type: 'text',
-            isMandatory: false,
-          ),
         ];
       }
       if (_teacherFields.isEmpty) {
@@ -327,25 +308,6 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
             name: 'Name',
             type: 'text',
             isMandatory: true,
-          ),
-          CustomField(
-            id: 'phone',
-            name: 'Phone',
-            type: 'phone',
-            isMandatory: true,
-          ),
-          CustomField(
-            id: 'studentClass',
-            name: 'Class',
-            type: 'select',
-            isMandatory: false,
-            options: List.generate(12, (index) => (index + 1).toString()),
-          ),
-          CustomField(
-            id: 'address',
-            name: 'Address',
-            type: 'text',
-            isMandatory: false,
           ),
         ];
       }
@@ -2062,8 +2024,11 @@ class _SchoolProgramDetailScreenState extends State<SchoolProgramDetailScreen> {
                         try {
                           final Map<String, dynamic> updateData = {};
                           if (isCountOnly) {
-                            updateData['studentCount'] =
+                            final parsedCount =
                                 int.tryParse(countController.text) ?? 1;
+                            updateData['studentCount'] = parsedCount;
+                            updateData['studentName'] =
+                                'Count-Only ($parsedCount ${isTeacher ? 'Teachers' : 'Attendees'})';
                           } else {
                             final Map<String, String> updatedCustomValues = {};
                             for (final field in fields) {

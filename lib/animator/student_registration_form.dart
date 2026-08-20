@@ -45,6 +45,8 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
   final TextEditingController _countController = TextEditingController();
 
   bool _isCountOnly = false;
+  bool _isCountOnlyProgram = false;
+  bool _isProgramClosed = false;
   bool _isSubmitting = false;
   bool _isLoading = true;
   String? _parishUserId;
@@ -56,6 +58,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
   // Payment integration state variables
   File? _paymentReceiptFile;
   String? _uploadedReceiptUrl;
+  String? _existingReceiptUrl;
   ProgramPaymentDetails? _paymentDetails;
 
   // Dynamic config fields
@@ -77,8 +80,14 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
   }
 
   void _updateStudentEntriesCount(String value) {
-    if (_isCountOnly) return;
-    if (_activeFields.isEmpty) return;
+    if (_isCountOnly) {
+      if (mounted) setState(() {});
+      return;
+    }
+    if (_activeFields.isEmpty) {
+      if (mounted) setState(() {});
+      return;
+    }
 
     final count = int.tryParse(value) ?? 0;
     if (count < 0) return;
@@ -102,6 +111,19 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
         }
       }
     });
+  }
+
+  void _adjustCount(int delta) {
+    HapticFeedback.selectionClick();
+    final current = int.tryParse(_countController.text.trim()) ?? 0;
+    final newCount = (current + delta).clamp(0, 99999);
+    _countController.text = newCount == 0 ? '' : newCount.toString();
+    _countController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _countController.text.length),
+    );
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _checkLockStatus() async {
@@ -142,6 +164,24 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
       if (programDoc.exists) {
         final data = programDoc.data();
         if (data != null) {
+          final isCountOnlyProg = data['isCountOnly'] == true;
+          _isCountOnlyProgram = isCountOnlyProg;
+          if (_isCountOnlyProgram) {
+            _isCountOnly = true;
+          }
+
+          final isActive = data['isActive'] != false;
+          final status = data['status'] as String?;
+          final endDate = (data['endDate'] as Timestamp?)?.toDate();
+          final startDate = (data['startDate'] as Timestamp?)?.toDate();
+          final now = DateTime.now();
+          if (!isActive ||
+              status == 'closed' ||
+              (endDate != null && now.isAfter(endDate)) ||
+              (startDate != null && now.isBefore(startDate))) {
+            _isProgramClosed = true;
+          }
+
           final audience = data['targetAudience'] ?? 'student';
           _targetAudience = audience == 'teacher' ? 'teacher' : 'student';
 
@@ -149,6 +189,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
               ? 'teacherFields'
               : 'studentFields';
           final List<dynamic>? rawFields = data[fieldsKey];
+
           if (rawFields != null && rawFields.isNotEmpty) {
             _activeFields = rawFields
                 .map(
@@ -156,6 +197,15 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                       CustomField.fromMap(Map<String, dynamic>.from(f as Map)),
                 )
                 .toList();
+          } else {
+            _activeFields = [
+              CustomField(
+                id: 'name',
+                name: 'Name',
+                type: 'text',
+                isMandatory: true,
+              ),
+            ];
           }
 
           if (data['paymentDetails'] != null) {
@@ -164,37 +214,6 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
             );
           }
         }
-      }
-
-      // Fallback fields in case configuration is not present
-      if (_activeFields.isEmpty) {
-        _activeFields = [
-          CustomField(
-            id: 'name',
-            name: 'Name',
-            type: 'text',
-            isMandatory: true,
-          ),
-          CustomField(
-            id: 'phone',
-            name: 'Phone',
-            type: 'phone',
-            isMandatory: true,
-          ),
-          CustomField(
-            id: 'studentClass',
-            name: 'Class',
-            type: 'select',
-            isMandatory: false,
-            options: List.generate(12, (index) => (index + 1).toString()),
-          ),
-          CustomField(
-            id: 'address',
-            name: 'Address',
-            type: 'text',
-            isMandatory: false,
-          ),
-        ];
       }
 
       // 2. Fetch User/Parish data
@@ -209,9 +228,23 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
         parishLink = data?['parishId'] ?? data?['parish'];
       }
 
+      // 3. If converting from count-only, fetch previous payment proof if present
+      String? previousReceiptUrl;
+      if (widget.convertToDetailedDocId != null) {
+        final prevDoc = await FirebaseFirestore.instance
+            .collection('program_registrations')
+            .doc(widget.convertToDetailedDocId)
+            .get();
+        if (prevDoc.exists) {
+          previousReceiptUrl = prevDoc.data()?['paymentScreenshotUrl'];
+        }
+      }
+
       if (!mounted) return;
       setState(() {
         _parishUserId = parishLink;
+        _existingReceiptUrl = previousReceiptUrl;
+        _uploadedReceiptUrl = previousReceiptUrl;
         _schoolName = userData.schoolName ?? userData.schoolDisplayName;
         _schoolDisplayName = userData.schoolDisplayName;
         _isLoading = false;
@@ -233,25 +266,6 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
             name: 'Name',
             type: 'text',
             isMandatory: true,
-          ),
-          CustomField(
-            id: 'phone',
-            name: 'Phone',
-            type: 'phone',
-            isMandatory: true,
-          ),
-          CustomField(
-            id: 'studentClass',
-            name: 'Class',
-            type: 'select',
-            isMandatory: false,
-            options: List.generate(12, (index) => (index + 1).toString()),
-          ),
-          CustomField(
-            id: 'address',
-            name: 'Address',
-            type: 'text',
-            isMandatory: false,
           ),
         ];
       }
@@ -676,7 +690,42 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
 
       for (var field in _activeFields) {
         if (recordMap.containsKey(field.id) && entryControllers.containsKey(field.id)) {
-          entryControllers[field.id]!.text = recordMap[field.id] ?? '';
+          String val = (recordMap[field.id] ?? '').trim();
+
+          final isSelect = field.type == 'select' ||
+              field.id.toLowerCase() == 'class' ||
+              field.id.toLowerCase() == 'studentclass' ||
+              field.name.toLowerCase() == 'class';
+
+          if (isSelect && val.isNotEmpty) {
+            final List<String> dropdownOptions =
+                (field.options != null && field.options!.isNotEmpty)
+                    ? field.options!
+                    : List.generate(12, (index) => (index + 1).toString());
+
+            // 1. Direct match
+            if (!dropdownOptions.contains(val)) {
+              // 2. Normalize "Class 5" -> "5" or "5" -> "Class 5"
+              final cleanedDigits = val.replaceAll(RegExp(r'[^\d]'), '');
+              String? matchedOption;
+
+              for (var opt in dropdownOptions) {
+                final optDigits = opt.replaceAll(RegExp(r'[^\d]'), '');
+                if (opt == val ||
+                    opt.toLowerCase() == val.toLowerCase() ||
+                    (cleanedDigits.isNotEmpty && optDigits == cleanedDigits)) {
+                  matchedOption = opt;
+                  break;
+                }
+              }
+
+              if (matchedOption != null) {
+                val = matchedOption;
+              }
+            }
+          }
+
+          entryControllers[field.id]!.text = val;
         }
       }
     }
@@ -751,6 +800,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
           'parishName': _schoolDisplayName ?? _schoolName,
           'studentCount': count, // Count remains studentCount for compatibility
           'isCountOnly': true,
+          'studentName': 'Count-Only ($count ${isTeacher ? 'Teachers' : 'Attendees'})',
           'submittedAt': FieldValue.serverTimestamp(),
           'status': 'pending_parish',
           if (_schoolName != null) 'schoolName': _schoolName,
@@ -847,9 +897,15 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
         );
 
         if (mounted) {
+          final isCountConversion = widget.convertToDetailedDocId != null && !_isCountOnly;
+          final initialCount = widget.initialCount ?? 0;
+          final isSameOrReducedCount = isCountConversion && totalRegistrants <= initialCount;
+          final hasInheritedReceipt = _existingReceiptUrl != null && _existingReceiptUrl!.isNotEmpty;
+
           if (_paymentDetails != null &&
               _paymentDetails!.isRequired &&
-              _paymentReceiptFile == null) {
+              _paymentReceiptFile == null &&
+              !(isSameOrReducedCount && hasInheritedReceipt)) {
             _showPaymentDetailsSheet(
               context,
               totalRegistrants,
@@ -1125,7 +1181,59 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 16),
+
+                    if (_isProgramClosed) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade100,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.lock_clock_rounded,
+                                color: Colors.red.shade700,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Registration Closed',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: Colors.red.shade900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'The registration period for this program has ended or is inactive.',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      color: Colors.red.shade800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     Padding(
                       padding: const EdgeInsets.only(bottom: 20),
@@ -1166,7 +1274,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                     ),
 
                     // --- EXCEL TEMPLATE & UPLOAD ACTION CARD ---
-                    if (!_isCountOnly)
+                    if (!_isCountOnlyProgram && !_isCountOnly)
                       Container(
                         margin: const EdgeInsets.only(bottom: 24),
                         decoration: BoxDecoration(
@@ -1376,96 +1484,97 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                       ),
 
                     // --- SEGMENTED CONTROL TOGGLE ---
-                    Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Stack(
-                        children: [
-                          AnimatedAlign(
-                            alignment: Alignment(_isCountOnly ? 1.0 : -1.0, 0),
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOutCubic,
-                            child: Container(
-                              width:
-                                  (MediaQuery.of(context).size.width - 40) / 2,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Colors.blue.shade700,
-                                    Colors.indigo.shade800,
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.indigo.withAlpha(77),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
+                    if (!_isCountOnlyProgram)
+                      Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Stack(
+                          children: [
+                            AnimatedAlign(
+                              alignment: Alignment(_isCountOnly ? 1.0 : -1.0, 0),
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOutCubic,
+                              child: Container(
+                                width:
+                                    (MediaQuery.of(context).size.width - 40) / 2,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.blue.shade700,
+                                      Colors.indigo.shade800,
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
                                   ),
-                                ],
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.indigo.withAlpha(77),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _isCountOnly = false;
-                                      _updateStudentEntriesCount(
-                                        _countController.text,
-                                      );
-                                    });
-                                  },
-                                  child: Container(
-                                    color: Colors.transparent,
-                                    child: Center(
-                                      child: Text(
-                                        'Detailed Entry',
-                                        style: GoogleFonts.poppins(
-                                          color: !_isCountOnly
-                                              ? Colors.white
-                                              : Colors.grey.shade700,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _isCountOnly = false;
+                                        _updateStudentEntriesCount(
+                                          _countController.text,
+                                        );
+                                      });
+                                    },
+                                    child: Container(
+                                      color: Colors.transparent,
+                                      child: Center(
+                                        child: Text(
+                                          'Detailed Entry',
+                                          style: GoogleFonts.poppins(
+                                            color: !_isCountOnly
+                                                ? Colors.white
+                                                : Colors.grey.shade700,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () =>
-                                      setState(() => _isCountOnly = true),
-                                  child: Container(
-                                    color: Colors.transparent,
-                                    child: Center(
-                                      child: Text(
-                                        'Count Only',
-                                        style: GoogleFonts.poppins(
-                                          color: _isCountOnly
-                                              ? Colors.white
-                                              : Colors.grey.shade700,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () =>
+                                        setState(() => _isCountOnly = true),
+                                    child: Container(
+                                      color: Colors.transparent,
+                                      child: Center(
+                                        child: Text(
+                                          'Count Only',
+                                          style: GoogleFonts.poppins(
+                                            color: _isCountOnly
+                                                ? Colors.white
+                                                : Colors.grey.shade700,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
 
                     // --- FORM UI ---
                     _buildCountInput(),
@@ -1481,9 +1590,13 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
 
                     ElevatedButton(
                       onPressed:
-                          (_isSubmitting || _parishUserId == null || _isLoading)
-                          ? null
-                          : _submitRegistration,
+                          (_isSubmitting ||
+                                  _parishUserId == null ||
+                                  _isLoading ||
+                                  _isLocked ||
+                                  _isProgramClosed)
+                              ? null
+                              : _submitRegistration,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         backgroundColor: Colors.transparent,
@@ -1495,14 +1608,23 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                       ),
                       child: Ink(
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.deepPurple.shade600,
-                              Colors.indigo.shade600,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                          gradient: (_isLocked || _isProgramClosed)
+                              ? LinearGradient(
+                                  colors: [
+                                    Colors.grey.shade600,
+                                    Colors.grey.shade700,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                )
+                              : LinearGradient(
+                                  colors: [
+                                    Colors.deepPurple.shade600,
+                                    Colors.indigo.shade600,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Container(
@@ -1518,9 +1640,13 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                                   ),
                                 )
                               : Text(
-                                  _isCountOnly
-                                      ? 'Submit Count Registration'
-                                      : 'Submit ${isTeacher ? 'Teacher' : 'Student'} Registrations (${_studentEntries.length})',
+                                  _isProgramClosed
+                                      ? 'Registration Closed'
+                                      : _isLocked
+                                          ? 'Registration Locked'
+                                          : _isCountOnly
+                                              ? 'Submit Count Registration'
+                                              : 'Submit ${isTeacher ? 'Teacher' : 'Student'} Registrations (${_studentEntries.length})',
                                   style: GoogleFonts.poppins(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -1539,69 +1665,219 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
 
   Widget _buildCountInput() {
     final isTeacher = _targetAudience == 'teacher';
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.indigo.shade50),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.indigo.withAlpha(20),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.groups_rounded, size: 60, color: Colors.blue.shade900),
-          const SizedBox(height: 16),
-          Text(
-            'Total ${isTeacher ? 'Teachers' : 'Students'}',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue.shade900,
-            ),
-          ),
+    final currentVal = int.tryParse(_countController.text.trim()) ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Information Banner for Count-Only Programs / Modes
+        if (_isCountOnlyProgram || _isCountOnly) ...[
           const SizedBox(height: 8),
-          Text(
-            'Enter the total number of ${isTeacher ? 'teachers' : 'students'} participating',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              color: Colors.grey.shade600,
-            ),
-          ),
-          const SizedBox(height: 24),
-          TextFormField(
-            controller: _countController,
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue.shade900,
-            ),
-            decoration: InputDecoration(
-              hintText: '0',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.blue.shade50, Colors.indigo.shade50],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              fillColor: Colors.grey.shade50,
-              filled: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 20),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.blue.shade200),
             ),
-            validator: (val) {
-              if (val == null || val.trim().isEmpty) return 'Enter count';
-              final num = int.tryParse(val.trim());
-              if (num == null || num <= 0) return 'Must be greater than 0';
-              return null;
-            },
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.info_outline_rounded,
+                    color: Colors.blue.shade800,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Headcount Submission Only',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'This requires headcount submission only. Individual ${isTeacher ? 'teacher' : 'student'} details are not required.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11.5,
+                          color: Colors.blue.shade800,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
-      ),
+
+        const SizedBox(height: 16),
+
+        // Headcount Input Card
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.indigo.shade50),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.indigo.withAlpha(18),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade100, Colors.indigo.shade100],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.groups_rounded,
+                  size: 38,
+                  color: Colors.blue.shade900,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Total ${isTeacher ? 'Teachers' : 'Students'}',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Enter the total number of ${isTeacher ? 'teachers' : 'students'} participating',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 12.5,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Stepper Row (- / Input / +)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Material(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(14),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: currentVal > 0 ? () => _adjustCount(-1) : null,
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        alignment: Alignment.center,
+                        child: Icon(
+                          Icons.remove_rounded,
+                          color: currentVal > 0
+                              ? Colors.indigo.shade900
+                              : Colors.grey.shade400,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  SizedBox(
+                    width: 130,
+                    child: TextFormField(
+                      controller: _countController,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade900,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: '0',
+                        hintStyle: GoogleFonts.poppins(
+                          color: Colors.grey.shade400,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(color: Colors.indigo.shade200),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(color: Colors.indigo.shade100),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(color: Colors.indigo.shade600, width: 2),
+                        ),
+                        fillColor: Colors.grey.shade50,
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 8,
+                        ),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) return 'Required';
+                        final num = int.tryParse(val.trim());
+                        if (num == null || num <= 0) return '> 0';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Material(
+                    color: Colors.indigo.shade50,
+                    borderRadius: BorderRadius.circular(14),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => _adjustCount(1),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        alignment: Alignment.center,
+                        child: Icon(
+                          Icons.add_rounded,
+                          color: Colors.indigo.shade900,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1686,8 +1962,21 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                             : List.generate(12, (index) => (index + 1).toString());
 
                     String? currentValue;
-                    if (dropdownOptions.contains(controller.text)) {
-                      currentValue = controller.text;
+                    final textVal = controller.text.trim();
+                    if (textVal.isNotEmpty) {
+                      if (dropdownOptions.contains(textVal)) {
+                        currentValue = textVal;
+                      } else {
+                        final digits = textVal.replaceAll(RegExp(r'[^\d]'), '');
+                        for (var opt in dropdownOptions) {
+                          final optDigits = opt.replaceAll(RegExp(r'[^\d]'), '');
+                          if (opt.toLowerCase() == textVal.toLowerCase() ||
+                              (digits.isNotEmpty && optDigits == digits)) {
+                            currentValue = opt;
+                            break;
+                          }
+                        }
+                      }
                     }
 
                     return Padding(
@@ -2056,6 +2345,95 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                     ),
                   ],
                 ),
+              ] else if (_existingReceiptUrl != null &&
+                  _existingReceiptUrl!.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            color: Colors.green.shade700,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Payment Proof Already Attached',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                    color: Colors.green.shade900,
+                                  ),
+                                ),
+                                Text(
+                                  'Saved from your initial count registration',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    color: Colors.green.shade800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => FullScreenImageViewer(
+                                    imageUrl: _existingReceiptUrl!,
+                                    heroTag: 'existing_receipt_preview',
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              'View',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => _pickReceiptImage(
+                          ImageSource.gallery,
+                          formFieldState,
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 38),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          side: BorderSide(color: Colors.green.shade300),
+                          foregroundColor: Colors.green.shade900,
+                        ),
+                        icon: const Icon(Icons.upload_file, size: 18),
+                        label: Text(
+                          'Upload New Screenshot (Optional)',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ] else ...[
                 Row(
                   children: [
@@ -2379,6 +2757,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
         final fileName =
             'QR_${cleanProgramName}_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
+        if (!context.mounted) return;
         final savedPath = await DownloadsHelper.saveToDownloads(
           bytes,
           fileName,

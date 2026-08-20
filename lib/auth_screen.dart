@@ -13,6 +13,7 @@ import 'package:sundayschool_app/login_screen.dart';
 import 'package:sundayschool_app/animator/animator_dashboard_screen.dart';
 import 'package:sundayschool_app/parish/parish_dashboard_screen.dart';
 import 'package:sundayschool_app/admin/observer_remarks_login.dart';
+import 'package:sundayschool_app/credits_screen.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 import 'package:sundayschool_app/services/notification_service.dart'; // Import NotificationService
@@ -1075,7 +1076,59 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                   height: 60,
                                   fit: BoxFit.contain,
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 10),
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      CustomPageRoute(
+                                        child: const CreditsScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: const Color(0xFFD4AF37).withValues(alpha: 0.4),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.people_outline_rounded,
+                                          size: 14,
+                                          color: Color(0xFF1E3A8A),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Credits',
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF1E3A8A),
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                          Icons.arrow_forward_ios_rounded,
+                                          size: 10,
+                                          color: Color(0xFFBC8A3A),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
                                 Container(
                                   height: 1,
                                   width: 40,
@@ -1083,7 +1136,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                     0xFFD4AF37,
                                   ).withValues(alpha: 0.5),
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 10),
                                 Text(
                                   "© ${DateTime.now().year} AJCE. All Rights Reserved.",
                                   style: GoogleFonts.outfit(

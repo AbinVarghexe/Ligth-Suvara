@@ -166,9 +166,15 @@ class _RegistrationDashboardState extends State<RegistrationDashboard> {
               final allDocs = programSnapshot.data!.docs;
               final activePrograms = allDocs.where((doc) {
                 final data = doc.data() as Map<String, dynamic>;
-                final start = (data['startDate'] as Timestamp).toDate();
-                final end = (data['endDate'] as Timestamp).toDate();
-                return now.isAfter(start.subtract(const Duration(days: 1))) && now.isBefore(end.add(const Duration(days: 1)));
+                if (data['isActive'] == false || data['status'] == 'closed') {
+                  return false;
+                }
+                final start = (data['startDate'] as Timestamp?)?.toDate();
+                final end = (data['endDate'] as Timestamp?)?.toDate();
+                if (start == null || end == null) return false;
+                final isStarted = !start.isAfter(now);
+                final isNotEnded = end.isAfter(now);
+                return isStarted && isNotEnded;
               }).toList();
 
               if (activePrograms.isEmpty) {
